@@ -2,19 +2,18 @@ import '../global.css';
 
 import {
   BebasNeue_400Regular,
-} from '@expo/google-fonts/bebas-neue';
+} from '@expo-google-fonts/bebas-neue';
 import {
   JetBrainsMono_400Regular,
   JetBrainsMono_700Bold,
-} from '@expo/google-fonts/jetbrains-mono';
+} from '@expo-google-fonts/jetbrains-mono';
 import {
   Outfit_400Regular,
   Outfit_700Bold,
   Outfit_900Black,
-} from '@expo/google-fonts/outfit';
-import { DarkTheme, ThemeProvider } from '@react-navigation/native';
+} from '@expo-google-fonts/outfit';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';

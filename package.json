@@ -7,18 +7,27 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "export": "expo export",
+    "export:web": "expo export --platform web",
+    "build:dev:ios": "eas build --platform ios --profile development",
+    "build:dev:android": "eas build --platform android --profile development",
+    "build:prod:ios": "eas build --platform ios --profile production",
+    "build:prod:android": "eas build --platform android --profile production",
+    "build:android:apk": "eas build --platform android --profile apk"
   },
   "dependencies": {
-    "@expo/google-fonts/bebas-neue": "^0.4.0",
-    "@expo/google-fonts/jetbrains-mono": "^0.4.0",
-    "@expo/google-fonts/outfit": "^0.4.0",
+    "@expo-google-fonts/bebas-neue": "^0.2.3",
+    "@expo-google-fonts/jetbrains-mono": "^0.2.3",
+    "@expo-google-fonts/outfit": "^0.2.3",
     "@expo/material-symbols": "^0.1.1",
     "@expo/vector-icons": "^15.0.3",
     "expo": "~56.0.14",
     "expo-blur": "~56.0.0",
     "expo-clipboard": "~56.0.0",
     "expo-constants": "~56.0.20",
+    "expo-dev-client": "~56.0.22",
     "expo-font": "~56.0.7",
     "expo-glass-effect": "~56.0.4",
     "expo-haptics": "~56.0.0",
@@ -44,7 +53,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
-    "typescript": "~5.9.2"
+    "typescript": "~6.0.3"
   },
   "private": true
 }

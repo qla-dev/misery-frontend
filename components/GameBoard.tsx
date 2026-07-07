@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { router } from 'expo-router';
 import { AlertOctagon, ArrowRight, Check, Heart, Loader2, ShieldAlert, Trophy, X } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { Card, Player, Language, GameState, GameMode } from '@/types';
 import { CARD_DECK } from '@/data/cards';
@@ -643,7 +644,7 @@ export default function GameBoard({
       </Modal>
 
       <Modal visible={showRules} transparent animationType="fade" onRequestClose={() => setShowRules(false)}>
-        <View className="flex-1 bg-neutral-950/98 p-6">
+        <View className="flex-1 bg-neutral-950/95 p-6">
           <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
             <View className="flex-row items-center justify-between border-b border-neutral-900 pb-3 mb-4">
               <Text className="text-base font-black text-amber-400 uppercase tracking-widest">📖 {isBs ? 'PRAVILA IGRE' : 'GAME RULES'}</Text>
@@ -683,4 +684,3 @@ export default function GameBoard({
     </View>
   );
 }
-

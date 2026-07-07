@@ -6,6 +6,7 @@ import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGame } from '@/context/GameContext';
 import { GradientButton } from './GradientButton';
+import { InfoModal } from './InfoModal';
 import ManSilhouette from './ManSilhouette';
 
 const AVAILABLE_COLORS = [

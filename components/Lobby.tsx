@@ -12,6 +12,7 @@ import { AppButton, Section, Surface } from './AppPrimitives';
 import { GradientButton } from './GradientButton';
 import { InfoModal } from './InfoModal';
 import ManSilhouette from './ManSilhouette';
+import { ButtonTab } from './ButtonTab';
 
 const AVAILABLE_COLORS = [
   { id: 'yellow', nameEn: 'Amber Gold', nameBs: 'Zlatni Ćilibar', bgClass: 'bg-yellow-400', borderClass: 'border-yellow-400 bg-yellow-400/5 text-yellow-400' },
@@ -489,134 +490,236 @@ export default function Lobby() {
     }
 
     if (lobbyView === 'SETUP') {
-      return (
-        <View style={{ gap: 32 }}>
-          <Section titleEn="PLAYER PROFILE" titleBs="PROFIL IGRAČA">
-            {isSocialUser ? (
-              <View className="flex-row items-center justify-between bg-neutral-900/30 p-3.5 rounded-xl border border-neutral-900">
-                <View className="flex-row items-center gap-3">
-                  <LinearGradient colors={['#f59e0b', '#facc15']} className="relative w-10 h-10 rounded-full items-center justify-center">
-                    <Text className="text-neutral-950 font-black text-xs">
-                      {userName.split(' ').map((n) => n[0]).join('')}
-                    </Text>
-                  </LinearGradient>
-                  <View>
-                    <Text className="font-bold text-xs text-neutral-200">{userName}</Text>
-                    <Text className="text-[8px] text-emerald-400 font-mono">
-                      {socialProvider === 'google' ? 'Google Account Connected' : 'Apple ID Connected'}
-                    </Text>
+      if (setupTab === 'CREATE') {
+        return (
+          <View style={{ gap: 32 }}>
+            <Section titleEn="PLAYER PROFILE" titleBs="PROFIL IGRAČA">
+              {isSocialUser ? (
+                <View className="flex-row items-center justify-between bg-neutral-900/30 p-3.5 rounded-xl border border-neutral-900">
+                  <View className="flex-row items-center gap-3">
+                    <LinearGradient colors={['#f59e0b', '#facc15']} className="relative w-10 h-10 rounded-full items-center justify-center">
+                      <Text className="text-neutral-950 font-black text-xs">
+                        {userName.split(' ').map((n) => n[0]).join('')}
+                      </Text>
+                    </LinearGradient>
+                    <View>
+                      <Text className="font-bold text-xs text-neutral-200">{userName}</Text>
+                      <Text className="text-[8px] text-emerald-400 font-mono">
+                        {socialProvider === 'google' ? 'Google Account Connected' : 'Apple ID Connected'}
+                      </Text>
+                    </View>
                   </View>
+                  <Pressable
+                    onPress={() => {
+                      setIsSocialUser(false);
+                      setSocialProvider(null);
+                      setUserName('');
+                      setLobbyView('WELCOME');
+                    }}
+                    className="px-2 py-1 rounded bg-neutral-800"
+                  >
+                    <Text className="text-[9px] text-neutral-400">{isBs ? 'Odjavi se' : 'Sign out'}</Text>
+                  </Pressable>
                 </View>
+              ) : (
+                <View className="flex-row items-center gap-3.5 bg-neutral-900/30 px-4 py-3 rounded-xl border border-neutral-900">
+                  <User size={16} color="#737373" />
+                  <TextInput
+                    maxLength={15}
+                    value={userName}
+                    onChangeText={setUserName}
+                    placeholder={isBs ? 'Npr. Damir' : 'E.g. Damir'}
+                    placeholderTextColor="#404040"
+                    className="flex-1 text-sm font-semibold text-neutral-200"
+                  />
+                </View>
+              )}
+            </Section>
+
+            <Section titleEn="CHOOSE YOUR COLOR" titleBs="ODABERITE SVOJU BOJU">
+              <View className="flex-row flex-wrap gap-3 bg-neutral-900/10 p-2.5 rounded-xl border border-neutral-900/60">
+                {AVAILABLE_COLORS.map((color) => {
+                  const isSelected = selectedColor === color.id;
+                  return (
+                    <Pressable
+                      key={color.id}
+                      onPress={() => {
+                        playSound('click');
+                        setSelectedColor(color.id);
+                      }}
+                      className={`h-9 w-9 rounded-full ${color.bgClass} items-center justify-center border border-white/10`}
+                      style={
+                        isSelected
+                          ? { transform: [{ scale: 1.15 }] }
+                          : { transform: [{ scale: 0.9 }] }
+                      }
+                    >
+                      {isSelected && <Check size={14} color="#0a0a0a" strokeWidth={4} />}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </Section>
+
+            <Section titleEn="CARDS REQUIRED TO WIN" titleBs="CILJ KARATA ZA POBJEDU">
+              <View className="flex-row gap-2">
+                {[5, 7, 10, 12].map((num) => (
+                  <ButtonTab
+                    key={num}
+                    category="button"
+                    type={targetScore === num ? 'primary' : 'secondary'}
+                    size="auto"
+                    className="flex-1"
+                    onPress={() => {
+                      playSound('click');
+                      setTargetScore(num);
+                    }}
+                  >
+                    {num.toString()}
+                  </ButtonTab>
+                ))}
+              </View>
+            </Section>
+
+            <Section titleEn="CHOOSE THE CARD DECK" titleBs="ODABERITE ŠPIL KARTICA">
+              <View className="flex-row gap-3">
                 <Pressable
                   onPress={() => {
-                    setIsSocialUser(false);
-                    setSocialProvider(null);
-                    setUserName('');
-                    setLobbyView('WELCOME');
+                    playSound('click');
+                    setSelectedDeck('NORMAL');
                   }}
-                  className="px-2 py-1 rounded bg-neutral-800"
+                  className={`flex-1 py-3 px-3 rounded-xl border-2 items-center justify-center gap-1 ${selectedDeck === 'NORMAL' ? 'border-emerald-500 bg-emerald-500/5' : 'border-neutral-900 bg-neutral-900/10'}`}
                 >
-                  <Text className="text-[9px] text-neutral-400">{isBs ? 'Odjavi se' : 'Sign out'}</Text>
+                  <Sparkles size={16} color={selectedDeck === 'NORMAL' ? '#34d399' : '#737373'} />
+                  <Text className={`text-[10px] uppercase tracking-wider font-bold ${selectedDeck === 'NORMAL' ? 'text-emerald-400' : 'text-neutral-500'}`}>
+                    {isBs ? 'Normala' : 'Normal'}
+                  </Text>
+                  <Text className={`text-[7px] ${selectedDeck === 'NORMAL' ? 'text-emerald-400/75' : 'text-neutral-500'} text-center leading-tight`}>
+                    {isBs ? 'Smiješne i čudne situacije' : 'Funny & awkward situations'}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    playSound('click');
+                    setSelectedDeck('SPICY');
+                  }}
+                  className={`flex-1 py-3 px-3 rounded-xl border-2 items-center justify-center gap-1 ${selectedDeck === 'SPICY' ? 'border-rose-500 bg-rose-500/5' : 'border-neutral-900 bg-neutral-900/10'}`}
+                >
+                  <Flame size={16} color={selectedDeck === 'SPICY' ? '#fb7185' : '#737373'} />
+                  <Text className={`text-[10px] uppercase tracking-wider font-bold ${selectedDeck === 'SPICY' ? 'text-rose-400' : 'text-neutral-500'}`}>
+                    {isBs ? 'Ljuti (Spicy)' : 'Spicy'}
+                  </Text>
+                  <Text className={`text-[7px] ${selectedDeck === 'SPICY' ? 'text-rose-400/75' : 'text-neutral-500'} text-center leading-tight`}>
+                    {isBs ? 'Ekstremne i bizarne nesreće' : 'Extreme & bizarre misery'}
+                  </Text>
                 </Pressable>
               </View>
-            ) : (
-              <View className="flex-row items-center gap-3.5 bg-neutral-900/30 px-4 py-3 rounded-xl border border-neutral-900">
-                <User size={16} color="#737373" />
-                <TextInput
-                  maxLength={15}
-                  value={userName}
-                  onChangeText={setUserName}
-                  placeholder={isBs ? 'Npr. Damir' : 'E.g. Damir'}
-                  placeholderTextColor="#404040"
-                  className="flex-1 text-sm font-semibold text-neutral-200"
-                />
-              </View>
-            )}
-          </Section>
+            </Section>
 
-          <Section titleEn="CHOOSE YOUR COLOR" titleBs="ODABERITE SVOJU BOJU">
-            <View className="flex-row items-center justify-between mb-1">
-              <Text className="text-neutral-400 font-medium text-[9px] uppercase tracking-wider">
-                {isBs ? activeColorConfig.nameBs : activeColorConfig.nameEn}
-              </Text>
-            </View>
-            <View className="flex-row flex-wrap gap-3 bg-neutral-900/10 p-2.5 rounded-xl border border-neutral-900/60">
-              {AVAILABLE_COLORS.map((color) => {
-                const isSelected = selectedColor === color.id;
-                return (
-                  <Pressable
-                    key={color.id}
-                    onPress={() => setSelectedColor(color.id)}
-                    className={`h-9 w-9 rounded-full ${color.bgClass} items-center justify-center border border-white/10`}
-                    style={isSelected ? { borderWidth: 3, borderColor: '#0a0a0a' } : undefined}
-                  >
-                    {isSelected && <Check size={16} color="#0a0a0a" strokeWidth={3.5} />}
-                  </Pressable>
-                );
-              })}
-            </View>
-          </Section>
-
-          {setupTab === 'CREATE' && (
-            <View style={{ gap: 32 }}>
-              <Section titleEn="CARDS REQUIRED TO WIN" titleBs="CILJ KARATA ZA POBJEDU">
-                <View className="flex-row items-center justify-between mb-1">
-                  <Text className="text-amber-400 font-extrabold font-mono">{targetScore}</Text>
-                </View>
-                <View className="flex-row gap-2">
-                  {[5, 7, 10, 12].map((num) => (
-                    <Pressable
-                      key={num}
-                      onPress={() => setTargetScore(num)}
-                      className={`flex-1 py-2.5 rounded-xl font-mono text-xs font-bold items-center justify-center ${targetScore === num ? 'bg-amber-400' : 'bg-neutral-900/30 border border-neutral-900'}`}
-                    >
-                      <Text className={targetScore === num ? 'text-black font-black' : 'text-neutral-400'}>
-                        {num} {isBs ? 'karata' : 'cards'}
+            <ButtonTab
+              category="button"
+              type="primary"
+              size="100"
+              onPress={handleCreateRoom}
+            >
+              {isBs ? 'Započni igru' : 'Start Game'}
+            </ButtonTab>
+          </View>
+        );
+      } else {
+        return (
+          <View style={{ gap: 32 }}>
+            <Section titleEn="PLAYER PROFILE" titleBs="PROFIL IGRAČA">
+              {isSocialUser ? (
+                <View className="flex-row items-center justify-between bg-neutral-900/30 p-3.5 rounded-xl border border-neutral-900">
+                  <View className="flex-row items-center gap-3">
+                    <LinearGradient colors={['#f59e0b', '#facc15']} className="relative w-10 h-10 rounded-full items-center justify-center">
+                      <Text className="text-neutral-950 font-black text-xs">
+                        {userName.split(' ').map((n) => n[0]).join('')}
                       </Text>
-                    </Pressable>
-                  ))}
+                    </LinearGradient>
+                    <View>
+                      <Text className="font-bold text-xs text-neutral-200">{userName}</Text>
+                      <Text className="text-[8px] text-emerald-400 font-mono">
+                        {socialProvider === 'google' ? 'Google Account Connected' : 'Apple ID Connected'}
+                      </Text>
+                    </View>
+                  </View>
+                  <Pressable
+                    onPress={() => {
+                      setIsSocialUser(false);
+                      setSocialProvider(null);
+                      setUserName('');
+                      setLobbyView('WELCOME');
+                    }}
+                    className="px-2 py-1 rounded bg-neutral-800"
+                  >
+                    <Text className="text-[9px] text-neutral-400">{isBs ? 'Odjavi se' : 'Sign out'}</Text>
+                  </Pressable>
                 </View>
-              </Section>
+              ) : (
+                <View className="flex-row items-center gap-3.5 bg-neutral-900/30 px-4 py-3 rounded-xl border border-neutral-900">
+                  <User size={16} color="#737373" />
+                  <TextInput
+                    maxLength={15}
+                    value={userName}
+                    onChangeText={setUserName}
+                    placeholder={isBs ? 'Npr. Damir' : 'E.g. Damir'}
+                    placeholderTextColor="#404040"
+                    className="flex-1 text-sm font-semibold text-neutral-200"
+                  />
+                </View>
+              )}
+            </Section>
 
-              <Section titleEn="CHOOSE THE CARD DECK" titleBs="ODABERITE ŠPIL KARTICA">
-                <View className="flex-row items-center justify-between mb-1">
-                  <Text
-                    className={`text-[9px] uppercase px-1.5 py-0.5 rounded font-mono font-black ${selectedDeck === 'SPICY' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}`}
-                  >
-                    {selectedDeck === 'SPICY' ? (isBs ? 'LJUTI' : 'SPICY') : (isBs ? 'NORMALNI' : 'NORMAL')}
-                  </Text>
-                </View>
-                <View className="flex-row gap-3">
-                  <Pressable
-                    onPress={() => setSelectedDeck('NORMAL')}
-                    className={`flex-1 py-3 px-3 rounded-xl border-2 items-center justify-center gap-1 ${selectedDeck === 'NORMAL' ? 'border-emerald-500 bg-emerald-500/5' : 'border-neutral-900 bg-neutral-900/10'}`}
-                  >
-                    <Sparkles size={16} color={selectedDeck === 'NORMAL' ? '#34d399' : '#737373'} />
-                    <Text className={`text-[10px] uppercase tracking-wider font-bold ${selectedDeck === 'NORMAL' ? 'text-emerald-400' : 'text-neutral-500'}`}>
-                      {isBs ? 'Normala' : 'Normal'}
-                    </Text>
-                    <Text className={`text-[7px] ${selectedDeck === 'NORMAL' ? 'text-emerald-400/75' : 'text-neutral-500'} text-center leading-tight`}>
-                      {isBs ? 'Smiješne i čudne situacije' : 'Funny & awkward situations'}
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => setSelectedDeck('SPICY')}
-                    className={`flex-1 py-3 px-3 rounded-xl border-2 items-center justify-center gap-1 ${selectedDeck === 'SPICY' ? 'border-rose-500 bg-rose-500/5' : 'border-neutral-900 bg-neutral-900/10'}`}
-                  >
-                    <Flame size={16} color={selectedDeck === 'SPICY' ? '#fb7185' : '#737373'} />
-                    <Text className={`text-[10px] uppercase tracking-wider font-bold ${selectedDeck === 'SPICY' ? 'text-rose-400' : 'text-neutral-500'}`}>
-                      {isBs ? 'Ljuti (Spicy)' : 'Spicy'}
-                    </Text>
-                    <Text className={`text-[7px] ${selectedDeck === 'SPICY' ? 'text-rose-400/75' : 'text-neutral-500'} text-center leading-tight`}>
-                      {isBs ? 'Ekstremne i bizarne nesreće' : 'Extreme & bizarre misery'}
-                    </Text>
-                  </Pressable>
-                </View>
-              </Section>
-            </View>
-          )}
-        </View>
-      );
+            <Section titleEn="CHOOSE YOUR COLOR" titleBs="ODABERITE SVOJU BOJU">
+              <View className="flex-row flex-wrap gap-3 bg-neutral-900/10 p-2.5 rounded-xl border border-neutral-900/60">
+                {AVAILABLE_COLORS.map((color) => {
+                  const isSelected = selectedColor === color.id;
+                  return (
+                    <Pressable
+                      key={color.id}
+                      onPress={() => {
+                        playSound('click');
+                        setSelectedColor(color.id);
+                      }}
+                      className={`h-9 w-9 rounded-full ${color.bgClass} items-center justify-center border border-white/10`}
+                      style={
+                        isSelected
+                          ? { transform: [{ scale: 1.15 }] }
+                          : { transform: [{ scale: 0.9 }] }
+                      }
+                    >
+                      {isSelected && <Check size={14} color="#0a0a0a" strokeWidth={4} />}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </Section>
+
+            <Section titleEn="ENTER CODE TO JOIN" titleBs="UNESITE KOD ZA PRIDRUŽIVANJE">
+              <TextInput
+                maxLength={4}
+                value={enteredCode}
+                onChangeText={(t) => setEnteredCode(t.toUpperCase())}
+                placeholder={isBs ? 'NPR. ABCD' : 'E.G. ABCD'}
+                placeholderTextColor="#404040"
+                className="bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-center font-mono font-black text-lg uppercase tracking-widest text-amber-400 w-full"
+              />
+            </Section>
+
+            <ButtonTab
+              category="button"
+              type="primary"
+              size="100"
+              disabled={!enteredCode.trim()}
+              onPress={handleJoinWithCode}
+            >
+              {isBs ? 'Započni igru' : 'Start Game'}
+            </ButtonTab>
+          </View>
+        );
+      }
     }
 
     if (lobbyView === 'ROOM_JOINING') {
@@ -741,40 +844,7 @@ export default function Lobby() {
 
   const renderBottomCTA = () => {
     if (lobbyView === 'SETUP') {
-      return setupTab === 'CREATE' ? (
-        <GradientButton onPress={handleCreateRoom}>
-          <Plus size={16} color="#0a0a0a" strokeWidth={3} />
-          <Text className="text-black font-black uppercase text-xs tracking-wider">
-            {isBs ? 'Kreiraj Sobu' : 'Create Room'}
-          </Text>
-        </GradientButton>
-      ) : (
-        <View style={{ gap: 12 }}>
-          <View className="items-center" style={{ gap: 6 }}>
-            <Text className="text-[9px] font-mono tracking-widest uppercase text-neutral-500 font-bold">
-              {isBs ? 'UNESITE KOD ZA PRIDRUŽIVANJE' : 'ENTER CODE TO JOIN'}
-            </Text>
-            <TextInput
-              maxLength={4}
-              value={enteredCode}
-              onChangeText={(t) => setEnteredCode(t.toUpperCase())}
-              placeholder={isBs ? 'NPR. ABCD' : 'E.G. ABCD'}
-              placeholderTextColor="#404040"
-              className="bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-center font-mono font-black text-lg uppercase tracking-widest text-amber-400 w-full"
-            />
-          </View>
-          <Pressable
-            onPress={handleJoinWithCode}
-            disabled={!enteredCode.trim()}
-            className={`rounded-xl py-4 items-center justify-center flex-row gap-2 ${enteredCode.trim() ? 'bg-amber-400' : 'bg-neutral-900/60'}`}
-          >
-            <LogIn size={16} color={enteredCode.trim() ? '#0a0a0a' : '#525252'} strokeWidth={3} />
-            <Text className={`uppercase text-xs tracking-wider font-extrabold ${enteredCode.trim() ? 'text-black' : 'text-neutral-600'}`}>
-              {isBs ? 'Pridruži se' : 'Join Game'}
-            </Text>
-          </Pressable>
-        </View>
-      );
+      return null;
     }
 
     if (lobbyView === 'ROOM_CREATED') {

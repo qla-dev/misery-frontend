@@ -1,0 +1,63 @@
+import React from 'react';
+import { Pressable, Text } from 'react-native';
+
+interface ButtonTabProps {
+  category: 'button' | 'tab';
+  type: 'primary' | 'secondary';
+  size: '50' | '100' | 'auto';
+  onPress?: () => void;
+  children: React.ReactNode;
+  disabled?: boolean;
+  className?: string;
+}
+
+export function ButtonTab({
+  category,
+  type,
+  size,
+  onPress,
+  children,
+  disabled = false,
+  className = '',
+}: ButtonTabProps) {
+  // Determine size styling
+  const sizeStyle =
+    size === '50'
+      ? { width: '50%' }
+      : size === '100'
+        ? { width: '100%' }
+        : { width: 'auto' };
+
+  // Determine category height & padding
+  const categoryClass = category === 'tab' ? 'h-[54px] rounded-xl' : 'h-[50px] rounded-xl';
+  
+  // Determine type colors
+  const typeClass =
+    type === 'primary'
+      ? 'bg-amber-400 border border-amber-400'
+      : 'bg-transparent border border-neutral-800';
+
+  return (
+    <Pressable
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        sizeStyle as any,
+        { opacity: disabled ? 0.5 : pressed ? 0.8 : 1 }
+      ]}
+      className={`flex-row items-center justify-center gap-2 border px-4 ${categoryClass} ${typeClass} ${className}`}
+    >
+      {typeof children === 'string' ? (
+        <Text
+          className={`uppercase tracking-wider font-black ${
+            category === 'tab' ? 'text-xs' : 'text-[11px]'
+          } ${type === 'primary' ? 'text-neutral-950' : 'text-neutral-400'}`}
+        >
+          {children}
+        </Text>
+      ) : (
+        children
+      )}
+    </Pressable>
+  );
+}

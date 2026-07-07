@@ -145,10 +145,10 @@ export function Section({
   gap?: 'sm' | 'md' | 'lg';
 }) {
   const { language } = useGame();
-  const gapClass = gap === 'sm' ? 'space-y-2' : gap === 'lg' ? 'space-y-6' : 'space-y-3.5';
+  const gapValue = gap === 'sm' ? 8 : gap === 'lg' ? 24 : 14;
 
   return (
-    <View className={`${gapClass} ${className}`}>
+    <View className={className} style={{ gap: gapValue }}>
       {titleEn && (
         <Text className="text-[10px] font-mono tracking-widest uppercase text-neutral-500 font-bold">
           {language === 'bs' && titleBs ? titleBs : titleEn}

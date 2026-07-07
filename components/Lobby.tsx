@@ -4,9 +4,10 @@ import * as Clipboard from 'expo-clipboard';
 import { Apple, Check, Copy, Crown, Flame, Loader2, LogIn, Plus, Sparkles, User } from 'lucide-react-native';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+import { GlassView } from 'expo-glass-effect';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/context/GameContext';
+import { playSound } from '@/lib/sound';
 import { AppButton, Section, Surface } from './AppPrimitives';
 import { GradientButton } from './GradientButton';
 import { InfoModal } from './InfoModal';
@@ -40,6 +41,34 @@ function SmallBrand({ isBs }: { isBs: boolean }) {
       <Text className="text-xs font-black uppercase tracking-wider text-neutral-200">
         THE <Text className="text-amber-400">MISERY</Text> INDEX
       </Text>
+    </View>
+  );
+}
+
+function WelcomeSilhouetteRow({ flip = false }: { flip?: boolean }) {
+  const count = 7;
+  const stormIndex = 3;
+
+  return (
+    <View className="flex-row items-end justify-between w-full px-1 pt-5">
+      {Array.from({ length: count }).map((_, idx) => (
+        <View
+          key={idx}
+          className="items-center"
+          style={{
+            opacity: idx === stormIndex ? 1 : 0.92,
+            transform: [
+              { scaleX: idx % 2 === 0 ? -1 : 1 },
+              { translateY: flip ? 2 : 0 },
+            ],
+          }}
+        >
+          {idx === stormIndex ? (
+            <Text className="absolute -top-6 text-lg">🌩️</Text>
+          ) : null}
+          <ManSilhouette width={42} height={42} color={idx === stormIndex ? '#ffffff' : '#facc15'} />
+        </View>
+      ))}
     </View>
   );
 }
@@ -162,12 +191,13 @@ export default function Lobby() {
 
   const renderTopBar = () => {
     if (lobbyView === 'WELCOME') {
+      return null;
       return (
         <View className="pt-12 pb-8 px-6 items-center bg-neutral-950 border-b border-neutral-900/80">
           <LinearGradient colors={['#fcd34d', '#facc15', '#fbbf24']} className="w-20 h-20 rounded-2xl items-center justify-center shadow-lg border-2 border-white/20 mb-5 -rotate-3">
             <ManSilhouette width={52} height={52} color="#0a0a0a" />
           </LinearGradient>
-          <Text className="text-3xl font-black uppercase tracking-tight leading-none text-center">
+          <Text className="text-3xl font-black uppercase tracking-tight leading-none text-center text-white">
             THE <Text className="text-amber-400">MISERY</Text> INDEX
           </Text>
           <Text className="text-[10px] text-neutral-500 uppercase tracking-widest mt-2.5 font-mono font-medium">
@@ -178,48 +208,81 @@ export default function Lobby() {
     }
     if (lobbyView === 'SETUP') {
       return (
-        <View className="bg-neutral-900 border-b border-neutral-900 p-2">
-          <View className="flex-row gap-2 p-2 bg-neutral-950/40 rounded-2xl border border-neutral-900">
-            <Pressable
-              onPress={() => setSetupTab('CREATE')}
-              className="flex-1"
+        <View className="px-3 py-2">
+          <View
+            style={{
+              alignSelf: 'center',
+              flexDirection: 'row',
+              gap: 8,
+              height: 54,
+              maxWidth: 420,
+              width: '100%',
+            }}
+          >
+            <GlassView
+              colorScheme="dark"
+              glassEffectStyle={setupTab === 'CREATE' ? 'regular' : 'clear'}
+              isInteractive
+              style={{
+                alignItems: 'center',
+                borderRadius: 12,
+                flex: 1,
+                justifyContent: 'center',
+              }}
+              tintColor={setupTab === 'CREATE' ? 'rgba(251,191,36,0.2)' : 'rgba(0,0,0,0)'}
             >
-              <BlurView
-                intensity={setupTab === 'CREATE' ? 0 : 40}
-                tint="dark"
-                style={[
-                  { borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, overflow: 'hidden' },
-                  setupTab === 'CREATE' && { backgroundColor: 'rgba(251,191,36,0.92)' },
-                ]}
-              >
-                <View className={`w-6 h-6 rounded-md items-center justify-center ${setupTab === 'CREATE' ? 'bg-neutral-950/20' : 'bg-amber-400/15'}`}>
-                  <Plus size={14} color={setupTab === 'CREATE' ? '#0a0a0a' : '#fbbf24'} strokeWidth={3} />
+            <Pressable
+              accessibilityRole="tab"
+              accessibilityState={{ selected: setupTab === 'CREATE' }}
+              onPress={() => {
+                playSound('click');
+                setSetupTab('CREATE');
+              }}
+              className="flex-1 w-full rounded-xl items-center justify-center"
+              style={({ pressed }) => [{ opacity: pressed ? 0.72 : 1 }]}
+            >
+              <View className="flex-row items-center justify-center gap-2 px-2">
+                  <View className={`w-7 h-7 rounded-md items-center justify-center ${setupTab === 'CREATE' ? 'bg-amber-400/20' : 'bg-transparent'}`}>
+                  <Plus size={14} color="#fbbf24" strokeWidth={3} />
                 </View>
-                <Text className={`text-xs font-black uppercase tracking-wider ${setupTab === 'CREATE' ? 'text-black' : 'text-neutral-200'}`}>
+                <Text className={`text-xs font-black uppercase tracking-wider ${setupTab === 'CREATE' ? 'text-amber-300' : 'text-neutral-200'}`}>
                   {isBs ? 'Kreiraj Sobu' : 'Create Room'}
                 </Text>
-              </BlurView>
+              </View>
             </Pressable>
-            <Pressable
-              onPress={() => setSetupTab('JOIN')}
-              className="flex-1"
+            </GlassView>
+            <GlassView
+              colorScheme="dark"
+              glassEffectStyle={setupTab === 'JOIN' ? 'regular' : 'clear'}
+              isInteractive
+              style={{
+                alignItems: 'center',
+                borderRadius: 12,
+                flex: 1,
+                justifyContent: 'center',
+              }}
+              tintColor={setupTab === 'JOIN' ? 'rgba(34,211,238,0.2)' : 'rgba(0,0,0,0)'}
             >
-              <BlurView
-                intensity={setupTab === 'JOIN' ? 0 : 40}
-                tint="dark"
-                style={[
-                  { borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, overflow: 'hidden' },
-                  setupTab === 'JOIN' && { backgroundColor: 'rgba(34,211,238,0.92)' },
-                ]}
-              >
-                <View className={`w-6 h-6 rounded-md items-center justify-center ${setupTab === 'JOIN' ? 'bg-neutral-950/20' : 'bg-cyan-400/15'}`}>
-                  <LogIn size={14} color={setupTab === 'JOIN' ? '#0a0a0a' : '#22d3ee'} strokeWidth={3} />
+            <Pressable
+              accessibilityRole="tab"
+              accessibilityState={{ selected: setupTab === 'JOIN' }}
+              onPress={() => {
+                playSound('click');
+                setSetupTab('JOIN');
+              }}
+              className="flex-1 w-full rounded-xl items-center justify-center"
+              style={({ pressed }) => [{ opacity: pressed ? 0.72 : 1 }]}
+            >
+              <View className="flex-row items-center justify-center gap-2 px-2">
+                  <View className={`w-7 h-7 rounded-md items-center justify-center ${setupTab === 'JOIN' ? 'bg-cyan-400/20' : 'bg-transparent'}`}>
+                  <LogIn size={14} color="#22d3ee" strokeWidth={3} />
                 </View>
-                <Text className={`text-xs font-black uppercase tracking-wider ${setupTab === 'JOIN' ? 'text-black' : 'text-neutral-200'}`}>
+                <Text className={`text-xs font-black uppercase tracking-wider ${setupTab === 'JOIN' ? 'text-cyan-300' : 'text-neutral-200'}`}>
                   {isBs ? 'Pridruži se' : 'Enter Code'}
                 </Text>
-              </BlurView>
+              </View>
             </Pressable>
+            </GlassView>
           </View>
         </View>
       );
@@ -234,8 +297,107 @@ export default function Lobby() {
   const renderContent = () => {
     if (lobbyView === 'WELCOME') {
       return (
-        <View className="space-y-6">
-          <View className="bg-neutral-900/35 border border-neutral-900/60 p-6 rounded-2xl space-y-4 shadow-lg">
+        <View style={{ gap: 24 }}>
+          <View
+            style={{ gap: 22 }}
+          >
+            <View className="items-center" style={{ gap: 10 }}>
+              <Text className="text-[10px] text-neutral-500 font-mono tracking-widest uppercase text-center font-black">
+                {isBs ? 'INDEKS BIJEDE • MISERABLE MATCH' : 'MISERY INDEX • MISERABLE MATCH'}
+              </Text>
+              <Text className="text-center text-[46px] font-black uppercase leading-[46px] tracking-tight">
+                <Text className="text-white">THE</Text>
+                {'\n'}
+                <Text className="text-amber-400">MISERY</Text>
+                {'\n'}
+                <Text className="text-white">INDEX</Text>
+              </Text>
+              <Text className="text-xs text-neutral-400 text-center leading-relaxed font-sans font-bold">
+                {isBs
+                  ? 'Svako od nas ima lose dane. Dokazi ko prezivljava najgoru patnju.'
+                  : 'We all have bad days. Prove who survives the worst misery.'}
+              </Text>
+            </View>
+
+            <View className="items-center" style={{ display: 'none' }}>
+              <Text className="text-[10px] text-neutral-500 font-mono tracking-widest uppercase text-center font-black">
+                {isBs ? 'INDEKS BIJEDE • MISERABLE MATCH' : 'MISERY INDEX • MISERABLE MATCH'}
+              </Text>
+              <Text className="text-center text-[46px] font-black uppercase leading-[46px] tracking-tight">
+                <Text className="text-white">THE</Text>
+                {'\n'}
+                <Text className="text-amber-400">MISERY</Text>
+                {'\n'}
+                <Text className="text-white">INDEX</Text>
+              </Text>
+              <Text className="text-xs text-neutral-400 text-center leading-relaxed font-sans font-bold">
+                {isBs
+                  ? 'Svako od nas ima lose dane. Dokazi ko prezivljava najgoru patnju.'
+                  : 'We all have bad days. Prove who survives the worst misery.'}
+              </Text>
+            </View>
+
+            <View style={{ gap: 12 }}>
+              <Text className="text-[10px] text-neutral-500 font-mono tracking-widest uppercase text-center font-black">
+                {isBs ? 'PRIJAVI SE BRZO' : 'QUICK SIGN IN'}
+              </Text>
+              <View style={{ gap: 10 }}>
+                <Pressable
+                  onPress={() => {
+                    playSound('click');
+                    setUserName('Amel Kulasin');
+                    setIsSocialUser(true);
+                    setSocialProvider('google');
+                    setLobbyView('SETUP');
+                  }}
+                  className="w-full py-3.5 px-4 bg-white rounded-lg flex-row items-center justify-center gap-3 shadow-md"
+                >
+                  <GoogleIcon />
+                  <Text className="text-black font-black text-xs tracking-wider uppercase">
+                    {isBs ? 'Prijavi se sa Google-om' : 'Sign in with Google'}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    playSound('click');
+                    setUserName('Amel Kulasin');
+                    setIsSocialUser(true);
+                    setSocialProvider('apple');
+                    setLobbyView('SETUP');
+                  }}
+                  className="w-full py-3.5 px-4 bg-black rounded-lg flex-row items-center justify-center gap-3 shadow-md border border-white/10"
+                >
+                  <Apple size={16} color="#fff" />
+                  <Text className="text-white font-black text-xs tracking-wider uppercase">
+                    {isBs ? 'Prijavi se sa Apple-om' : 'Sign in with Apple'}
+                  </Text>
+                </Pressable>
+              </View>
+              <View className="flex-row items-center justify-center gap-4 py-1">
+                <View className="h-px bg-neutral-800 flex-1" />
+                <Text className="text-[10px] font-mono text-neutral-600 font-black uppercase">{isBs ? 'ILI' : 'OR'}</Text>
+                <View className="h-px bg-neutral-800 flex-1" />
+              </View>
+              <Pressable
+                onPress={() => {
+                  playSound('click');
+                  setIsSocialUser(false);
+                  setSocialProvider(null);
+                  setUserName('');
+                  setLobbyView('SETUP');
+                }}
+                className="w-full py-3.5 bg-neutral-900/40 border border-neutral-800 rounded-lg flex-row items-center justify-center gap-2"
+              >
+                <User size={16} color="#a3a3a3" />
+                <Text className="text-neutral-300 font-extrabold text-xs tracking-wider uppercase">
+                  {isBs ? 'Igraj kao gost' : 'Play as Guest'}
+                </Text>
+              </Pressable>
+            </View>
+
+            <WelcomeSilhouetteRow flip />
+          </View>
+          <View className="bg-neutral-900/35 border border-neutral-900/60 p-6 rounded-2xl shadow-lg" style={{ display: 'none' }}>
             <Text className="text-[10px] text-neutral-500 font-mono tracking-widest uppercase text-center font-bold">
               {isBs ? 'INDEKS BIJEDE • MISERABLE MATCH' : 'MISERY INDEX • MISERABLE MATCH'}
             </Text>
@@ -261,11 +423,11 @@ export default function Lobby() {
             </Text>
           </View>
 
-          <View className="space-y-4">
+          <View style={{ display: 'none' }}>
             <Text className="text-[10px] text-neutral-500 font-mono tracking-widest uppercase text-center font-bold">
               {isBs ? 'PRIJAVI SE BRZO' : 'QUICK SIGN IN'}
             </Text>
-            <View className="space-y-3">
+            <View style={{ gap: 12 }}>
               <Pressable
                 onPress={() => {
                   setUserName('Amel Kulašin');
@@ -316,7 +478,7 @@ export default function Lobby() {
             </Pressable>
           </View>
 
-          <View className="pt-4 pb-2 items-center">
+          <View className="pt-4 pb-2 items-center" style={{ gap: 4 }}>
             <Text className="text-[10px] text-neutral-600 font-mono">© 2026 The Misery Index Clone</Text>
             <Text className="text-[10px] text-neutral-600 font-mono opacity-80">
               {isBs ? 'Simulirani mrežni kod • Potpuno klijentska simulacija' : 'Simulated netplay • Zero servers required'}
@@ -328,7 +490,7 @@ export default function Lobby() {
 
     if (lobbyView === 'SETUP') {
       return (
-        <View className="space-y-8">
+        <View style={{ gap: 32 }}>
           <Section titleEn="PLAYER PROFILE" titleBs="PROFIL IGRAČA">
             {isSocialUser ? (
               <View className="flex-row items-center justify-between bg-neutral-900/30 p-3.5 rounded-xl border border-neutral-900">
@@ -396,7 +558,7 @@ export default function Lobby() {
           </Section>
 
           {setupTab === 'CREATE' && (
-            <View className="space-y-8">
+            <View style={{ gap: 32 }}>
               <Section titleEn="CARDS REQUIRED TO WIN" titleBs="CILJ KARATA ZA POBJEDU">
                 <View className="flex-row items-center justify-between mb-1">
                   <Text className="text-amber-400 font-extrabold font-mono">{targetScore}</Text>
@@ -587,8 +749,8 @@ export default function Lobby() {
           </Text>
         </GradientButton>
       ) : (
-        <View className="space-y-3">
-          <View className="space-y-1.5 items-center">
+        <View style={{ gap: 12 }}>
+          <View className="items-center" style={{ gap: 6 }}>
             <Text className="text-[9px] font-mono tracking-widest uppercase text-neutral-500 font-bold">
               {isBs ? 'UNESITE KOD ZA PRIDRUŽIVANJE' : 'ENTER CODE TO JOIN'}
             </Text>
@@ -655,9 +817,17 @@ export default function Lobby() {
   };
 
   return (
-    <View className="flex-1 bg-neutral-950 pt-[100px]">
+    <View className="flex-1 bg-neutral-950" style={{ paddingTop: lobbyView === 'WELCOME' ? 0 : 100 }}>
       {renderTopBar()}
-      <ScrollView className="flex-1 px-6 py-6" showsVerticalScrollIndicator={false}>
+      <ScrollView
+        className="flex-1 px-6"
+        contentContainerStyle={
+          lobbyView === 'WELCOME'
+            ? { flexGrow: 1, justifyContent: 'center', paddingVertical: 24 }
+            : { paddingVertical: 24 }
+        }
+        showsVerticalScrollIndicator={false}
+      >
         {renderContent()}
       </ScrollView>
       {renderBottomCTA() && <View className="px-4 pb-4 pt-2 bg-neutral-950">{renderBottomCTA()}</View>}

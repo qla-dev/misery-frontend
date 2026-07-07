@@ -1,9 +1,17 @@
-import { NativeTabs } from 'expo-router/unstable-native-tabs';
+import { ImageSourcePropType } from 'react-native';
 import { Stack } from 'expo-router';
+import { NativeTabs } from 'expo-router/unstable-native-tabs';
+import ChevronLeftIcon from '@expo/material-symbols/chevron_left.xml';
+import HelpIcon from '@expo/material-symbols/help.xml';
+import { SFSymbol } from 'sf-symbols-typescript';
 import { useGame } from '@/context/GameContext';
 
+function toolbarIcon(ios: SFSymbol, android: ImageSourcePropType) {
+  return process.env.EXPO_OS === 'ios' ? ios : android;
+}
+
 export default function TabLayout() {
-  const { language, toggleLanguage, setInfoModalOpen, setLobbyView } = useGame();
+  const { language, lobbyView, toggleLanguage, setInfoModalOpen, setLobbyView } = useGame();
   const isBs = language === 'bs';
 
   return (
@@ -17,23 +25,25 @@ export default function TabLayout() {
           headerTintColor: '#ffffff',
         }}
       />
-      <Stack.Toolbar placement="left">
-        <Stack.Toolbar.Button
-          onPress={() => setLobbyView('WELCOME')}
-          tintColor="#ffffff"
-        >
-          ←
-        </Stack.Toolbar.Button>
-      </Stack.Toolbar>
+      {lobbyView !== 'WELCOME' && (
+        <Stack.Toolbar placement="left">
+          <Stack.Toolbar.Button
+            accessibilityLabel="Back to welcome"
+            icon={toolbarIcon('chevron.left', ChevronLeftIcon)}
+            onPress={() => setLobbyView('WELCOME')}
+            tintColor="#ffffff"
+          />
+        </Stack.Toolbar>
+      )}
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
+          accessibilityLabel="Instructions"
+          icon={toolbarIcon('questionmark.circle.fill', HelpIcon)}
           onPress={() => setInfoModalOpen(true)}
           tintColor="#ffffff"
-        >
-          ℹ️
-        </Stack.Toolbar.Button>
+        />
         <Stack.Toolbar.Button onPress={toggleLanguage} tintColor="#fbbf24">
-          {language === 'en' ? 'EN 🇺🇸' : 'BS 🇧🇦'}
+          {language === 'en' ? 'EN' : 'BS'}
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
 

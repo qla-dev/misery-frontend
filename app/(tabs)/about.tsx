@@ -41,7 +41,7 @@ export default function AboutScreen() {
       </View>
 
       <View className="mt-10 items-center">
-        <Text className="text-[10px] text-neutral-600 font-mono">© 2026 The Misery Index Clone</Text>
+        <Text className="text-[10px] text-neutral-600 font-mono">© 2026 The Misery Meter</Text>
         <Text className="text-[10px] text-neutral-600 font-mono opacity-80">
           {isBs ? 'Simulirani mrežni kod • Potpuno klijentska simulacija' : 'Simulated netplay • Zero servers required'}
         </Text>

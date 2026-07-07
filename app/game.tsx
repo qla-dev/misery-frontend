@@ -20,7 +20,7 @@ export default function GameScreen() {
           headerTintColor: '#ffffff',
           headerTitle: () => (
             <Text style={{ fontFamily: 'BebasNeue_400Regular', color: '#ffffff', fontSize: 20, letterSpacing: 2 }}>
-              MISERY INDEX
+              MISERY METER
             </Text>
           ),
         }}

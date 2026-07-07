@@ -4,8 +4,9 @@ import * as Clipboard from 'expo-clipboard';
 import { Apple, Check, Copy, Crown, Flame, Loader2, LogIn, Plus, ArrowLeft, Sparkles, User } from 'lucide-react-native';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/context/GameContext';
-import { GradientButton } from './GradientButton';
+import { AppButton, SegmentTabs, Surface } from './AppPrimitives';
 import { InfoModal } from './InfoModal';
 import ManSilhouette from './ManSilhouette';
 
@@ -42,6 +43,7 @@ function SmallBrand({ isBs }: { isBs: boolean }) {
 }
 
 export default function Lobby() {
+  const insets = useSafeAreaInsets();
   const {
     language,
     lobbyView,

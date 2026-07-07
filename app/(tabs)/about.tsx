@@ -8,7 +8,11 @@ export default function AboutScreen() {
   const isBs = language === 'bs';
 
   return (
-    <ScrollView className="flex-1 bg-neutral-950 px-6 py-8 items-center" showsVerticalScrollIndicator={false}>
+    <ScrollView
+      className="flex-1 bg-neutral-950"
+      contentContainerStyle={{ alignItems: 'center', paddingHorizontal: 24, paddingVertical: 32 }}
+      showsVerticalScrollIndicator={false}
+    >
       <LinearGradient colors={['#fcd34d', '#facc15', '#fbbf24']} className="w-24 h-24 rounded-2xl items-center justify-center border-2 border-white/20 mb-5">
         <ManSilhouette width={64} height={64} color="#0a0a0a" />
       </LinearGradient>

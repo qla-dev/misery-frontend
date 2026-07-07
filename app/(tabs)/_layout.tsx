@@ -3,7 +3,7 @@ import { Stack } from 'expo-router';
 import { useGame } from '@/context/GameContext';
 
 export default function TabLayout() {
-  const { language, toggleLanguage, setInfoModalOpen } = useGame();
+  const { language, toggleLanguage, setInfoModalOpen, setLobbyView } = useGame();
   const isBs = language === 'bs';
 
   return (
@@ -19,13 +19,19 @@ export default function TabLayout() {
       />
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button
+          onPress={() => setLobbyView('WELCOME')}
+          tintColor="#ffffff"
+        >
+          ←
+        </Stack.Toolbar.Button>
+      </Stack.Toolbar>
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button
           onPress={() => setInfoModalOpen(true)}
           tintColor="#ffffff"
         >
           ℹ️
         </Stack.Toolbar.Button>
-      </Stack.Toolbar>
-      <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button onPress={toggleLanguage} tintColor="#fbbf24">
           {language === 'en' ? 'EN 🇺🇸' : 'BS 🇧🇦'}
         </Stack.Toolbar.Button>
@@ -42,11 +48,11 @@ export default function TabLayout() {
         tintColor="#fbbf24"
       >
         <NativeTabs.Trigger name="index" contentStyle={{ backgroundColor: '#0a0a0a' }} disableTransparentOnScrollEdge>
-          <NativeTabs.Trigger.Icon sf={{ default: 'casino', selected: 'casino.fill' } as any} md="casino" />
+          <NativeTabs.Trigger.Icon sf={{ default: 'suit.spade', selected: 'suit.spade.fill' } as any} md="casino" />
           <NativeTabs.Trigger.Label>{isBs ? 'Igra' : 'Play'}</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
         <NativeTabs.Trigger name="rules" contentStyle={{ backgroundColor: '#0a0a0a' }} disableTransparentOnScrollEdge>
-          <NativeTabs.Trigger.Icon sf={{ default: 'menu_book', selected: 'menu_book.fill' } as any} md="menu_book" />
+          <NativeTabs.Trigger.Icon sf={{ default: 'book', selected: 'book.fill' } as any} md="menu_book" />
           <NativeTabs.Trigger.Label>{isBs ? 'Pravila' : 'Rules'}</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
         <NativeTabs.Trigger name="about" contentStyle={{ backgroundColor: '#0a0a0a' }} disableTransparentOnScrollEdge>

@@ -2,6 +2,7 @@ import React from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, ScrollView, ScrollViewProps, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useGame } from '@/context/GameContext';
 
 type ButtonVariant = 'primary' | 'secondary' | 'dark' | 'light';
 
@@ -127,5 +128,33 @@ export function ScreenScroll({
     >
       {children}
     </ScrollView>
+  );
+}
+
+export function Section({
+  titleEn,
+  titleBs,
+  children,
+  className = '',
+  gap = 'md',
+}: {
+  titleEn?: string;
+  titleBs?: string;
+  children: React.ReactNode;
+  className?: string;
+  gap?: 'sm' | 'md' | 'lg';
+}) {
+  const { language } = useGame();
+  const gapClass = gap === 'sm' ? 'space-y-2' : gap === 'lg' ? 'space-y-6' : 'space-y-3.5';
+
+  return (
+    <View className={`${gapClass} ${className}`}>
+      {titleEn && (
+        <Text className="text-[10px] font-mono tracking-widest uppercase text-neutral-500 font-bold">
+          {language === 'bs' && titleBs ? titleBs : titleEn}
+        </Text>
+      )}
+      {children}
+    </View>
   );
 }

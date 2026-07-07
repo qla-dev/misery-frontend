@@ -10,7 +10,7 @@ export default function AboutScreen() {
   return (
     <ScrollView
       className="flex-1 bg-neutral-950"
-      contentContainerStyle={{ alignItems: 'center', paddingHorizontal: 24, paddingVertical: 32 }}
+      contentContainerStyle={{ alignItems: 'center', paddingHorizontal: 24, paddingTop: 100, paddingBottom: 32 }}
       showsVerticalScrollIndicator={false}
     >
       <LinearGradient colors={['#fcd34d', '#facc15', '#fbbf24']} className="w-24 h-24 rounded-2xl items-center justify-center border-2 border-white/20 mb-5">

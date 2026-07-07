@@ -457,13 +457,13 @@ export default function GameBoard({
                   ))}
                 </ScrollView>
               </View>
-              <View className="flex-row gap-3 pt-2 w-full">
-                <GradientButton onPress={handleRestartGame} className="flex-1">
-                  <Text className="text-black font-black uppercase text-[10px] tracking-wider">{isBs ? 'IGRAJ PONOVO' : 'PLAY AGAIN'}</Text>
-                </GradientButton>
-                <Pressable onPress={() => router.back()} className="flex-1 py-3 bg-neutral-900 rounded-xl items-center justify-center border border-neutral-800">
+              <View className="flex-col gap-3 pt-2 w-full">
+                <Pressable onPress={() => router.back()} className="w-full py-3 bg-neutral-900 rounded-xl items-center justify-center border border-neutral-800">
                   <Text className="text-neutral-400 font-bold uppercase text-[10px] tracking-wider">{isBs ? 'GLAVNI MENI' : 'MAIN MENU'}</Text>
                 </Pressable>
+                <GradientButton onPress={handleRestartGame} className="w-full">
+                  <Text className="text-black font-black uppercase text-[10px] tracking-wider">{isBs ? 'IGRAJ PONOVO' : 'PLAY AGAIN'}</Text>
+                </GradientButton>
               </View>
             </View>
           )}
@@ -479,13 +479,13 @@ export default function GameBoard({
                 <Text className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold">{isBs ? 'KONAČNI REZULTAT' : 'FINAL SCORE'}</Text>
                 <Text className="text-2xl font-black text-amber-400 uppercase tracking-tight mt-1">{currentPlayer.lane.length} CARDS</Text>
               </View>
-              <View className="flex-row gap-3 pt-2 w-full">
-                <GradientButton onPress={handleRestartGame} className="flex-1">
-                  <Text className="text-black font-black uppercase text-[10px] tracking-wider">{isBs ? 'POKUŠAJ PONOVO' : 'TRY AGAIN'}</Text>
-                </GradientButton>
-                <Pressable onPress={() => router.back()} className="flex-1 py-3 bg-neutral-900 rounded-xl items-center justify-center border border-neutral-800">
+              <View className="flex-col gap-3 pt-2 w-full">
+                <Pressable onPress={() => router.back()} className="w-full py-3 bg-neutral-900 rounded-xl items-center justify-center border border-neutral-800">
                   <Text className="text-neutral-400 font-bold uppercase text-[10px] tracking-wider">{isBs ? 'GLAVNI MENI' : 'MAIN MENU'}</Text>
                 </Pressable>
+                <GradientButton onPress={handleRestartGame} className="w-full">
+                  <Text className="text-black font-black uppercase text-[10px] tracking-wider">{isBs ? 'POKUŠAJ PONOVO' : 'TRY AGAIN'}</Text>
+                </GradientButton>
               </View>
             </View>
           )}
@@ -645,7 +645,7 @@ export default function GameBoard({
 
       <Modal visible={showRules} transparent animationType="fade" onRequestClose={() => setShowRules(false)}>
         <View className="flex-1 bg-neutral-950/95 p-6">
-          <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+      <ScrollView className="flex-1 pt-[100px]" showsVerticalScrollIndicator={false}>
             <View className="flex-row items-center justify-between border-b border-neutral-900 pb-3 mb-4">
               <Text className="text-base font-black text-amber-400 uppercase tracking-widest">📖 {isBs ? 'PRAVILA IGRE' : 'GAME RULES'}</Text>
               <Pressable onPress={() => setShowRules(false)} className="p-1.5 rounded-lg bg-neutral-800">

@@ -29,7 +29,7 @@ export default function RulesScreen() {
   ];
 
   return (
-    <ScrollView className="flex-1 bg-neutral-950 px-6 py-6" showsVerticalScrollIndicator={false}>
+    <ScrollView className="flex-1 bg-neutral-950 px-6 pt-[100px] pb-6" showsVerticalScrollIndicator={false}>
       <Text className="text-2xl font-black uppercase tracking-widest text-amber-400 mb-1">📖 {isBs ? 'PRAVILA IGRE' : 'GAME RULES'}</Text>
       <Text className="text-xs text-neutral-400 leading-relaxed mb-6">
         {isBs

@@ -1,12 +1,14 @@
 import React, { useEffect } from 'react';
 import { router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
-import { Apple, Check, Copy, Crown, Flame, Loader2, LogIn, Plus, ArrowLeft, Sparkles, User } from 'lucide-react-native';
+import { Apple, Check, Copy, Crown, Flame, Loader2, LogIn, Plus, Sparkles, User } from 'lucide-react-native';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/context/GameContext';
-import { AppButton, SegmentTabs, Surface } from './AppPrimitives';
+import { AppButton, Section, Surface } from './AppPrimitives';
+import { GradientButton } from './GradientButton';
 import { InfoModal } from './InfoModal';
 import ManSilhouette from './ManSilhouette';
 
@@ -176,36 +178,47 @@ export default function Lobby() {
     }
     if (lobbyView === 'SETUP') {
       return (
-        <View className="bg-neutral-900 border-b border-neutral-900">
-          <View className="py-2.5 px-5 flex-row items-center justify-between border-b border-neutral-950 bg-neutral-950/40">
-            <View className="flex-row items-center gap-1.5">
-              <Pressable
-                onPress={() => setLobbyView('WELCOME')}
-                className="p-1.5 rounded bg-neutral-800"
-              >
-                <ArrowLeft size={16} color="#fbbf24" />
-              </Pressable>
-              <SmallBrand isBs={isBs} />
-            </View>
-          </View>
-          <View className="flex-row bg-neutral-950/20">
+        <View className="bg-neutral-900 border-b border-neutral-900 p-2">
+          <View className="flex-row gap-2 p-2 bg-neutral-950/40 rounded-2xl border border-neutral-900">
             <Pressable
               onPress={() => setSetupTab('CREATE')}
-              className={`flex-1 py-3.5 items-center justify-center flex-row gap-2 border-b-2 ${setupTab === 'CREATE' ? 'border-amber-400 bg-amber-400/5' : 'border-transparent'}`}
+              className="flex-1"
             >
-              <Plus size={14} color={setupTab === 'CREATE' ? '#fcd34d' : '#737373'} />
-              <Text className={`text-xs font-black uppercase tracking-wider ${setupTab === 'CREATE' ? 'text-amber-300' : 'text-neutral-500'}`}>
-                {isBs ? 'Kreiraj Sobu' : 'Create Room'}
-              </Text>
+              <BlurView
+                intensity={setupTab === 'CREATE' ? 0 : 40}
+                tint="dark"
+                style={[
+                  { borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, overflow: 'hidden' },
+                  setupTab === 'CREATE' && { backgroundColor: 'rgba(251,191,36,0.92)' },
+                ]}
+              >
+                <View className={`w-6 h-6 rounded-md items-center justify-center ${setupTab === 'CREATE' ? 'bg-neutral-950/20' : 'bg-amber-400/15'}`}>
+                  <Plus size={14} color={setupTab === 'CREATE' ? '#0a0a0a' : '#fbbf24'} strokeWidth={3} />
+                </View>
+                <Text className={`text-xs font-black uppercase tracking-wider ${setupTab === 'CREATE' ? 'text-black' : 'text-neutral-200'}`}>
+                  {isBs ? 'Kreiraj Sobu' : 'Create Room'}
+                </Text>
+              </BlurView>
             </Pressable>
             <Pressable
               onPress={() => setSetupTab('JOIN')}
-              className={`flex-1 py-3.5 items-center justify-center flex-row gap-2 border-b-2 ${setupTab === 'JOIN' ? 'border-amber-400 bg-amber-400/5' : 'border-transparent'}`}
+              className="flex-1"
             >
-              <LogIn size={14} color={setupTab === 'JOIN' ? '#fcd34d' : '#737373'} />
-              <Text className={`text-xs font-black uppercase tracking-wider ${setupTab === 'JOIN' ? 'text-amber-300' : 'text-neutral-500'}`}>
-                {isBs ? 'Pridruži se' : 'Enter Code'}
-              </Text>
+              <BlurView
+                intensity={setupTab === 'JOIN' ? 0 : 40}
+                tint="dark"
+                style={[
+                  { borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, overflow: 'hidden' },
+                  setupTab === 'JOIN' && { backgroundColor: 'rgba(34,211,238,0.92)' },
+                ]}
+              >
+                <View className={`w-6 h-6 rounded-md items-center justify-center ${setupTab === 'JOIN' ? 'bg-neutral-950/20' : 'bg-cyan-400/15'}`}>
+                  <LogIn size={14} color={setupTab === 'JOIN' ? '#0a0a0a' : '#22d3ee'} strokeWidth={3} />
+                </View>
+                <Text className={`text-xs font-black uppercase tracking-wider ${setupTab === 'JOIN' ? 'text-black' : 'text-neutral-200'}`}>
+                  {isBs ? 'Pridruži se' : 'Enter Code'}
+                </Text>
+              </BlurView>
             </Pressable>
           </View>
         </View>
@@ -315,11 +328,8 @@ export default function Lobby() {
 
     if (lobbyView === 'SETUP') {
       return (
-        <View className="space-y-6">
-          <View className="space-y-2.5">
-            <Text className="text-[10px] font-mono tracking-widest uppercase text-neutral-500 font-bold">
-              {isBs ? 'PROFIL IGRAČA' : 'PLAYER PROFILE'}
-            </Text>
+        <View className="space-y-8">
+          <Section titleEn="PLAYER PROFILE" titleBs="PROFIL IGRAČA">
             {isSocialUser ? (
               <View className="flex-row items-center justify-between bg-neutral-900/30 p-3.5 rounded-xl border border-neutral-900">
                 <View className="flex-row items-center gap-3">
@@ -360,13 +370,10 @@ export default function Lobby() {
                 />
               </View>
             )}
-          </View>
+          </Section>
 
-          <View className="space-y-2.5">
-            <View className="flex-row items-center justify-between">
-              <Text className="text-[10px] font-mono tracking-widest uppercase text-neutral-500 font-bold">
-                {isBs ? 'ODABERITE SVOJU BOJU' : 'CHOOSE YOUR COLOR'}
-              </Text>
+          <Section titleEn="CHOOSE YOUR COLOR" titleBs="ODABERITE SVOJU BOJU">
+            <View className="flex-row items-center justify-between mb-1">
               <Text className="text-neutral-400 font-medium text-[9px] uppercase tracking-wider">
                 {isBs ? activeColorConfig.nameBs : activeColorConfig.nameEn}
               </Text>
@@ -386,15 +393,12 @@ export default function Lobby() {
                 );
               })}
             </View>
-          </View>
+          </Section>
 
           {setupTab === 'CREATE' && (
-            <View className="space-y-6">
-              <View className="space-y-2.5">
-                <View className="flex-row items-center justify-between">
-                  <Text className="text-[10px] font-mono tracking-widest uppercase text-neutral-500 font-bold">
-                    {isBs ? 'CILJ KARATA ZA POBJEDU' : 'CARDS REQUIRED TO WIN'}
-                  </Text>
+            <View className="space-y-8">
+              <Section titleEn="CARDS REQUIRED TO WIN" titleBs="CILJ KARATA ZA POBJEDU">
+                <View className="flex-row items-center justify-between mb-1">
                   <Text className="text-amber-400 font-extrabold font-mono">{targetScore}</Text>
                 </View>
                 <View className="flex-row gap-2">
@@ -410,13 +414,10 @@ export default function Lobby() {
                     </Pressable>
                   ))}
                 </View>
-              </View>
+              </Section>
 
-              <View className="space-y-2.5">
-                <View className="flex-row items-center justify-between">
-                  <Text className="text-[10px] font-mono tracking-widest uppercase text-neutral-500 font-bold">
-                    {isBs ? 'ODABERITE ŠPIL KARTICA' : 'CHOOSE THE CARD DECK'}
-                  </Text>
+              <Section titleEn="CHOOSE THE CARD DECK" titleBs="ODABERITE ŠPIL KARTICA">
+                <View className="flex-row items-center justify-between mb-1">
                   <Text
                     className={`text-[9px] uppercase px-1.5 py-0.5 rounded font-mono font-black ${selectedDeck === 'SPICY' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}`}
                   >
@@ -449,7 +450,7 @@ export default function Lobby() {
                     </Text>
                   </Pressable>
                 </View>
-              </View>
+              </Section>
             </View>
           )}
         </View>
@@ -654,7 +655,7 @@ export default function Lobby() {
   };
 
   return (
-    <View className="flex-1 bg-neutral-950">
+    <View className="flex-1 bg-neutral-950 pt-[100px]">
       {renderTopBar()}
       <ScrollView className="flex-1 px-6 py-6" showsVerticalScrollIndicator={false}>
         {renderContent()}

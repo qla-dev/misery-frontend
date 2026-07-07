@@ -1,18 +1,18 @@
 {
   "expo": {
     "name": "The Misery Meter",
-    "slug": "misery-index",
+    "slug": "misery-meter",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "miseryindex",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
-    "owner": "qla-dev",
+    "owner": "kulasinn",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "misery.qla.dev",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "icon": "./assets/images/icon.png",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -56,8 +56,8 @@
     },
     "extra": {
       "router": {},
-      "eas": {
-        "projectId": "35318bfd-096f-4ef2-ae14-81b3a817a721"
+     "eas": {
+        "projectId": "43b2501c-9f9a-4ba5-866b-829789ba477b"
       }
     }
   }

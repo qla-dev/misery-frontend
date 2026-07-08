@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
 import { router } from 'expo-router';
-import * as Clipboard from 'expo-clipboard';
-import { Apple, Check, Copy, Crown, Flame, Loader2, LogIn, Plus, Sparkles, User } from 'lucide-react-native';
-import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Apple, Check, Crown, Flame, Loader2, LogIn, Plus, Sparkles, User } from 'lucide-react-native';
+import LottieView from 'lottie-react-native';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassView } from 'expo-glass-effect';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,7 +24,7 @@ const AVAILABLE_COLORS = [
 ];
 
 const BOT_NAMES = ['Sanjin', 'Lejla', 'Aida', 'Kenan', 'Selma', 'Tarik', 'Emina', 'Amar'];
-const I_LETTER_ASSET = require('../assets/images/i-letter.png');
+const I_LETTER_ANIMATION = require('../assets/animations/i-letter-lottie.json');
 
 function GoogleIcon() {
   return (
@@ -52,7 +52,7 @@ function WelcomeSilhouetteRow({ flip = false }: { flip?: boolean }) {
   const stormIndex = 3;
 
   return (
-    <View className="flex-row items-end justify-between w-full px-1 pt-5">
+    <View className="flex-row items-end justify-center gap-1 pt-5">
       {Array.from({ length: count }).map((_, idx) => (
         <View
           key={idx}
@@ -68,7 +68,7 @@ function WelcomeSilhouetteRow({ flip = false }: { flip?: boolean }) {
           {idx === stormIndex ? (
             <Text className="absolute -top-6 text-lg">🌩️</Text>
           ) : null}
-          <ManSilhouette width={42} height={42} color={idx === stormIndex ? '#ffffff' : '#facc15'} />
+          <ManSilhouette width={42} height={64} color={idx === stormIndex ? '#ffffff' : '#facc15'} />
         </View>
       ))}
     </View>
@@ -101,8 +101,6 @@ export default function Lobby() {
     setEnteredCode,
     roomPlayers,
     setRoomPlayers,
-    isCopied,
-    setIsCopied,
     countdown,
     setCountdown,
     joinStatusText,
@@ -181,12 +179,6 @@ export default function Lobby() {
   ) => {
     setSession({ mode, players, targetScore: tScore, deckType: deck });
     router.push('/game');
-  };
-
-  const handleCopyCode = async () => {
-    await Clipboard.setStringAsync(roomCode);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
   };
 
   const activeColorConfig = AVAILABLE_COLORS.find((c) => c.id === selectedColor) || AVAILABLE_COLORS[0];
@@ -309,9 +301,10 @@ export default function Lobby() {
                   <Text className="text-center text-[66px] font-black uppercase leading-[66px] tracking-tight text-amber-400">
                     M
                   </Text>
-                  <Image
-                    source={I_LETTER_ASSET}
-                    resizeMode="contain"
+                  <LottieView
+                    autoPlay
+                    loop
+                    source={I_LETTER_ANIMATION}
                     style={{
                       height: 95,
                       marginBottom: -4,
@@ -747,23 +740,8 @@ export default function Lobby() {
 
     if (lobbyView === 'ROOM_CREATED') {
       return (
-        <View className="space-y-6">
-          <View className="bg-neutral-900/40 border border-neutral-900 rounded-2xl p-5 items-center space-y-2">
-            <Text className="text-[10px] font-mono tracking-widest text-neutral-500 font-bold uppercase">
-              {isBs ? 'KOD SVOJE SOBE' : 'YOUR ROOM CODE'}
-            </Text>
-            <View className="flex-row items-center justify-center gap-3">
-              <Text className="text-3xl font-black tracking-widest text-amber-400 font-mono">{roomCode}</Text>
-              <Pressable onPress={handleCopyCode} className="p-1.5 rounded-lg bg-neutral-900">
-                {isCopied ? <Check size={16} color="#34d399" /> : <Copy size={16} color="#a3a3a3" />}
-              </Pressable>
-            </View>
-            <Text className="text-[9px] text-neutral-500 uppercase tracking-wider">
-              {isBs ? 'Podijelite ovaj kod sa prijateljima da se pridruže!' : 'Share this code to simulate other players joining!'}
-            </Text>
-          </View>
-
-          <View className="space-y-3">
+        <View className="space-y-5">
+          <View className="space-y-4">
             <View className="flex-row items-center justify-between">
               <Text className="text-[10px] font-mono tracking-widest uppercase text-neutral-500 font-bold">
                 {isBs ? `IGRAČI U SOBI (${roomPlayers.length}/4)` : `PLAYERS IN LOBBY (${roomPlayers.length}/4)`}
@@ -774,25 +752,25 @@ export default function Lobby() {
                 </Text>
               )}
             </View>
-            <View className="space-y-2.5">
+            <View className="space-y-4">
               {roomPlayers.map((player, idx) => (
-                <View key={idx} className="flex-row items-center justify-between bg-neutral-900/30 px-4 py-3.5 rounded-xl border border-neutral-900">
-                  <View className="flex-row items-center gap-3">
-                    <View className={`w-3 h-3 rounded-full ${player.color.split(' ')[0]} ${player.color.split(' ')[1]}`} />
-                    <Text className="text-sm font-bold text-neutral-200">{player.name}</Text>
-                    {idx === 0 && <Crown size={16} color="#facc15" fill="#facc15" />}
+                <View key={idx} className="flex-row items-center justify-between bg-neutral-900/30 px-5 py-5 rounded-2xl border border-neutral-900">
+                  <View className="flex-row items-center gap-4">
+                    <View className={`w-4 h-4 rounded-full ${player.color.split(' ')[0]} ${player.color.split(' ')[1]}`} />
+                    <Text className="text-base font-bold text-neutral-200">{player.name}</Text>
+                    {idx === 0 && <Crown size={18} color="#facc15" fill="#facc15" />}
                   </View>
-                  <View className="flex-row items-center gap-1.5">
+                  <View className="flex-row items-center gap-2">
                     {player.isBot ? (
-                      <Text className="text-[9px] px-2 py-0.5 rounded bg-amber-400/10 border border-amber-400/20 text-amber-300 font-semibold uppercase font-mono">
+                      <Text className="text-[10px] px-2.5 py-1 rounded-md bg-amber-400/10 border border-amber-400/20 text-amber-300 font-semibold uppercase font-mono">
                         BOT
                       </Text>
                     ) : (
-                      <Text className="text-[9px] px-2 py-0.5 rounded bg-yellow-500 text-black font-extrabold uppercase font-mono">
+                      <Text className="text-[10px] px-2.5 py-1 rounded-md bg-yellow-500 text-black font-extrabold uppercase font-mono">
                         {isBs ? 'TI (HOST)' : 'YOU (HOST)'}
                       </Text>
                     )}
-                    <Text className="text-emerald-400 text-xs font-mono ml-2">✓</Text>
+                    <Text className="text-emerald-400 text-sm font-mono ml-2">✓</Text>
                   </View>
                 </View>
               ))}
@@ -817,33 +795,33 @@ export default function Lobby() {
               {isBs ? `PRIDRUŽEN SOBE: #${roomCode}` : `CONNECTED TO ROOM: #${roomCode}`}
             </View>
           </View>
-          <View className="space-y-3">
+          <View className="space-y-4">
             <Text className="text-[10px] font-mono tracking-widest uppercase text-neutral-500 font-bold">
               {isBs ? 'SVI IGRAČI U SOBI' : 'ALL PLAYERS IN LOBBY'}
             </Text>
-            <View className="space-y-2.5">
+            <View className="space-y-4">
               {roomPlayers.map((player, idx) => (
-                <View key={idx} className="flex-row items-center justify-between bg-neutral-900/30 px-4 py-3.5 rounded-xl border border-neutral-900">
-                  <View className="flex-row items-center gap-3">
-                    <View className={`w-3 h-3 rounded-full ${player.color.split(' ')[0]} ${player.color.split(' ')[1]}`} />
-                    <Text className="text-sm font-bold text-neutral-200">{player.name}</Text>
-                    {idx === 0 && <Crown size={16} color="#facc15" fill="#facc15" />}
+                <View key={idx} className="flex-row items-center justify-between bg-neutral-900/30 px-5 py-5 rounded-2xl border border-neutral-900">
+                  <View className="flex-row items-center gap-4">
+                    <View className={`w-4 h-4 rounded-full ${player.color.split(' ')[0]} ${player.color.split(' ')[1]}`} />
+                    <Text className="text-base font-bold text-neutral-200">{player.name}</Text>
+                    {idx === 0 && <Crown size={18} color="#facc15" fill="#facc15" />}
                   </View>
-                  <View className="flex-row items-center gap-1.5">
+                  <View className="flex-row items-center gap-2">
                     {player.isBot ? (
                       idx === 0 ? (
-                        <Text className="text-[9px] px-2 py-0.5 rounded bg-amber-400/10 border border-amber-400/20 text-amber-300 font-bold uppercase font-mono">
+                        <Text className="text-[10px] px-2.5 py-1 rounded-md bg-amber-400/10 border border-amber-400/20 text-amber-300 font-bold uppercase font-mono">
                           HOST BOT
                         </Text>
                       ) : (
-                        <Text className="text-[9px] px-2 py-0.5 rounded bg-neutral-800 text-neutral-400 font-mono">BOT</Text>
+                        <Text className="text-[10px] px-2.5 py-1 rounded-md bg-neutral-800 text-neutral-400 font-mono">BOT</Text>
                       )
                     ) : (
-                      <Text className="text-[9px] px-2 py-0.5 rounded bg-yellow-500 text-black font-extrabold uppercase font-mono animate-pulse">
+                      <Text className="text-[10px] px-2.5 py-1 rounded-md bg-yellow-500 text-black font-extrabold uppercase font-mono animate-pulse">
                         {isBs ? 'TI' : 'YOU'}
                       </Text>
                     )}
-                    <Text className="text-emerald-400 text-xs font-mono ml-2">✓</Text>
+                    <Text className="text-emerald-400 text-sm font-mono ml-2">✓</Text>
                   </View>
                 </View>
               ))}

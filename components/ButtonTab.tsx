@@ -29,7 +29,7 @@ export function ButtonTab({
         : { width: 'auto' };
 
   // Determine category height & padding
-  const categoryClass = category === 'tab' ? 'h-[54px] rounded-xl' : 'h-[50px] rounded-xl';
+  const categoryClass = category === 'tab' ? 'h-[60px] rounded-xl' : 'h-[58px] rounded-xl';
   
   // Determine type colors
   const typeClass =

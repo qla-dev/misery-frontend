@@ -34,7 +34,7 @@ export default function RulesScreen() {
       <Text className="text-xs text-neutral-400 leading-relaxed mb-6">
         {isBs
           ? 'Dobrodošli u Indeks Bijede! Cilj igre je da tačno posložite kartice sa nesrećnim životnim događajima na skalu od 0 do 100.'
-          : 'Welcome to The Misery Meter! Your goal is to correctly arrange miserable real-life events along your personal Misery Lane from 0 to 100.'}
+          : 'Welcome to Misery Meter! Your goal is to correctly arrange miserable real-life events along your personal Misery Lane from 0 to 100.'}
       </Text>
       <View className="space-y-4">
         {sections.map((s) => (

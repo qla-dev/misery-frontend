@@ -17,7 +17,7 @@ export default function AboutScreen() {
         <ManSilhouette width={64} height={64} color="#0a0a0a" />
       </LinearGradient>
       <Text className="text-3xl font-black uppercase tracking-tight text-center">
-        THE <Text className="text-amber-400">MISERY</Text> INDEX
+        <Text className="text-amber-400">MISERY</Text> METER
       </Text>
       <Text className="text-[10px] text-neutral-500 uppercase tracking-widest mt-2.5 font-mono">
         {isBs ? 'KARTIČNA IGRA • ZERO TO MISERABLE' : 'CARD GAME • ZERO TO MISERABLE'}
@@ -41,7 +41,7 @@ export default function AboutScreen() {
       </View>
 
       <View className="mt-10 items-center">
-        <Text className="text-[10px] text-neutral-600 font-mono">© 2026 The Misery Meter</Text>
+        <Text className="text-[10px] text-neutral-600 font-mono">© 2026 Misery Meter</Text>
         <Text className="text-[10px] text-neutral-600 font-mono opacity-80">
           {isBs ? 'Simulirani mrežni kod • Potpuno klijentska simulacija' : 'Simulated netplay • Zero servers required'}
         </Text>

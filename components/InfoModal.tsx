@@ -32,7 +32,7 @@ export function InfoModal() {
                 <Text className="text-amber-400 font-black text-lg">?</Text>
               </View>
               <Text className="font-sans font-black text-amber-400 uppercase text-sm tracking-wide">
-                {isBs ? 'ŠTA JE INDEKS BIJEDE?' : 'WHAT IS THE MISERY INDEX?'}
+                {isBs ? 'ŠTA JE MJERAČ BIJEDE?' : 'WHAT IS MISERY METER?'}
               </Text>
             </View>
 

@@ -654,7 +654,7 @@ export default function GameBoard({
             </View>
             <View className="space-y-3.5">
               <Text className="text-xs text-neutral-300 leading-relaxed font-sans">
-                {isBs ? 'Dobrodošli u Indeks Bijede! Cilj igre je da tačno posložite kartice sa nesrećnim životnim događajima na skalu od 0 do 100.' : 'Welcome to The Misery Index! Your goal is to correctly arrange miserable real-life events along your personal Misery Lane from 0 to 100.'}
+                {isBs ? 'Dobrodošli u Mjerač Bijede! Cilj igre je da tačno posložite kartice sa nesrećnim životnim događajima na skalu od 0 do 100.' : 'Welcome to Misery Meter! Your goal is to correctly arrange miserable real-life events along your personal Misery Lane from 0 to 100.'}
               </Text>
               <View className="p-3.5 bg-neutral-900/40 rounded-xl border border-neutral-900 space-y-1">
                 <Text className="font-bold text-amber-400 block font-mono text-[9px] uppercase tracking-wider">{isBs ? '1. TRACA BIJEDE' : '1. MISERY LANE'}</Text>

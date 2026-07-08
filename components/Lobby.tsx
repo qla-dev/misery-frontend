@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { Apple, Check, Copy, Crown, Flame, Loader2, LogIn, Plus, Sparkles, User } from 'lucide-react-native';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassView } from 'expo-glass-effect';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,6 +24,7 @@ const AVAILABLE_COLORS = [
 ];
 
 const BOT_NAMES = ['Sanjin', 'Lejla', 'Aida', 'Kenan', 'Selma', 'Tarik', 'Emina', 'Amar'];
+const I_LETTER_ASSET = require('../assets/images/i-letter.png');
 
 function GoogleIcon() {
   return (
@@ -40,7 +41,7 @@ function SmallBrand({ isBs }: { isBs: boolean }) {
         <Text className="text-[10px] text-black font-black">⛈</Text>
       </LinearGradient>
       <Text className="text-xs font-black uppercase tracking-wider text-neutral-200">
-        THE <Text className="text-amber-400">MISERY</Text> INDEX
+        <Text className="text-amber-400">MISERY</Text> METER
       </Text>
     </View>
   );
@@ -199,7 +200,7 @@ export default function Lobby() {
             <ManSilhouette width={52} height={52} color="#0a0a0a" />
           </LinearGradient>
           <Text className="text-3xl font-black uppercase tracking-tight leading-none text-center text-white">
-            THE <Text className="text-amber-400">MISERY</Text> INDEX
+            <Text className="text-amber-400">MISERY</Text> METER
           </Text>
           <Text className="text-[10px] text-neutral-500 uppercase tracking-widest mt-2.5 font-mono font-medium">
             {isBs ? 'ONLINE SIMULACIJA • ZERO TO MISERABLE' : 'ONLINE SIMULATION • ZERO TO MISERABLE'}
@@ -303,16 +304,31 @@ export default function Lobby() {
             style={{ gap: 22 }}
           >
             <View className="items-center" style={{ gap: 10 }}>
-              <Text className="text-[10px] text-neutral-500 font-mono tracking-widest uppercase text-center font-black">
-                {isBs ? 'INDEKS BIJEDE • MISERABLE MATCH' : 'MISERY INDEX • MISERABLE MATCH'}
-              </Text>
-              <Text className="text-center text-[46px] font-black uppercase leading-[46px] tracking-tight">
-                <Text className="text-white">THE</Text>
-                {'\n'}
-                <Text className="text-amber-400">MISERY</Text>
-                {'\n'}
-                <Text className="text-white">INDEX</Text>
-              </Text>
+              <View className="items-center">
+                <View className="flex-row items-center justify-center">
+                  <Text className="text-center text-[66px] font-black uppercase leading-[66px] tracking-tight text-amber-400">
+                    M
+                  </Text>
+                  <Image
+                    source={I_LETTER_ASSET}
+                    resizeMode="contain"
+                    style={{
+                      height: 95,
+                      marginBottom: -4,
+                      marginHorizontal: -4,
+                      marginTop: -52,
+                      transform: [{ translateY: -5 }, { translateX: 5 }],
+                      width: 44,
+                    }}
+                  />
+                  <Text className="text-center text-[66px] font-black uppercase leading-[66px] tracking-tight text-amber-400">
+                    SERY
+                  </Text>
+                </View>
+                <Text className="text-center text-[66px] font-black uppercase leading-[66px] tracking-tight text-white">
+                  METER
+                </Text>
+              </View>
               <Text className="text-xs text-neutral-400 text-center leading-relaxed font-sans font-bold">
                 {isBs
                   ? 'Svako od nas ima lose dane. Dokazi ko prezivljava najgoru patnju.'
@@ -322,14 +338,12 @@ export default function Lobby() {
 
             <View className="items-center" style={{ display: 'none' }}>
               <Text className="text-[10px] text-neutral-500 font-mono tracking-widest uppercase text-center font-black">
-                {isBs ? 'INDEKS BIJEDE • MISERABLE MATCH' : 'MISERY INDEX • MISERABLE MATCH'}
+                {isBs ? 'MJERAC BIJEDE • MISERABLE MATCH' : 'MISERY METER • MISERABLE MATCH'}
               </Text>
               <Text className="text-center text-[46px] font-black uppercase leading-[46px] tracking-tight">
-                <Text className="text-white">THE</Text>
-                {'\n'}
                 <Text className="text-amber-400">MISERY</Text>
                 {'\n'}
-                <Text className="text-white">INDEX</Text>
+                <Text className="text-white">METER</Text>
               </Text>
               <Text className="text-xs text-neutral-400 text-center leading-relaxed font-sans font-bold">
                 {isBs
@@ -400,7 +414,7 @@ export default function Lobby() {
           </View>
           <View className="bg-neutral-900/35 border border-neutral-900/60 p-6 rounded-2xl shadow-lg" style={{ display: 'none' }}>
             <Text className="text-[10px] text-neutral-500 font-mono tracking-widest uppercase text-center font-bold">
-              {isBs ? 'INDEKS BIJEDE • MISERABLE MATCH' : 'MISERY INDEX • MISERABLE MATCH'}
+              {isBs ? 'MJERAC BIJEDE • MISERABLE MATCH' : 'MISERY METER • MISERABLE MATCH'}
             </Text>
             <View className="flex-row items-center justify-around py-3 bg-neutral-950/40 rounded-xl relative overflow-hidden border border-neutral-900/40 px-2">
               {['Gost 1', 'Gost 2', null, 'Gost 3', 'Gost 4'].map((label, idx) => (
@@ -480,7 +494,7 @@ export default function Lobby() {
           </View>
 
           <View className="pt-4 pb-2 items-center" style={{ gap: 4 }}>
-            <Text className="text-[10px] text-neutral-600 font-mono">© 2026 The Misery Index Clone</Text>
+            <Text className="text-[10px] text-neutral-600 font-mono">© 2026 Misery Meter</Text>
             <Text className="text-[10px] text-neutral-600 font-mono opacity-80">
               {isBs ? 'Simulirani mrežni kod • Potpuno klijentska simulacija' : 'Simulated netplay • Zero servers required'}
             </Text>

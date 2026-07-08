@@ -3,7 +3,7 @@ import { Pressable, Text } from 'react-native';
 
 interface ButtonTabProps {
   category: 'button' | 'tab';
-  type: 'primary' | 'secondary';
+  type: 'primary' | 'secondary' | 'third';
   size: '50' | '100' | 'auto';
   onPress?: () => void;
   children: React.ReactNode;
@@ -35,7 +35,9 @@ export function ButtonTab({
   const typeClass =
     type === 'primary'
       ? 'bg-amber-400 border border-amber-400'
-      : 'bg-transparent border border-neutral-800';
+      : type === 'third'
+        ? 'bg-white border border-white'
+        : 'bg-transparent border border-neutral-800';
 
   return (
     <Pressable
@@ -50,8 +52,8 @@ export function ButtonTab({
       {typeof children === 'string' ? (
         <Text
           className={`uppercase tracking-wider font-black ${
-            category === 'tab' ? 'text-xs' : 'text-[11px]'
-          } ${type === 'primary' ? 'text-neutral-950' : 'text-neutral-400'}`}
+            category === 'tab' ? 'text-[15px]' : 'text-sm'
+          } ${type === 'primary' || type === 'third' ? 'text-neutral-950' : 'text-neutral-400'}`}
         >
           {children}
         </Text>

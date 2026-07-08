@@ -4,15 +4,17 @@ interface ManSilhouetteProps {
   width?: number;
   height?: number;
   color?: string;
+  preserveAspectRatio?: string;
 }
 
 export default function ManSilhouette({
   width = 36,
   height = 36,
   color = '#FFD700',
+  preserveAspectRatio = 'xMidYMid meet',
 }: ManSilhouetteProps) {
   return (
-    <Svg width={width} height={height} viewBox="0 0 556.38 556.38">
+    <Svg width={width} height={height} viewBox="0 0 556.38 556.38" preserveAspectRatio={preserveAspectRatio}>
       <Path
         fill={color}
         d="M188.434,315.146c11.767,0,21.31-9.534,21.315-21.301c0.009-0.004,0.028-130.165,0.028-130.165

@@ -249,6 +249,11 @@ export default function GameBoard({
     });
   };
 
+  const handleBack = () => {
+    triggerSound('click');
+    router.back();
+  };
+
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
     const runBotTurn = () => {
@@ -458,7 +463,7 @@ export default function GameBoard({
                 </ScrollView>
               </View>
               <View className="flex-col gap-3 pt-2 w-full">
-                <Pressable onPress={() => router.back()} className="w-full py-3 bg-neutral-900 rounded-xl items-center justify-center border border-neutral-800">
+                <Pressable onPress={handleBack} className="w-full py-3 bg-neutral-900 rounded-xl items-center justify-center border border-neutral-800">
                   <Text className="text-neutral-400 font-bold uppercase text-[10px] tracking-wider">{isBs ? 'GLAVNI MENI' : 'MAIN MENU'}</Text>
                 </Pressable>
                 <GradientButton onPress={handleRestartGame} className="w-full">
@@ -480,7 +485,7 @@ export default function GameBoard({
                 <Text className="text-2xl font-black text-amber-400 uppercase tracking-tight mt-1">{currentPlayer.lane.length} CARDS</Text>
               </View>
               <View className="flex-col gap-3 pt-2 w-full">
-                <Pressable onPress={() => router.back()} className="w-full py-3 bg-neutral-900 rounded-xl items-center justify-center border border-neutral-800">
+                <Pressable onPress={handleBack} className="w-full py-3 bg-neutral-900 rounded-xl items-center justify-center border border-neutral-800">
                   <Text className="text-neutral-400 font-bold uppercase text-[10px] tracking-wider">{isBs ? 'GLAVNI MENI' : 'MAIN MENU'}</Text>
                 </Pressable>
                 <GradientButton onPress={handleRestartGame} className="w-full">
@@ -653,24 +658,24 @@ export default function GameBoard({
               </Pressable>
             </View>
             <View className="space-y-3.5">
-              <Text className="text-xs text-neutral-300 leading-relaxed font-sans">
+              <Text className="text-sm text-neutral-300 leading-6 font-sans">
                 {isBs ? 'Dobrodošli u Mjerač Bijede! Cilj igre je da tačno posložite kartice sa nesrećnim životnim događajima na skalu od 0 do 100.' : 'Welcome to Misery Meter! Your goal is to correctly arrange miserable real-life events along your personal Misery Lane from 0 to 100.'}
               </Text>
               <View className="p-3.5 bg-neutral-900/40 rounded-xl border border-neutral-900 space-y-1">
-                <Text className="font-bold text-amber-400 block font-mono text-[9px] uppercase tracking-wider">{isBs ? '1. TRACA BIJEDE' : '1. MISERY LANE'}</Text>
-                <Text className="text-neutral-300 text-xs">{isBs ? 'Svaki igrač počinje sa 3 već poredane kartice (od najmanje do najviše bijedne). To je vaša Traka Bijede.' : 'Each player starts with 3 pre-arranged cards, ordered from lowest to highest misery index. This forms your starting lane.'}</Text>
+                <Text className="font-bold text-amber-400 block font-mono text-[11px] uppercase tracking-wider">{isBs ? '1. TRACA BIJEDE' : '1. MISERY LANE'}</Text>
+                <Text className="text-neutral-300 text-sm leading-6">{isBs ? 'Svaki igrač počinje sa 3 već poredane kartice (od najmanje do najviše bijedne). To je vaša Traka Bijede.' : 'Each player starts with 3 pre-arranged cards, ordered from lowest to highest misery index. This forms your starting lane.'}</Text>
               </View>
               <View className="p-3.5 bg-neutral-900/40 rounded-xl border border-neutral-900 space-y-1">
-                <Text className="font-bold text-amber-400 block font-mono text-[9px] uppercase tracking-wider">{isBs ? '2. VAŠ POTEZ' : '2. YOUR TURN'}</Text>
-                <Text className="text-neutral-300 text-xs">{isBs ? 'Izvlači se nova misteriozna kartica. Vidite naziv i ilustraciju, ali je ocjena skrivena. Kliknite na "Ubaci ovdje" dugme na traci gdje mislite da taj događaj pripada.' : 'A new mystery card is drawn. You can read the scenario and see the graphic, but the score is hidden. Tap the "Insert Here" slot in your lane where you guess this card belongs.'}</Text>
+                <Text className="font-bold text-amber-400 block font-mono text-[11px] uppercase tracking-wider">{isBs ? '2. VAŠ POTEZ' : '2. YOUR TURN'}</Text>
+                <Text className="text-neutral-300 text-sm leading-6">{isBs ? 'Izvlači se nova misteriozna kartica. Vidite naziv i ilustraciju, ali je ocjena skrivena. Kliknite na "Ubaci ovdje" dugme na traci gdje mislite da taj događaj pripada.' : 'A new mystery card is drawn. You can read the scenario and see the graphic, but the score is hidden. Tap the "Insert Here" slot in your lane where you guess this card belongs.'}</Text>
               </View>
               <View className="p-3.5 bg-neutral-900/40 rounded-xl border border-neutral-900 space-y-1">
-                <Text className="font-bold text-amber-400 block font-mono text-[9px] uppercase tracking-wider">{isBs ? '3. KRAĐE (VIŠE IGRAČA)' : '3. STEALING (MULTIPLAYER)'}</Text>
-                <Text className="text-neutral-300 text-xs">{isBs ? 'Ako pogriješite, drugi igrači po krugu dobijaju ponudan da UKRADU karticu! Oni mogu procijeniti i ubaciti je na svoju traku.' : 'If you guess wrong, other players in clockwise order get a single chance to STEAL the card by correctly placing it in their own lanes.'}</Text>
+                <Text className="font-bold text-amber-400 block font-mono text-[11px] uppercase tracking-wider">{isBs ? '3. KRAĐE (VIŠE IGRAČA)' : '3. STEALING (MULTIPLAYER)'}</Text>
+                <Text className="text-neutral-300 text-sm leading-6">{isBs ? 'Ako pogriješite, drugi igrači po krugu dobijaju ponudan da UKRADU karticu! Oni mogu procijeniti i ubaciti je na svoju traku.' : 'If you guess wrong, other players in clockwise order get a single chance to STEAL the card by correctly placing it in their own lanes.'}</Text>
               </View>
               <View className="p-3.5 bg-neutral-900/40 rounded-xl border border-neutral-900 space-y-1">
-                <Text className="font-bold text-amber-400 block font-mono text-[9px] uppercase tracking-wider">{isBs ? '4. KAKO POBIJEDITI' : '4. HOW TO WIN'}</Text>
-                <Text className="text-neutral-300 text-xs">{isBs ? `Prvi igrač koji uspije sakupiti ${targetScore} kartica u svojoj traci pobjeđuje! U solo modu imate 3 života.` : `First player to correctly build a lane of ${targetScore} cards wins! In Solo Mode, you try to build the longest lane with 3 lives.`}</Text>
+                <Text className="font-bold text-amber-400 block font-mono text-[11px] uppercase tracking-wider">{isBs ? '4. KAKO POBIJEDITI' : '4. HOW TO WIN'}</Text>
+                <Text className="text-neutral-300 text-sm leading-6">{isBs ? `Prvi igrač koji uspije sakupiti ${targetScore} kartica u svojoj traci pobjeđuje! U solo modu imate 3 života.` : `First player to correctly build a lane of ${targetScore} cards wins! In Solo Mode, you try to build the longest lane with 3 lives.`}</Text>
               </View>
             </View>
           </ScrollView>

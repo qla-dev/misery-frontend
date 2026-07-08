@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { router } from 'expo-router';
 import { Apple, Check, Crown, Flame, Loader2, LogIn, Plus, Sparkles, User } from 'lucide-react-native';
 import LottieView from 'lottie-react-native';
-import { Animated, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Animated, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassView } from 'expo-glass-effect';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Path, Stop } from 'react-native-svg';
@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/context/GameContext';
 import { playSound } from '@/lib/sound';
 import { AppButton, Section, Surface } from './AppPrimitives';
+import { AppInput } from './AppInput';
 import { GradientButton } from './GradientButton';
 import { InfoModal } from './InfoModal';
 import ManSilhouette from './ManSilhouette';
@@ -323,6 +324,78 @@ export default function Lobby() {
 
   const activeColorConfig = AVAILABLE_COLORS.find((c) => c.id === selectedColor) || AVAILABLE_COLORS[0];
 
+  const renderSetupTabs = () => (
+    <View style={{ alignSelf: 'center', flexDirection: 'row', gap: 8, height: 48, maxWidth: 420, width: '100%' }}>
+      <GlassView
+        colorScheme="dark"
+        glassEffectStyle="clear"
+        isInteractive
+        style={{ alignItems: 'center', borderRadius: 12, flex: 1, justifyContent: 'center' }}
+        tintColor="rgba(0,0,0,0)"
+      >
+        <Pressable
+          accessibilityRole="tab"
+          accessibilityState={{ selected: setupTab === 'CREATE' }}
+          onPress={() => {
+            playSound('click');
+            setSetupTab('CREATE');
+          }}
+          className="w-full h-full rounded-xl items-center justify-center"
+          style={({ pressed }) => [
+            {
+              borderColor: setupTab === 'CREATE' ? 'rgba(251,191,36,0.5)' : 'rgba(38,38,38,1)',
+              borderWidth: 1,
+              opacity: pressed ? 0.72 : 1,
+            },
+          ]}
+        >
+          <View className="flex-row items-center justify-center gap-2 px-2">
+            <View className={`w-6 h-6 rounded-md items-center justify-center ${setupTab === 'CREATE' ? 'bg-amber-400/20' : 'bg-transparent'}`}>
+              <Plus size={14} color={setupTab === 'CREATE' ? '#fbbf24' : '#ffffff'} strokeWidth={3} />
+            </View>
+            <Text className={`text-xs font-black uppercase tracking-wider ${setupTab === 'CREATE' ? 'text-amber-300' : 'text-neutral-200'}`}>
+              {isBs ? 'Kreiraj Sobu' : 'Create Room'}
+            </Text>
+          </View>
+        </Pressable>
+      </GlassView>
+
+      <GlassView
+        colorScheme="dark"
+        glassEffectStyle="clear"
+        isInteractive
+        style={{ alignItems: 'center', borderRadius: 12, flex: 1, justifyContent: 'center' }}
+        tintColor="rgba(0,0,0,0)"
+      >
+        <Pressable
+          accessibilityRole="tab"
+          accessibilityState={{ selected: setupTab === 'JOIN' }}
+          onPress={() => {
+            playSound('click');
+            setSetupTab('JOIN');
+          }}
+          className="w-full h-full rounded-xl items-center justify-center"
+          style={({ pressed }) => [
+            {
+              borderColor: setupTab === 'JOIN' ? 'rgba(251,191,36,0.5)' : 'rgba(38,38,38,1)',
+              borderWidth: 1,
+              opacity: pressed ? 0.72 : 1,
+            },
+          ]}
+        >
+          <View className="flex-row items-center justify-center gap-2 px-2">
+            <View className={`w-6 h-6 rounded-md items-center justify-center ${setupTab === 'JOIN' ? 'bg-amber-400/20' : 'bg-transparent'}`}>
+              <LogIn size={14} color={setupTab === 'JOIN' ? '#fbbf24' : '#ffffff'} strokeWidth={3} />
+            </View>
+            <Text className={`text-xs font-black uppercase tracking-wider ${setupTab === 'JOIN' ? 'text-amber-300' : 'text-neutral-200'}`}>
+              {isBs ? 'Pridruži se' : 'Enter Code'}
+            </Text>
+          </View>
+        </Pressable>
+      </GlassView>
+    </View>
+  );
+
   const renderTopBar = () => {
     if (lobbyView === 'WELCOME') {
       return null;
@@ -341,85 +414,7 @@ export default function Lobby() {
       );
     }
     if (lobbyView === 'SETUP') {
-      return (
-        <View className="px-5 pb-0">
-          <View
-            style={{
-              alignSelf: 'center',
-              flexDirection: 'row',
-              gap: 8,
-              height: 48,
-              maxWidth: 420,
-              width: '100%',
-            }}
-          >
-            <GlassView
-              colorScheme="dark"
-              glassEffectStyle="clear"
-              isInteractive
-              style={{
-                alignItems: 'center',
-                borderRadius: 12,
-                flex: 1,
-                justifyContent: 'center',
-              }}
-              tintColor="rgba(0,0,0,0)"
-            >
-            <Pressable
-              accessibilityRole="tab"
-              accessibilityState={{ selected: setupTab === 'CREATE' }}
-              onPress={() => {
-                playSound('click');
-                setSetupTab('CREATE');
-              }}
-              className="flex-1 w-full rounded-xl items-center justify-center"
-              style={({ pressed }) => [{ opacity: pressed ? 0.72 : 1 }]}
-            >
-              <View className="flex-row items-center justify-center gap-2 px-2">
-                  <View className={`w-6 h-6 rounded-md items-center justify-center ${setupTab === 'CREATE' ? 'bg-amber-400/20' : 'bg-transparent'}`}>
-                  <Plus size={14} color="#fbbf24" strokeWidth={3} />
-                </View>
-                <Text className={`text-xs font-black uppercase tracking-wider ${setupTab === 'CREATE' ? 'text-amber-300' : 'text-neutral-200'}`}>
-                  {isBs ? 'Kreiraj Sobu' : 'Create Room'}
-                </Text>
-              </View>
-            </Pressable>
-            </GlassView>
-            <GlassView
-              colorScheme="dark"
-              glassEffectStyle="clear"
-              isInteractive
-              style={{
-                alignItems: 'center',
-                borderRadius: 12,
-                flex: 1,
-                justifyContent: 'center',
-              }}
-              tintColor="rgba(0,0,0,0)"
-            >
-            <Pressable
-              accessibilityRole="tab"
-              accessibilityState={{ selected: setupTab === 'JOIN' }}
-              onPress={() => {
-                playSound('click');
-                setSetupTab('JOIN');
-              }}
-              className="flex-1 w-full rounded-xl items-center justify-center"
-              style={({ pressed }) => [{ opacity: pressed ? 0.72 : 1 }]}
-            >
-              <View className="flex-row items-center justify-center gap-2 px-2">
-                  <View className={`w-6 h-6 rounded-md items-center justify-center ${setupTab === 'JOIN' ? 'bg-cyan-400/20' : 'bg-transparent'}`}>
-                  <LogIn size={14} color="#22d3ee" strokeWidth={3} />
-                </View>
-                <Text className={`text-xs font-black uppercase tracking-wider ${setupTab === 'JOIN' ? 'text-cyan-300' : 'text-neutral-200'}`}>
-                  {isBs ? 'Pridruži se' : 'Enter Code'}
-                </Text>
-              </View>
-            </Pressable>
-            </GlassView>
-          </View>
-        </View>
-      );
+      return null;
     }
     return (
       <View className="py-3.5 px-5 flex-row items-center justify-between bg-neutral-900/40 border-b border-neutral-900">
@@ -639,6 +634,8 @@ export default function Lobby() {
       if (setupTab === 'CREATE') {
         return (
           <View style={{ gap: 32 }}>
+            {renderSetupTabs()}
+
             <Section titleEn="PLAYER PROFILE" titleBs="PROFIL IGRAČA">
               {isSocialUser ? (
                 <View className="flex-row items-center justify-between bg-neutral-900/30 p-3.5 rounded-xl border border-neutral-900">
@@ -668,22 +665,18 @@ export default function Lobby() {
                   </Pressable>
                 </View>
               ) : (
-                <View className="flex-row items-center gap-3.5 bg-neutral-900/30 px-4 py-3 rounded-xl border border-neutral-900">
-                  <User size={16} color="#737373" />
-                  <TextInput
-                    maxLength={15}
-                    value={userName}
-                    onChangeText={setUserName}
-                    placeholder={isBs ? 'Npr. Damir' : 'E.g. Damir'}
-                    placeholderTextColor="#404040"
-                    className="flex-1 text-sm font-semibold text-neutral-200"
-                  />
-                </View>
+                <AppInput
+                  leftIcon={<User size={16} color="#737373" />}
+                  maxLength={15}
+                  value={userName}
+                  onChangeText={setUserName}
+                  placeholder={isBs ? 'Npr. Damir' : 'E.g. Damir'}
+                />
               )}
             </Section>
 
             <Section titleEn="CHOOSE YOUR COLOR" titleBs="ODABERITE SVOJU BOJU">
-              <View className="flex-row flex-wrap gap-3 bg-neutral-900/10 p-2.5 rounded-xl border border-neutral-900/60">
+              <View className="flex-row flex-wrap gap-3">
                 {AVAILABLE_COLORS.map((color) => {
                   const isSelected = selectedColor === color.id;
                   return (
@@ -734,7 +727,7 @@ export default function Lobby() {
                     playSound('click');
                     setSelectedDeck('NORMAL');
                   }}
-                  className={`flex-1 py-3 px-3 rounded-xl border-2 items-center justify-center gap-1 ${selectedDeck === 'NORMAL' ? 'border-emerald-500 bg-emerald-500/5' : 'border-neutral-900 bg-neutral-900/10'}`}
+                  className={`flex-1 py-3 px-3 rounded-xl border-2 items-center justify-center gap-1 ${selectedDeck === 'NORMAL' ? 'border-emerald-500 bg-emerald-500/5' : 'border-neutral-900 bg-transparent'}`}
                 >
                   <Sparkles size={16} color={selectedDeck === 'NORMAL' ? '#34d399' : '#737373'} />
                   <Text className={`text-[10px] uppercase tracking-wider font-bold ${selectedDeck === 'NORMAL' ? 'text-emerald-400' : 'text-neutral-500'}`}>
@@ -749,7 +742,7 @@ export default function Lobby() {
                     playSound('click');
                     setSelectedDeck('SPICY');
                   }}
-                  className={`flex-1 py-3 px-3 rounded-xl border-2 items-center justify-center gap-1 ${selectedDeck === 'SPICY' ? 'border-rose-500 bg-rose-500/5' : 'border-neutral-900 bg-neutral-900/10'}`}
+                  className={`flex-1 py-3 px-3 rounded-xl border-2 items-center justify-center gap-1 ${selectedDeck === 'SPICY' ? 'border-rose-500 bg-rose-500/5' : 'border-neutral-900 bg-transparent'}`}
                 >
                   <Flame size={16} color={selectedDeck === 'SPICY' ? '#fb7185' : '#737373'} />
                   <Text className={`text-[10px] uppercase tracking-wider font-bold ${selectedDeck === 'SPICY' ? 'text-rose-400' : 'text-neutral-500'}`}>
@@ -775,6 +768,8 @@ export default function Lobby() {
       } else {
         return (
           <View style={{ gap: 32 }}>
+            {renderSetupTabs()}
+
             <Section titleEn="PLAYER PROFILE" titleBs="PROFIL IGRAČA">
               {isSocialUser ? (
                 <View className="flex-row items-center justify-between bg-neutral-900/30 p-3.5 rounded-xl border border-neutral-900">
@@ -804,22 +799,18 @@ export default function Lobby() {
                   </Pressable>
                 </View>
               ) : (
-                <View className="flex-row items-center gap-3.5 bg-neutral-900/30 px-4 py-3 rounded-xl border border-neutral-900">
-                  <User size={16} color="#737373" />
-                  <TextInput
-                    maxLength={15}
-                    value={userName}
-                    onChangeText={setUserName}
-                    placeholder={isBs ? 'Npr. Damir' : 'E.g. Damir'}
-                    placeholderTextColor="#404040"
-                    className="flex-1 text-sm font-semibold text-neutral-200"
-                  />
-                </View>
+                <AppInput
+                  leftIcon={<User size={16} color="#737373" />}
+                  maxLength={15}
+                  value={userName}
+                  onChangeText={setUserName}
+                  placeholder={isBs ? 'Npr. Damir' : 'E.g. Damir'}
+                />
               )}
             </Section>
 
             <Section titleEn="CHOOSE YOUR COLOR" titleBs="ODABERITE SVOJU BOJU">
-              <View className="flex-row flex-wrap gap-3 bg-neutral-900/10 p-2.5 rounded-xl border border-neutral-900/60">
+              <View className="flex-row flex-wrap gap-3">
                 {AVAILABLE_COLORS.map((color) => {
                   const isSelected = selectedColor === color.id;
                   return (
@@ -844,13 +835,13 @@ export default function Lobby() {
             </Section>
 
             <Section titleEn="ENTER CODE TO JOIN" titleBs="UNESITE KOD ZA PRIDRUŽIVANJE">
-              <TextInput
+              <AppInput
                 maxLength={4}
                 value={enteredCode}
                 onChangeText={(t) => setEnteredCode(t.toUpperCase())}
                 placeholder={isBs ? 'NPR. ABCD' : 'E.G. ABCD'}
-                placeholderTextColor="#404040"
-                className="bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-center font-mono font-black text-lg uppercase tracking-widest text-amber-400 w-full"
+                className="w-full"
+                inputClassName="text-center font-mono font-black text-lg uppercase tracking-widest text-amber-400"
               />
             </Section>
 
@@ -1018,7 +1009,7 @@ export default function Lobby() {
   };
 
   return (
-    <View className="flex-1 bg-neutral-950" style={{ paddingTop: lobbyView === 'WELCOME' ? 0 : 100 }}>
+    <View className="flex-1 bg-neutral-950" style={{ paddingTop: lobbyView === 'WELCOME' || lobbyView === 'SETUP' ? 0 : 100 }}>
       {renderTopBar()}
       <ScrollView
         className="flex-1 px-5"
@@ -1026,7 +1017,7 @@ export default function Lobby() {
           lobbyView === 'WELCOME'
             ? { flexGrow: 1, justifyContent: 'center', paddingVertical: 24 }
             : lobbyView === 'SETUP'
-              ? { paddingBottom: 24, paddingTop: 16 }
+              ? { paddingBottom: 24, paddingTop: 104 }
             : { paddingVertical: 24 }
         }
         showsVerticalScrollIndicator={false}

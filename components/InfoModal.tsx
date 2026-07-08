@@ -1,7 +1,10 @@
 import { useGame } from '@/context/GameContext';
 import { X } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import LottieView from 'lottie-react-native';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
+
+const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
 
 export function InfoModal() {
   const { language, infoModalOpen, setInfoModalOpen } = useGame();
@@ -22,35 +25,56 @@ export function InfoModal() {
           <View className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-2xl relative">
             <Pressable
               onPress={() => setInfoModalOpen(false)}
-              className="absolute top-4 right-4 p-1.5 rounded-lg bg-neutral-800"
+              className="absolute top-4 right-4 z-10 p-1.5 rounded-lg bg-neutral-800"
             >
               <X size={16} color="#a3a3a3" />
             </Pressable>
 
-            <View className="flex-row items-center gap-2.5 mb-4">
-              <View className="p-2 bg-amber-400/10 rounded-xl border border-amber-400/20">
-                <Text className="text-amber-400 font-black text-lg">?</Text>
+            <View className="items-center mb-5 pr-5" style={{ gap: 10 }}>
+              <View className="flex-row items-center justify-center">
+                <Text className="text-center text-[42px] font-black uppercase leading-[44px] tracking-tight text-white">
+                  M
+                </Text>
+                <LottieView
+                  autoPlay
+                  loop
+                  source={MASCOT_LOTTIE}
+                  style={{
+                    height: 62,
+                    marginBottom: -2,
+                    marginHorizontal: -4,
+                    marginTop: -34,
+                    transform: [{ translateY: -2 }, { translateX: 3 }],
+                    width: 30,
+                  }}
+                />
+                <Text className="text-center text-[42px] font-black uppercase leading-[44px] tracking-tight text-white">
+                  SERY
+                  <Text className="text-amber-400"> METER</Text>
+                </Text>
               </View>
-              <Text className="font-sans font-black text-amber-400 uppercase text-sm tracking-wide">
-                {isBs ? 'ŠTA JE MJERAČ BIJEDE?' : 'WHAT IS MISERY METER?'}
+              <Text className="text-2xl text-neutral-400 text-center leading-7 font-handwritten tracking-[1px] uppercase px-2">
+                {isBs
+                  ? 'Svako od nas ima lose dane. Dokazi ko prezivljava najgoru patnju.'
+                  : 'We all have bad days. Prove who survives the worst misery.'}
               </Text>
             </View>
 
             <ScrollView className="max-h-80" showsVerticalScrollIndicator={false}>
               <View className="space-y-3.5">
-                <Text className="text-xs text-neutral-300 leading-relaxed font-sans">
+                <Text className="text-sm text-neutral-300 leading-6 font-sans">
                   {isBs
-                    ? 'Zabavna igra u kojoj procjenjujete blesave, neprijatne ili potpuno bizarne životne situacije na skali od 0 (nebitno) do 100 (maksimalna nesreća).'
+                    ? 'Zabavna igra u kojoj procjenjujete blesave, neprijatne ili potpuno bizarne zivotne situacije na skali od 0 (nebitno) do 100 (maksimalna nesreca).'
                     : 'A card game where you rank real-life, painful, funny, or extremely awkward situations on a scale of 0 (meh) to 100 (miserable).'}
                 </Text>
-                <Text className="text-xs text-neutral-300 leading-relaxed font-sans">
+                <Text className="text-sm text-neutral-300 leading-6 font-sans">
                   {isBs
-                    ? 'Vaš cilj je da tačno plasirate novu kartu unutar vašeg postojećeg niza od lakših prema težim životnim situacijama (indeks bijede).'
+                    ? 'Vas cilj je da tacno plasirate novu kartu unutar vaseg postojeceg niza od laksih prema tezim zivotnim situacijama.'
                     : 'Your goal is to accurately place a newly drawn card into your existing sequence of cards sorted from least miserable to most miserable.'}
                 </Text>
-                <Text className="text-xs text-neutral-300 leading-relaxed font-sans">
+                <Text className="text-sm text-neutral-300 leading-6 font-sans">
                   {isBs
-                    ? 'Prvi igrač koji sakupi traženi broj ispravno poređanih kartica u svojoj traci proglašava se pobjednikom!'
+                    ? 'Prvi igrac koji sakupi trazeni broj ispravno poredanih kartica u svojoj traci proglasava se pobjednikom!'
                     : 'The first player to successfully assemble the target number of correctly arranged cards in their lane wins the game!'}
                 </Text>
               </View>

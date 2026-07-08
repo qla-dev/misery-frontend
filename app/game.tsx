@@ -1,5 +1,6 @@
 import GameBoard from '@/components/GameBoard';
 import { useGame } from '@/context/GameContext';
+import { playSound } from '@/lib/sound';
 import { Redirect, router, Stack } from 'expo-router';
 import { Text } from 'react-native';
 
@@ -9,6 +10,11 @@ export default function GameScreen() {
   if (!session) {
     return <Redirect href="/" />;
   }
+
+  const handleBack = () => {
+    playSound('click');
+    router.back();
+  };
 
   return (
     <>
@@ -26,7 +32,7 @@ export default function GameScreen() {
         }}
       />
       <Stack.Toolbar placement="left">
-        <Stack.Toolbar.Button onPress={() => router.back()} tintColor="#ffffff">
+        <Stack.Toolbar.Button onPress={handleBack} tintColor="#ffffff">
           ←
         </Stack.Toolbar.Button>
       </Stack.Toolbar>

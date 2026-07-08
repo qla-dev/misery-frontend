@@ -1,17 +1,23 @@
 import { Pressable, Text, View } from 'react-native';
 import { Info } from 'lucide-react-native';
 import { useGame } from '@/context/GameContext';
+import { playSound } from '@/lib/sound';
 import { LiquidGlassBar } from './LiquidGlassBar';
 
 export function HeaderActions({ showBack, onBack }: { showBack?: boolean; onBack?: () => void }) {
   const { language, toggleLanguage, setInfoModalOpen } = useGame();
   const isBs = language === 'bs';
 
+  const handleBack = () => {
+    playSound('click');
+    onBack?.();
+  };
+
   return (
     <View className="flex-row items-center justify-end gap-2 px-4">
       {showBack && onBack && (
         <Pressable
-          onPress={onBack}
+          onPress={handleBack}
           className="p-1.5 rounded-full bg-neutral-900/60 border border-neutral-800"
         >
           <Text className="text-amber-400 text-xs">←</Text>

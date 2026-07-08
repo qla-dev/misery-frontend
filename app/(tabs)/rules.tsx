@@ -31,7 +31,7 @@ export default function RulesScreen() {
   return (
     <ScrollView className="flex-1 bg-neutral-950 px-6 pt-[100px] pb-6" showsVerticalScrollIndicator={false}>
       <Text className="text-2xl font-black uppercase tracking-widest text-amber-400 mb-1">📖 {isBs ? 'PRAVILA IGRE' : 'GAME RULES'}</Text>
-      <Text className="text-xs text-neutral-400 leading-relaxed mb-6">
+      <Text className="text-sm text-neutral-400 leading-6 mb-6">
         {isBs
           ? 'Dobrodošli u Indeks Bijede! Cilj igre je da tačno posložite kartice sa nesrećnim životnim događajima na skalu od 0 do 100.'
           : 'Welcome to Misery Meter! Your goal is to correctly arrange miserable real-life events along your personal Misery Lane from 0 to 100.'}
@@ -39,8 +39,8 @@ export default function RulesScreen() {
       <View className="space-y-4">
         {sections.map((s) => (
           <View key={s.n} className="p-4 bg-neutral-900/40 rounded-xl border border-neutral-900">
-            <Text className="font-bold text-amber-400 font-mono text-[10px] uppercase tracking-wider mb-1">{isBs ? s.n : s.n}</Text>
-            <Text className="text-neutral-300 text-xs leading-relaxed">{isBs ? s.bs : s.en}</Text>
+            <Text className="font-bold text-amber-400 font-mono text-[11px] uppercase tracking-wider mb-1">{isBs ? s.n : s.n}</Text>
+            <Text className="text-neutral-300 text-sm leading-6">{isBs ? s.bs : s.en}</Text>
           </View>
         ))}
       </View>

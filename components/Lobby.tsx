@@ -1,10 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { router } from 'expo-router';
 import { Apple, Check, Crown, Flame, Loader2, LogIn, Plus, Sparkles, User } from 'lucide-react-native';
-import LottieView from 'lottie-react-native';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Animated, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassView } from 'expo-glass-effect';
+import Svg, { Defs, LinearGradient as SvgLinearGradient, Path, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/context/GameContext';
 import { playSound } from '@/lib/sound';
@@ -24,7 +24,11 @@ const AVAILABLE_COLORS = [
 ];
 
 const BOT_NAMES = ['Sanjin', 'Lejla', 'Aida', 'Kenan', 'Selma', 'Tarik', 'Emina', 'Amar'];
-const I_LETTER_ANIMATION = require('../assets/animations/i-letter-lottie.json');
+
+const BOLT_PATH = 'M 362 0 L 187 0 L 184 12 L 143 139 L 107 248 L 198 248 L 200 250 L 158 387 L 147 433 L 199 362 L 346 176 L 345 174 L 242 173 L 310 74 L 357 9 Z';
+const WARNING_PATH = 'M 317 317 L 256 388 L 258 394 L 265 395 L 289 376 L 290 381 L 284 410 L 287 416 L 293 417 L 316 412 L 328 412 L 302 442 L 301 446 L 303 449 L 332 463 L 334 466 L 300 480 L 298 484 L 299 488 L 302 491 L 308 491 L 400 473 L 396 470 L 342 449 L 328 442 L 328 440 L 385 375 L 305 398 L 304 397 L 318 321 Z';
+const HEAD_PATH = 'M 134.98 391.89 L 128.34 393.84 Q 121.00 396.00 114.25 399.60 L 112.75 400.40 Q 106.00 404.00 100.28 409.08 L 92.57 415.93 Q 88.00 420.00 84.40 424.95 L 83.60 426.05 Q 80.00 431.00 77.26 436.47 L 76.15 438.70 Q 73.00 445.00 71.11 451.79 L 70.25 454.90 Q 68.00 463.00 67.60 471.40 L 67.28 478.09 Q 67.00 484.00 67.90 489.85 L 68.10 491.15 Q 69.00 497.00 70.97 502.58 L 72.38 506.58 Q 75.00 514.00 79.05 520.75 L 79.95 522.25 Q 84.00 529.00 89.37 534.75 L 93.82 539.53 Q 98.00 544.00 102.95 547.60 L 104.05 548.40 Q 109.00 552.00 114.47 554.74 L 117.14 556.07 Q 123.00 559.00 129.30 560.80 L 130.70 561.20 Q 137.00 563.00 143.55 563.00 L 163.00 563.00 Q 173.00 563.00 182.36 559.49 L 190.34 556.50 Q 197.00 554.00 202.85 549.95 L 204.15 549.05 Q 210.00 545.00 214.89 539.83 L 222.71 531.54 Q 227.00 527.00 230.15 521.60 L 230.85 520.40 Q 234.00 515.00 236.07 509.10 L 239.19 500.17 Q 241.00 495.00 241.90 489.60 L 242.10 488.40 Q 243.00 483.00 242.74 477.53 L 242.40 470.40 Q 242.00 462.00 239.75 453.90 L 238.89 450.79 Q 237.00 444.00 233.85 437.70 L 232.46 434.91 Q 230.00 430.00 226.85 425.50 L 226.15 424.50 Q 223.00 420.00 218.99 416.24 L 213.31 410.92 Q 207.00 405.00 199.35 400.95 L 190.00 396.00 Q 190.00 396.00 190.00 396.00 L 159.23 438.90 Q 157.00 442.00 154.30 444.70 L 153.70 445.30 Q 151.00 448.00 147.20 448.38 L 144.50 448.65 Q 141.00 449.00 138.30 446.75 L 137.19 445.82 Q 135.00 444.00 134.10 441.30 L 133.90 440.70 Q 133.00 438.00 133.75 435.25 L 144.64 395.30 Q 145.00 394.00 145.00 392.65 L 145.00 391.00 Q 145.00 391.00 145.00 391.00 L 141.15 391.00 Q 138.00 391.00 134.98 391.89 Z';
+const BODY_PATH = 'M 69.25 582.25 L 66.35 583.22 Q 61.00 585.00 56.05 587.70 L 54.95 588.30 Q 50.00 591.00 45.82 594.78 L 35.67 603.96 Q 29.00 610.00 24.53 617.81 L 20.53 624.82 Q 17.00 631.00 14.75 637.75 L 13.87 640.38 Q 12.00 646.00 11.10 651.85 L 10.90 653.15 Q 10.00 659.00 10.03 664.92 L 10.98 839.37 Q 11.00 843.00 12.80 846.15 L 13.20 846.85 Q 15.00 850.00 17.57 852.57 L 18.30 853.30 Q 21.00 856.00 24.55 857.42 L 26.82 858.33 Q 31.00 860.00 35.50 860.00 L 36.50 860.00 Q 41.00 860.00 45.18 858.33 L 47.45 857.42 Q 51.00 856.00 53.70 853.30 L 54.43 852.57 Q 57.00 850.00 58.80 846.85 L 59.20 846.15 Q 61.00 843.00 61.02 839.37 L 61.97 700.87 Q 62.00 697.00 64.25 693.85 L 64.75 693.15 Q 67.00 690.00 70.85 689.57 L 73.14 689.32 Q 76.00 689.00 78.25 690.80 L 78.78 691.22 Q 81.00 693.00 81.90 695.70 L 82.10 696.30 Q 83.00 699.00 83.00 701.85 L 83.00 1167.15 Q 83.00 1172.00 84.80 1176.50 L 85.22 1177.56 Q 87.00 1182.00 90.15 1185.60 L 91.20 1186.81 Q 94.00 1190.00 97.60 1192.25 L 98.40 1192.75 Q 102.00 1195.00 106.07 1196.22 L 108.98 1197.09 Q 112.00 1198.00 115.15 1198.00 L 115.85 1198.00 Q 119.00 1198.00 122.01 1197.07 L 126.15 1195.80 Q 132.00 1194.00 136.51 1189.86 L 141.03 1185.72 Q 144.00 1183.00 145.80 1179.40 L 146.20 1178.60 Q 148.00 1175.00 148.09 1170.98 L 149.96 1086.00 Q 150.00 1084.00 149.99 1082.00 L 149.01 908.29 Q 149.00 906.00 149.45 903.75 L 149.55 903.25 Q 150.00 901.00 151.62 899.38 L 153.06 897.94 Q 155.00 896.00 157.70 895.55 L 158.30 895.45 Q 161.00 895.00 163.23 896.59 L 166.03 898.59 Q 168.00 900.00 168.90 902.25 L 169.10 902.75 Q 170.00 905.00 170.00 907.42 L 170.00 1165.15 Q 170.00 1171.00 172.25 1176.40 L 172.75 1177.60 Q 175.00 1183.00 179.31 1186.95 L 182.49 1189.86 Q 187.00 1194.00 192.85 1195.80 L 195.25 1196.54 Q 200.00 1198.00 204.95 1197.55 L 206.17 1197.44 Q 211.00 1197.00 215.50 1195.20 L 216.56 1194.78 Q 221.00 1193.00 224.60 1189.85 L 225.81 1188.80 Q 229.00 1186.00 231.25 1182.40 L 231.75 1181.60 Q 234.00 1178.00 234.95 1173.86 L 235.65 1170.85 Q 237.00 1165.00 237.00 1159.00 L 237.00 699.51 Q 237.00 696.00 239.25 693.30 L 239.75 692.70 Q 242.00 690.00 245.49 689.61 L 248.14 689.32 Q 251.00 689.00 253.25 690.80 L 254.43 691.74 Q 256.00 693.00 256.90 694.80 L 257.10 695.20 Q 258.00 697.00 258.00 699.01 L 258.00 837.15 Q 258.00 840.00 258.90 842.70 L 259.10 843.30 Q 260.00 846.00 261.90 848.12 L 266.98 853.76 Q 269.00 856.00 271.70 857.35 L 272.30 857.65 Q 275.00 859.00 278.01 859.22 L 286.16 859.80 Q 289.00 860.00 291.70 859.10 L 292.30 858.90 Q 295.00 858.00 297.22 856.22 L 300.75 853.40 Q 305.00 850.00 307.25 845.05 L 307.75 843.95 Q 310.00 839.00 310.00 833.56 L 310.00 663.47 Q 310.00 658.00 309.10 652.60 L 308.90 651.40 Q 308.00 646.00 306.13 640.86 L 301.79 628.93 Q 300.00 624.00 297.30 619.50 L 296.70 618.50 Q 294.00 614.00 290.64 609.97 L 288.50 607.40 Q 284.00 602.00 278.42 597.73 L 274.04 594.38 Q 267.00 589.00 258.90 585.40 L 252.39 582.51 Q 249.00 581.00 245.40 580.10 L 244.60 579.90 Q 241.00 579.00 237.29 578.94 L 180.00 578.03 Q 178.00 578.00 176.00 578.04 L 83.11 579.86 Q 76.00 580.00 69.25 582.25 Z';
 
 function GoogleIcon() {
   return (
@@ -43,6 +47,90 @@ function SmallBrand({ isBs }: { isBs: boolean }) {
       <Text className="text-xs font-black uppercase tracking-wider text-neutral-200">
         <Text className="text-amber-400">MISERY</Text> METER
       </Text>
+    </View>
+  );
+}
+
+function AnimatedILetter({ style }: { style?: any }) {
+  const pulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [pulse]);
+
+  const boltOpacity = pulse.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [0.08, 0.42, 0.08],
+  });
+  const warningOpacity = pulse.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [0.1, 0.65, 0.1],
+  });
+  const warningScale = pulse.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [0.86, 1.16, 0.86],
+  });
+
+  return (
+    <View style={[{ height: 95, width: 44 }, style]}>
+      <Svg width="100%" height="100%" viewBox="0 0 412 1208">
+        <Defs>
+          <SvgLinearGradient id="whiteBody" x1="80" y1="420" x2="250" y2="1190" gradientUnits="userSpaceOnUse">
+            <Stop offset="0" stopColor="#ffffff" />
+            <Stop offset="0.55" stopColor="#f7f7f7" />
+            <Stop offset="1" stopColor="#ffffff" />
+          </SvgLinearGradient>
+          <SvgLinearGradient id="yellowBolt" x1="170" y1="0" x2="330" y2="490" gradientUnits="userSpaceOnUse">
+            <Stop offset="0" stopColor="#ffd900" />
+            <Stop offset="0.45" stopColor="#ffcc00" />
+            <Stop offset="1" stopColor="#ffc400" />
+          </SvgLinearGradient>
+        </Defs>
+        <Path d={BOLT_PATH} fill="url(#yellowBolt)" />
+        <Path d={WARNING_PATH} fill="url(#yellowBolt)" />
+        <Path d={HEAD_PATH} fill="url(#whiteBody)" stroke="#ffffff" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+        <Path d={BODY_PATH} fill="url(#whiteBody)" stroke="#ffffff" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+      </Svg>
+
+      <Animated.View pointerEvents="none" style={[{ bottom: 60, height: 34, left: 11, opacity: boltOpacity, position: 'absolute', width: 28 }]}>
+        <Svg width="100%" height="100%" viewBox="90 0 275 438">
+          <Path d={BOLT_PATH} fill="#fff176" />
+        </Svg>
+      </Animated.View>
+
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          {
+            height: 17,
+            left: 26,
+            opacity: warningOpacity,
+            position: 'absolute',
+            top: 24,
+            transform: [{ scale: warningScale }],
+            width: 18,
+          },
+        ]}
+      >
+        <Svg width="100%" height="100%" viewBox="250 310 160 190">
+          <Path d={WARNING_PATH} fill="#fff176" />
+        </Svg>
+      </Animated.View>
     </View>
   );
 }
@@ -301,10 +389,7 @@ export default function Lobby() {
                   <Text className="text-center text-[66px] font-black uppercase leading-[66px] tracking-tight text-amber-400">
                     M
                   </Text>
-                  <LottieView
-                    autoPlay
-                    loop
-                    source={I_LETTER_ANIMATION}
+                  <AnimatedILetter
                     style={{
                       height: 95,
                       marginBottom: -4,
@@ -322,7 +407,7 @@ export default function Lobby() {
                   METER
                 </Text>
               </View>
-              <Text className="text-xs text-neutral-400 text-center leading-relaxed font-sans font-bold">
+              <Text className="text-2xl text-neutral-400 text-center leading-7 font-handwritten tracking-[1px] uppercase px-2">
                 {isBs
                   ? 'Svako od nas ima lose dane. Dokazi ko prezivljava najgoru patnju.'
                   : 'We all have bad days. Prove who survives the worst misery.'}
@@ -346,9 +431,6 @@ export default function Lobby() {
             </View>
 
             <View style={{ gap: 12 }}>
-              <Text className="text-[10px] text-neutral-500 font-mono tracking-widest uppercase text-center font-black">
-                {isBs ? 'PRIJAVI SE BRZO' : 'QUICK SIGN IN'}
-              </Text>
               <View style={{ gap: 10 }}>
                 <Pressable
                   onPress={() => {
@@ -432,9 +514,6 @@ export default function Lobby() {
           </View>
 
           <View style={{ display: 'none' }}>
-            <Text className="text-[10px] text-neutral-500 font-mono tracking-widest uppercase text-center font-bold">
-              {isBs ? 'PRIJAVI SE BRZO' : 'QUICK SIGN IN'}
-            </Text>
             <View style={{ gap: 12 }}>
               <Pressable
                 onPress={() => {

@@ -9,6 +9,7 @@ module.exports = {
         mono: ['JetBrainsMono_400Regular', 'JetBrainsMono_700Bold', 'monospace'],
         display: ['BebasNeue_400Regular', 'Impact', 'sans-serif'],
         condensed: ['BebasNeue_400Regular', 'sans-serif'],
+        handwritten: ['AmaticSC_Bold', 'sans-serif'],
       },
       colors: {
         gold: '#FFD700',

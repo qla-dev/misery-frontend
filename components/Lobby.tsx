@@ -365,6 +365,7 @@ export default function Lobby() {
   const lobbyScrollRef = useRef<ScrollView>(null);
   const codeInputFocusedRef = useRef(false);
   const copyResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isCodeInputFocused, setIsCodeInputFocused] = useState(false);
   const [joinCodeErrorOpen, setJoinCodeErrorOpen] = useState(false);
 
   useEffect(() => {
@@ -991,9 +992,11 @@ export default function Lobby() {
                 }}
                 onFocus={() => {
                   codeInputFocusedRef.current = true;
+                  setIsCodeInputFocused(true);
                 }}
                 onBlur={() => {
                   codeInputFocusedRef.current = false;
+                  setIsCodeInputFocused(false);
                 }}
                 placeholder={isBs ? 'NPR. A1B2C3D4' : 'E.G. A1B2C3D4'}
                 className="w-full"
@@ -1121,6 +1124,7 @@ export default function Lobby() {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1 bg-neutral-950"
+        enabled={isCodeInputFocused}
       >
         <View className="flex-1">
           {lobbyView === 'ROOM_JOINING' ? (

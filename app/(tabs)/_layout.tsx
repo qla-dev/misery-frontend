@@ -16,7 +16,7 @@ export default function TabLayout() {
   const { language, lobbyView, toggleLanguage, setInfoModalOpen, setLobbyView } = useGame();
   const isBs = language === 'bs';
   const headerTitle =
-    lobbyView === 'WELCOME' ? null : lobbyView === 'SETUP' ? 'MISERY METER' : 'LOBBY';
+    lobbyView === 'WELCOME' ? null : lobbyView === 'SETUP' ? 'GAME SETTINGS' : 'LOBBY';
 
   return (
     <>
@@ -34,24 +34,26 @@ export default function TabLayout() {
                     fontFamily: 'BebasNeue_400Regular',
                     fontSize: 20,
                     letterSpacing: 2,
+                    textAlign: 'left',
+                    width: 144,
                   }}
                 >
                   {headerTitle}
                 </Text>
               )
             : '',
-          headerTitleAlign: headerTitle === 'LOBBY' ? 'left' : 'center',
+          headerTitleAlign: 'center',
           headerTintColor: '#ffffff',
         }}
       />
       {lobbyView !== 'WELCOME' && (
         <Stack.Toolbar placement="left">
           <Stack.Toolbar.Button
-            accessibilityLabel="Back to welcome"
+            accessibilityLabel={lobbyView === 'SETUP' ? 'Back to welcome' : 'Back to settings'}
             icon={toolbarIcon('chevron.left', ChevronLeftIcon)}
             onPress={() => {
               playSound('click');
-              setLobbyView('WELCOME');
+              setLobbyView(lobbyView === 'SETUP' ? 'WELCOME' : 'SETUP');
             }}
             tintColor="#ffffff"
           />

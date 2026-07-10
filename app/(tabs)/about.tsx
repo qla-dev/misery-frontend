@@ -2,6 +2,7 @@ import { Linking, Pressable, Text, View } from 'react-native';
 import LottieView from 'lottie-react-native';
 import { useGame } from '@/context/GameContext';
 import { playSound } from '@/lib/sound';
+import { Card } from '@/components/Card';
 
 const MASCOT_LOTTIE = require('../../assets/animations/mascot_lottie.json');
 const PRIVACY_URL = 'https://misery.qla.dev/privacy';
@@ -12,6 +13,16 @@ const PRODUCER_URL = 'https://qla.dev';
 export default function AboutScreen() {
   const { language } = useGame();
   const isBs = language === 'bs';
+  const cards = [
+    {
+      bs: 'Zabavna igra u kojoj procjenjujete blesave, neprijatne ili potpuno bizarne životne situacije na skali od 0 (nebitno) do 100 (maksimalna nesreća).',
+      en: 'A card game where you rank real-life, painful, funny, or extremely awkward situations on a scale of 0 (meh) to 100 (miserable).',
+    },
+    {
+      bs: 'Vaš cilj je da tačno plasirate novu kartu unutar vašeg postojećeg niza od lakših prema težim životnim situacijama.',
+      en: 'Your goal is to accurately place a newly drawn card into your existing sequence of cards sorted from least miserable to most miserable.',
+    },
+  ];
 
   const handleOpenUrl = (url: string) => {
     playSound('click');
@@ -55,20 +66,9 @@ export default function AboutScreen() {
       </View>
 
       <View className="w-full" style={{ gap: 16, marginTop: 10 }}>
-        <View className="p-4 bg-neutral-900/40 rounded-xl border border-neutral-900">
-          <Text className="text-sm text-neutral-300 leading-6">
-            {isBs
-              ? 'Zabavna igra u kojoj procjenjujete blesave, neprijatne ili potpuno bizarne životne situacije na skali od 0 (nebitno) do 100 (maksimalna nesreća).'
-              : 'A card game where you rank real-life, painful, funny, or extremely awkward situations on a scale of 0 (meh) to 100 (miserable).'}
-          </Text>
-        </View>
-        <View className="p-4 bg-neutral-900/40 rounded-xl border border-neutral-900">
-          <Text className="text-sm text-neutral-300 leading-6">
-            {isBs
-              ? 'Vaš cilj je da tačno plasirate novu kartu unutar vašeg postojećeg niza od lakših prema težim životnim situacijama.'
-              : 'Your goal is to accurately place a newly drawn card into your existing sequence of cards sorted from least miserable to most miserable.'}
-          </Text>
-        </View>
+        {cards.map((card) => (
+          <Card key={card.en} body={isBs ? card.bs : card.en} />
+        ))}
       </View>
 
       <View className="mt-10 w-full items-center" style={{ gap: 25 }}>

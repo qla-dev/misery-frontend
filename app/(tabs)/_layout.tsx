@@ -1,4 +1,4 @@
-import { ImageSourcePropType } from 'react-native';
+import { ImageSourcePropType, Text } from 'react-native';
 import { Stack } from 'expo-router';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import ChevronLeftIcon from '@expo/material-symbols/chevron_left.xml';
@@ -15,15 +15,32 @@ function toolbarIcon(ios: SFSymbol, android: ImageSourcePropType) {
 export default function TabLayout() {
   const { language, lobbyView, toggleLanguage, setInfoModalOpen, setLobbyView } = useGame();
   const isBs = language === 'bs';
+  const headerTitle =
+    lobbyView === 'WELCOME' ? null : lobbyView === 'SETUP' ? 'MISERY METER' : 'LOBBY';
 
   return (
     <>
       <Stack.Screen
         options={{
           headerTransparent: true,
+          headerBackground: () => null,
           headerShadowVisible: false,
           headerStyle: { backgroundColor: 'transparent' },
-          headerTitle: '',
+          headerTitle: headerTitle
+            ? () => (
+                <Text
+                  style={{
+                    color: '#ffffff',
+                    fontFamily: 'BebasNeue_400Regular',
+                    fontSize: 20,
+                    letterSpacing: 2,
+                  }}
+                >
+                  {headerTitle}
+                </Text>
+              )
+            : '',
+          headerTitleAlign: headerTitle === 'LOBBY' ? 'left' : 'center',
           headerTintColor: '#ffffff',
         }}
       />
@@ -66,7 +83,7 @@ export default function TabLayout() {
         tintColor="#fbbf24"
       >
         <NativeTabs.Trigger name="index" contentStyle={{ backgroundColor: '#0a0a0a' }} disableTransparentOnScrollEdge>
-          <NativeTabs.Trigger.Icon sf={{ default: 'suit.spade', selected: 'suit.spade.fill' } as any} md="casino" />
+          <NativeTabs.Trigger.Icon sf={{ default: 'bolt', selected: 'bolt.fill' } as any} md="bolt" />
           <NativeTabs.Trigger.Label>{isBs ? 'Igra' : 'Play'}</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
         <NativeTabs.Trigger name="rules" contentStyle={{ backgroundColor: '#0a0a0a' }} disableTransparentOnScrollEdge>

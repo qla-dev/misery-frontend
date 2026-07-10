@@ -29,8 +29,6 @@ interface GameContextValue {
   setRoomPlayers: React.Dispatch<React.SetStateAction<PlayerInput[]>>;
   isCopied: boolean;
   setIsCopied: (value: boolean) => void;
-  countdown: number | null;
-  setCountdown: React.Dispatch<React.SetStateAction<number | null>>;
   joinStatusText: string;
   setJoinStatusText: (text: string) => void;
   infoModalOpen: boolean;
@@ -56,10 +54,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [isSocialUser, setIsSocialUser] = useState(false);
   const [socialProvider, setSocialProvider] = useState<'google' | 'apple' | null>(null);
   const [roomCode, setRoomCode] = useState('');
-  const [enteredCode, setEnteredCode] = useState('');
+  const [enteredCode, setEnteredCode] = useState('A1B2C3D4');
   const [roomPlayers, setRoomPlayers] = useState<PlayerInput[]>([]);
   const [isCopied, setIsCopied] = useState(false);
-  const [countdown, setCountdown] = useState<number | null>(null);
   const [joinStatusText, setJoinStatusText] = useState('');
   const [infoModalOpen, setInfoModalOpen] = useState(false);
   const [muted, setMuted] = useState(false);
@@ -94,8 +91,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setRoomPlayers,
       isCopied,
       setIsCopied,
-      countdown,
-      setCountdown,
       joinStatusText,
       setJoinStatusText,
       infoModalOpen,
@@ -121,7 +116,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       enteredCode,
       roomPlayers,
       isCopied,
-      countdown,
       joinStatusText,
       infoModalOpen,
       session,

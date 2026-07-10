@@ -18,7 +18,7 @@ export function AppInput({
 
   return (
     <View
-      className={`h-[58px] flex-row items-center gap-3.5 rounded-xl border bg-neutral-900 px-4 ${
+      className={`h-[58px] flex-row items-center gap-3.5 rounded-xl border px-4 ${
         focused ? 'border-amber-400' : 'border-neutral-800'
       } ${className}`}
     >

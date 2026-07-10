@@ -1,8 +1,8 @@
 import { useGame } from '@/context/GameContext';
 import LottieView from 'lottie-react-native';
-import { Modal, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { playSound } from '@/lib/sound';
-import { ButtonTab } from './ButtonTab';
+import { ConfirmModal } from './ConfirmModal';
 
 const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
 
@@ -16,15 +16,12 @@ export function InfoModal() {
   };
 
   return (
-    <Modal
-      visible={infoModalOpen}
-      transparent
-      animationType="fade"
+    <ConfirmModal
+      confirmLabel={isBs ? 'RAZUMIJEM' : 'GOT IT'}
+      onConfirm={handleAcknowledge}
       onRequestClose={() => setInfoModalOpen(false)}
+      visible={infoModalOpen}
     >
-      <View className="flex-1 bg-black/85 items-center justify-center p-4">
-        <View className="w-full max-w-sm">
-          <View className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-2xl relative">
             <View className="items-center mb-5" style={{ gap: 10 }}>
               <View className="items-center">
                 <View className="flex-row items-center justify-center">
@@ -81,20 +78,6 @@ export function InfoModal() {
                 </Text>
               </View>
             </ScrollView>
-
-            <View className="mt-4">
-              <ButtonTab
-                category="button"
-                type="primary"
-                size="100"
-                onPress={handleAcknowledge}
-              >
-                {isBs ? 'RAZUMIJEM' : 'GOT IT'}
-              </ButtonTab>
-            </View>
-          </View>
-        </View>
-      </View>
-    </Modal>
+    </ConfirmModal>
   );
 }

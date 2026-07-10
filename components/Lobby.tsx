@@ -1,8 +1,9 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { router } from 'expo-router';
-import { Apple, Check, Crown, Flame, Loader2, LogIn, Plus, Sparkles, User } from 'lucide-react-native';
+import * as Clipboard from 'expo-clipboard';
+import { Apple, Check, Copy, Crown, Flame, Loader2, LogIn, Plus, Share2, Sparkles, User } from 'lucide-react-native';
 import LottieView from 'lottie-react-native';
-import { Animated, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { Animated, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Share, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassView } from 'expo-glass-effect';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Path, Stop } from 'react-native-svg';
@@ -14,6 +15,9 @@ import { AppInput } from './AppInput';
 import { GradientButton } from './GradientButton';
 import ManSilhouette from './ManSilhouette';
 import { ButtonTab } from './ButtonTab';
+import { Card } from './Card';
+import { ConfirmModal } from './ConfirmModal';
+import { LoadingState } from './LoadingState';
 
 const AVAILABLE_COLORS = [
   { id: 'yellow', nameEn: 'Amber Gold', nameBs: 'Zlatni Ćilibar', bgClass: 'bg-yellow-400', borderClass: 'border-yellow-400 bg-yellow-400/5 text-yellow-400' },
@@ -27,6 +31,23 @@ const AVAILABLE_COLORS = [
 const BOT_NAMES = ['Sanjin', 'Lejla', 'Aida', 'Kenan', 'Selma', 'Tarik', 'Emina', 'Amar'];
 const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
 const RAIN_LOTTIE = require('../assets/animations/rain.json');
+const ROOM_CODE_REGEX = /^(?=(?:.*[A-Z]){4})(?=(?:.*\d){4})[A-Z\d]{8}$/;
+
+function generateRoomCode() {
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const digits = '0123456789';
+  const code = [
+    ...Array.from({ length: 4 }, () => letters[Math.floor(Math.random() * letters.length)]),
+    ...Array.from({ length: 4 }, () => digits[Math.floor(Math.random() * digits.length)]),
+  ];
+
+  for (let index = code.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [code[index], code[randomIndex]] = [code[randomIndex], code[index]];
+  }
+
+  return code.join('');
+}
 
 const BOLT_PATH = 'M 362 0 L 187 0 L 184 12 L 143 139 L 107 248 L 198 248 L 200 250 L 158 387 L 147 433 L 199 362 L 346 176 L 345 174 L 242 173 L 310 74 L 357 9 Z';
 const WARNING_PATH = 'M 317 317 L 256 388 L 258 394 L 265 395 L 289 376 L 290 381 L 284 410 L 287 416 L 293 417 L 316 412 L 328 412 L 302 442 L 301 446 L 303 449 L 332 463 L 334 466 L 300 480 L 298 484 L 299 488 L 302 491 L 308 491 L 400 473 L 396 470 L 342 449 L 328 442 L 328 440 L 385 375 L 305 398 L 304 397 L 318 321 Z';
@@ -37,19 +58,6 @@ function GoogleIcon({ color = '#000' }: { color?: string }) {
   return (
     <View style={{ width: 16, height: 16 }}>
       <Text style={{ color, fontSize: 16, fontWeight: '900', lineHeight: 16 }}>G</Text>
-    </View>
-  );
-}
-
-function SmallBrand({ isBs }: { isBs: boolean }) {
-  return (
-    <View className="flex-row items-center gap-1.5">
-      <LinearGradient colors={['#fbbf24', '#facc15']} className="w-6 h-6 rounded items-center justify-center">
-        <Text className="text-[10px] text-black font-black">⛈</Text>
-      </LinearGradient>
-      <Text className="text-xs font-black uppercase tracking-wider text-neutral-200">
-        <Text className="text-amber-400">MISERY</Text> METER
-      </Text>
     </View>
   );
 }
@@ -70,6 +78,115 @@ function SocialButtonContent({
         {label}
       </Text>
     </View>
+  );
+}
+
+function PlayerCard({
+  index,
+  isBs,
+  player,
+  roomState,
+}: {
+  index: number;
+  isBs: boolean;
+  player: { color: string; isBot?: boolean; name: string };
+  roomState: 'created' | 'joined';
+}) {
+  return (
+    <Card>
+      <View className="flex-row items-center justify-between">
+        <View className="flex-row items-center gap-4">
+          <View className={`h-4 w-4 rounded-full ${player.color.split(' ')[0]} ${player.color.split(' ')[1]}`} />
+          <Text className="text-base font-bold text-neutral-200">{player.name}</Text>
+          {index === 0 && <Crown size={18} color="#facc15" fill="#facc15" />}
+        </View>
+        <View className="flex-row items-center gap-2">
+          {player.isBot ? (
+            roomState === 'joined' && index !== 0 ? (
+              <Text className="rounded-md bg-neutral-800 px-2.5 py-1 font-mono text-[10px] text-neutral-400">
+                BOT
+              </Text>
+            ) : (
+              <Text className="rounded-md border border-amber-400/20 bg-amber-400/10 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase text-amber-300">
+                {roomState === 'joined' ? 'HOST BOT' : 'BOT'}
+              </Text>
+            )
+          ) : (
+            <Text
+              className={`rounded-md bg-yellow-500 px-2.5 py-1 font-mono text-[10px] font-extrabold uppercase text-black ${
+                roomState === 'joined' ? 'animate-pulse' : ''
+              }`}
+            >
+              {roomState === 'created' ? (isBs ? 'TI (HOST)' : 'YOU (HOST)') : isBs ? 'TI' : 'YOU'}
+            </Text>
+          )}
+          <Text className="ml-2 font-mono text-sm text-emerald-400">✓</Text>
+        </View>
+      </View>
+    </Card>
+  );
+}
+
+function RoomCodeCard({
+  code,
+  isBs,
+  isCopied,
+  onCopy,
+  onShare,
+}: {
+  code: string;
+  isBs: boolean;
+  isCopied: boolean;
+  onCopy: () => void;
+  onShare: () => void;
+}) {
+  return (
+    <Card>
+      <View className="flex-row items-center justify-between">
+        <View style={{ gap: 4 }}>
+          <Text className="font-mono text-[9px] font-bold uppercase tracking-widest text-neutral-500">
+            {isBs ? 'KOD SOBE' : 'ROOM CODE'}
+          </Text>
+          <Text className="font-mono text-xl font-black tracking-[4px] text-amber-400">
+            {code}
+          </Text>
+        </View>
+        <View className="flex-row items-center" style={{ gap: 8 }}>
+          <GlassView
+            colorScheme="dark"
+            glassEffectStyle="regular"
+            isInteractive
+            style={{ borderRadius: 12, height: 40, overflow: 'hidden', width: 40 }}
+            tintColor="rgba(255,255,255,0.08)"
+          >
+            <Pressable
+              accessibilityLabel={isBs ? 'Kopiraj kod sobe' : 'Copy room code'}
+              accessibilityRole="button"
+              className="h-full w-full items-center justify-center"
+              onPress={onCopy}
+            >
+              {isCopied ? <Check size={18} color="#34d399" /> : <Copy size={18} color="#d4d4d4" />}
+            </Pressable>
+          </GlassView>
+          <GlassView
+            colorScheme="dark"
+            glassEffectStyle="regular"
+            isInteractive
+            style={{ borderRadius: 12, height: 40, overflow: 'hidden', width: 40 }}
+            tintColor="rgba(255,255,255,0.08)"
+          >
+            <Pressable
+              accessibilityLabel={isBs ? 'Podijeli kod sobe' : 'Share room code'}
+              accessibilityRole="button"
+              className="h-full w-full items-center justify-center"
+              onPress={onShare}
+            >
+              <Share2 size={18} color="#d4d4d4" />
+            </Pressable>
+          </GlassView>
+        </View>
+      </View>
+    </Card>
   );
 }
 
@@ -233,27 +350,55 @@ export default function Lobby() {
     setEnteredCode,
     roomPlayers,
     setRoomPlayers,
-    countdown,
-    setCountdown,
+    isCopied,
+    setIsCopied,
     joinStatusText,
     setJoinStatusText,
     setSession,
   } = useGame();
 
   const isBs = language === 'bs';
+  const lobbyScrollRef = useRef<ScrollView>(null);
+  const codeInputFocusedRef = useRef(false);
+  const copyResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [joinCodeErrorOpen, setJoinCodeErrorOpen] = useState(false);
+
+  useEffect(() => {
+    const keyboardSubscription = Keyboard.addListener('keyboardDidShow', () => {
+      if (!codeInputFocusedRef.current) return;
+      requestAnimationFrame(() => {
+        lobbyScrollRef.current?.scrollToEnd({ animated: true });
+      });
+    });
+
+    return () => keyboardSubscription.remove();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (copyResetTimerRef.current) clearTimeout(copyResetTimerRef.current);
+    };
+  }, []);
 
   const handleCreateRoom = () => {
+    playSound('click');
     const finalName = userName.trim() || (isBs ? 'Igrač 1' : 'Player 1');
     const userColor = AVAILABLE_COLORS.find((c) => c.id === selectedColor)?.borderClass || AVAILABLE_COLORS[0].borderClass;
-    const code = Math.random().toString(36).substring(2, 6).toUpperCase();
-    setRoomCode(code);
+    setRoomCode(generateRoomCode());
+    setIsCopied(false);
     setRoomPlayers([{ name: finalName, color: userColor, isBot: false }]);
     setLobbyView('ROOM_CREATED');
   };
 
   const handleJoinWithCode = () => {
-    if (!enteredCode.trim()) return;
     const cleanCode = enteredCode.trim().toUpperCase();
+    if (!ROOM_CODE_REGEX.test(cleanCode)) {
+      Keyboard.dismiss();
+      playSound('wrong');
+      setJoinCodeErrorOpen(true);
+      return;
+    }
+    playSound('click');
     setRoomCode(cleanCode);
     setLobbyView('ROOM_JOINING');
     setJoinStatusText(isBs ? 'Traženje sobe...' : 'Searching for room...');
@@ -271,9 +416,36 @@ export default function Lobby() {
           { name: finalName, color: userColor, isBot: false },
         ]);
         setLobbyView('ROOM_JOINED');
-        setCountdown(3);
       }, 1200);
     }, 1000);
+  };
+
+  const handleCopyRoomCode = async () => {
+    if (!roomCode) return;
+    playSound('click');
+    try {
+      await Clipboard.setStringAsync(roomCode);
+      setIsCopied(true);
+      if (copyResetTimerRef.current) clearTimeout(copyResetTimerRef.current);
+      copyResetTimerRef.current = setTimeout(() => setIsCopied(false), 1500);
+    } catch {
+      setIsCopied(false);
+    }
+  };
+
+  const handleShareRoomCode = async () => {
+    if (!roomCode) return;
+    playSound('click');
+    try {
+      await Share.share({
+        message: isBs
+          ? `Pridruži se mojoj Misery Meter sobi pomoću koda ${roomCode}.`
+          : `Join my Misery Meter room with code ${roomCode}.`,
+        title: 'Misery Meter',
+      });
+    } catch {
+      // Native share can be dismissed or unavailable without affecting the room.
+    }
   };
 
   const handleSocialSignIn = (provider: 'google' | 'apple') => {
@@ -299,18 +471,6 @@ export default function Lobby() {
     return () => clearTimeout(timer);
   }, [lobbyView, roomPlayers, userName, setRoomPlayers]);
 
-  useEffect(() => {
-    if (lobbyView !== 'ROOM_JOINED' || countdown === null) return;
-    if (countdown === 0) {
-      startGame('MULTIPLAYER', roomPlayers, targetScore, selectedDeck);
-      return;
-    }
-    const timer = setTimeout(() => {
-      setCountdown((prev) => (prev !== null ? prev - 1 : null));
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [lobbyView, countdown, roomPlayers, targetScore, selectedDeck, setCountdown]);
-
   const startGame = (
     mode: 'SOLO' | 'MULTIPLAYER',
     players: { name: string; color: string; isBot?: boolean }[],
@@ -318,7 +478,7 @@ export default function Lobby() {
     deck: 'NORMAL' | 'SPICY'
   ) => {
     setSession({ mode, players, targetScore: tScore, deckType: deck });
-    router.push('/game');
+    requestAnimationFrame(() => router.push('/game'));
   };
 
   const activeColorConfig = AVAILABLE_COLORS.find((c) => c.id === selectedColor) || AVAILABLE_COLORS[0];
@@ -403,33 +563,6 @@ export default function Lobby() {
     </View>
   );
 
-  const renderTopBar = () => {
-    if (lobbyView === 'WELCOME') {
-      return null;
-      return (
-        <View className="pt-12 pb-8 px-6 items-center bg-neutral-950 border-b border-neutral-900/80">
-          <LinearGradient colors={['#fcd34d', '#facc15', '#fbbf24']} className="w-20 h-20 rounded-2xl items-center justify-center shadow-lg border-2 border-white/20 mb-5 -rotate-3">
-            <ManSilhouette width={52} height={52} color="#0a0a0a" />
-          </LinearGradient>
-          <Text className="text-3xl font-black uppercase tracking-tight leading-none text-center text-white">
-            <Text className="text-amber-400">MISERY</Text> METER
-          </Text>
-          <Text className="text-[10px] text-neutral-500 uppercase tracking-widest mt-2.5 font-mono font-medium">
-            {isBs ? 'ONLINE SIMULACIJA • ZERO TO MISERABLE' : 'ONLINE SIMULATION • ZERO TO MISERABLE'}
-          </Text>
-        </View>
-      );
-    }
-    if (lobbyView === 'SETUP') {
-      return null;
-    }
-    return (
-      <View className="py-3.5 px-5 flex-row items-center justify-between bg-neutral-900/40 border-b border-neutral-900">
-        <SmallBrand isBs={isBs} />
-      </View>
-    );
-  };
-
   const renderContent = () => {
     if (lobbyView === 'WELCOME') {
       return (
@@ -473,7 +606,7 @@ export default function Lobby() {
 
             <View className="items-center" style={{ display: 'none' }}>
               <Text className="text-[10px] text-neutral-500 font-mono tracking-widest uppercase text-center font-black">
-                {isBs ? 'MJERAČ BIJEDE • MISERABLE MATCH' : 'MISERY METER • MISERABLE MATCH'}
+                MISERY METER • MISERABLE MATCH
               </Text>
               <Text className="text-center text-[46px] font-black uppercase leading-[46px] tracking-tight">
                 <Text className="text-amber-400">MISERY</Text>
@@ -551,7 +684,7 @@ export default function Lobby() {
           </View>
           <View className="bg-neutral-900/35 border border-neutral-900/60 p-6 rounded-2xl shadow-lg" style={{ display: 'none' }}>
             <Text className="text-[10px] text-neutral-500 font-mono tracking-widest uppercase text-center font-bold">
-              {isBs ? 'MJERAČ BIJEDE • MISERABLE MATCH' : 'MISERY METER • MISERABLE MATCH'}
+              MISERY METER • MISERABLE MATCH
             </Text>
             <View className="flex-row items-center justify-around py-3 bg-neutral-950/40 rounded-xl relative overflow-hidden border border-neutral-900/40 px-2">
               {['Gost 1', 'Gost 2', null, 'Gost 3', 'Gost 4'].map((label, idx) => (
@@ -843,10 +976,20 @@ export default function Lobby() {
 
             <Section titleEn="ENTER CODE TO JOIN" titleBs="UNESITE KOD ZA PRIDRUŽIVANJE">
               <AppInput
-                maxLength={4}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                maxLength={8}
                 value={enteredCode}
-                onChangeText={(t) => setEnteredCode(t.toUpperCase())}
-                placeholder={isBs ? 'NPR. ABCD' : 'E.G. ABCD'}
+                onChangeText={(text) => {
+                  setEnteredCode(text.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8));
+                }}
+                onFocus={() => {
+                  codeInputFocusedRef.current = true;
+                }}
+                onBlur={() => {
+                  codeInputFocusedRef.current = false;
+                }}
+                placeholder={isBs ? 'NPR. A1B2C3D4' : 'E.G. A1B2C3D4'}
                 className="w-full"
                 inputClassName="text-center font-mono font-black text-lg uppercase tracking-widest text-amber-400"
               />
@@ -856,7 +999,6 @@ export default function Lobby() {
               category="button"
               type="primary"
               size="100"
-              disabled={!enteredCode.trim()}
               onPress={handleJoinWithCode}
             >
               {isBs ? 'Započni igru' : 'Start Game'}
@@ -866,19 +1008,10 @@ export default function Lobby() {
       }
     }
 
-    if (lobbyView === 'ROOM_JOINING') {
-      return (
-        <View className="py-12 items-center justify-center space-y-4">
-          <Loader2 size={40} color="#fbbf24" className="animate-spin" />
-          <Text className="text-sm font-semibold tracking-wider text-neutral-400 font-mono">{joinStatusText}</Text>
-        </View>
-      );
-    }
-
     if (lobbyView === 'ROOM_CREATED') {
       return (
-        <View className="space-y-5">
-          <View className="space-y-4">
+        <View style={{ gap: 20 }}>
+          <View style={{ gap: 16 }}>
             <View className="flex-row items-center justify-between">
               <Text className="text-[10px] font-mono tracking-widest uppercase text-neutral-500 font-bold">
                 {isBs ? `IGRAČI U SOBI (${roomPlayers.length}/4)` : `PLAYERS IN LOBBY (${roomPlayers.length}/4)`}
@@ -889,125 +1022,76 @@ export default function Lobby() {
                 </Text>
               )}
             </View>
-            <View className="space-y-4">
+            <RoomCodeCard
+              code={roomCode}
+              isBs={isBs}
+              isCopied={isCopied}
+              onCopy={handleCopyRoomCode}
+              onShare={handleShareRoomCode}
+            />
+            <View style={{ gap: 16 }}>
               {roomPlayers.map((player, idx) => (
-                <View key={idx} className="flex-row items-center justify-between bg-neutral-900/30 px-5 py-5 rounded-2xl border border-neutral-900">
-                  <View className="flex-row items-center gap-4">
-                    <View className={`w-4 h-4 rounded-full ${player.color.split(' ')[0]} ${player.color.split(' ')[1]}`} />
-                    <Text className="text-base font-bold text-neutral-200">{player.name}</Text>
-                    {idx === 0 && <Crown size={18} color="#facc15" fill="#facc15" />}
-                  </View>
-                  <View className="flex-row items-center gap-2">
-                    {player.isBot ? (
-                      <Text className="text-[10px] px-2.5 py-1 rounded-md bg-amber-400/10 border border-amber-400/20 text-amber-300 font-semibold uppercase font-mono">
-                        BOT
-                      </Text>
-                    ) : (
-                      <Text className="text-[10px] px-2.5 py-1 rounded-md bg-yellow-500 text-black font-extrabold uppercase font-mono">
-                        {isBs ? 'TI (HOST)' : 'YOU (HOST)'}
-                      </Text>
-                    )}
-                    <Text className="text-emerald-400 text-sm font-mono ml-2">✓</Text>
-                  </View>
-                </View>
+                <PlayerCard key={`${player.name}-${idx}`} index={idx} isBs={isBs} player={player} roomState="created" />
               ))}
             </View>
           </View>
+          <ButtonTab
+            category="button"
+            type="primary"
+            size="100"
+            disabled={roomPlayers.length < 2}
+            onPress={() => {
+              playSound('click');
+              startGame('MULTIPLAYER', roomPlayers, targetScore, selectedDeck);
+            }}
+          >
+            {isBs ? 'POKRENI IGRU ODMAH' : 'BEGIN NOW'}
+          </ButtonTab>
         </View>
       );
     }
 
     if (lobbyView === 'ROOM_JOINED') {
       return (
-        <View className="space-y-6">
-          <View className="bg-neutral-900/40 border border-neutral-900 rounded-2xl p-6 items-center space-y-4">
-            <Text className="text-[10px] font-mono tracking-widest text-amber-400 font-black uppercase animate-pulse">
-              {isBs ? 'SINKRONIZACIJA USPJEŠNA' : 'SYNC COMPLETED SUCCESSFULLY'}
-            </Text>
-            <View className="items-center space-y-1">
-              <Text className="text-xs text-neutral-400">{isBs ? 'Domaćin pokreće igru za:' : 'Host is starting the game in:'}</Text>
-              <Text className="text-5xl font-black text-amber-400 font-mono">{countdown}</Text>
-            </View>
-            <View className="bg-neutral-900/80 px-4 py-1.5 rounded-lg text-neutral-400 font-mono text-[10px]">
-              {isBs ? `PRIDRUŽEN SOBE: #${roomCode}` : `CONNECTED TO ROOM: #${roomCode}`}
-            </View>
-          </View>
-          <View className="space-y-4">
-            <Text className="text-[10px] font-mono tracking-widest uppercase text-neutral-500 font-bold">
+        <View style={{ gap: 20 }}>
+          <View style={{ gap: 16 }}>
+            <Text className="font-mono text-[10px] font-bold uppercase tracking-widest text-neutral-500">
               {isBs ? 'SVI IGRAČI U SOBI' : 'ALL PLAYERS IN LOBBY'}
             </Text>
-            <View className="space-y-4">
+            <RoomCodeCard
+              code={roomCode}
+              isBs={isBs}
+              isCopied={isCopied}
+              onCopy={handleCopyRoomCode}
+              onShare={handleShareRoomCode}
+            />
+            <View style={{ gap: 16 }}>
               {roomPlayers.map((player, idx) => (
-                <View key={idx} className="flex-row items-center justify-between bg-neutral-900/30 px-5 py-5 rounded-2xl border border-neutral-900">
-                  <View className="flex-row items-center gap-4">
-                    <View className={`w-4 h-4 rounded-full ${player.color.split(' ')[0]} ${player.color.split(' ')[1]}`} />
-                    <Text className="text-base font-bold text-neutral-200">{player.name}</Text>
-                    {idx === 0 && <Crown size={18} color="#facc15" fill="#facc15" />}
-                  </View>
-                  <View className="flex-row items-center gap-2">
-                    {player.isBot ? (
-                      idx === 0 ? (
-                        <Text className="text-[10px] px-2.5 py-1 rounded-md bg-amber-400/10 border border-amber-400/20 text-amber-300 font-bold uppercase font-mono">
-                          HOST BOT
-                        </Text>
-                      ) : (
-                        <Text className="text-[10px] px-2.5 py-1 rounded-md bg-neutral-800 text-neutral-400 font-mono">BOT</Text>
-                      )
-                    ) : (
-                      <Text className="text-[10px] px-2.5 py-1 rounded-md bg-yellow-500 text-black font-extrabold uppercase font-mono animate-pulse">
-                        {isBs ? 'TI' : 'YOU'}
-                      </Text>
-                    )}
-                    <Text className="text-emerald-400 text-sm font-mono ml-2">✓</Text>
-                  </View>
-                </View>
+                <PlayerCard key={`${player.name}-${idx}`} index={idx} isBs={isBs} player={player} roomState="joined" />
               ))}
             </View>
           </View>
-        </View>
-      );
-    }
-
-    return null;
-  };
-
-  const renderBottomCTA = () => {
-    if (lobbyView === 'SETUP') {
-      return null;
-    }
-
-    if (lobbyView === 'ROOM_CREATED') {
-      return (
-        <Pressable
-          onPress={() => startGame('MULTIPLAYER', roomPlayers, targetScore, selectedDeck)}
-          disabled={roomPlayers.length < 2}
-          className={`rounded-xl py-4 items-center justify-center flex-row gap-2 ${roomPlayers.length >= 2 ? 'bg-amber-400' : 'bg-neutral-900'}`}
-        >
-          <Text className={`uppercase text-xs tracking-wider font-black ${roomPlayers.length >= 2 ? 'text-black' : 'text-neutral-600'}`}>
-            {isBs ? 'POKRENI IGRU ODMAH' : 'START THE GAME'}
-          </Text>
-        </Pressable>
-      );
-    }
-
-    if (lobbyView === 'ROOM_JOINED') {
-      return (
-        <View className="py-4 bg-neutral-900 rounded-xl border border-neutral-800 items-center flex-row gap-2">
-          <Loader2 size={16} color="#fbbf24" className="animate-spin" />
-          <Text className="text-[10px] font-extrabold uppercase tracking-widest text-neutral-500">
-            {isBs ? 'ČEKA SE DOMAĆIN...' : 'WAITING FOR HOST...'}
-          </Text>
-        </View>
-      );
-    }
-
-    if (lobbyView === 'ROOM_JOINING') {
-      return (
-        <View className="py-4 bg-neutral-900 rounded-xl border border-neutral-800 items-center flex-row gap-2">
-          <Loader2 size={16} color="#fbbf24" className="animate-spin" />
-          <Text className="text-[10px] font-extrabold uppercase tracking-widest text-neutral-500">
-            {isBs ? 'SINKRONIZACIJA...' : 'CONNECTING...'}
-          </Text>
+          <ButtonTab
+            category="button"
+            type="primary"
+            size="100"
+            onPress={() => {
+              playSound('click');
+              startGame('MULTIPLAYER', roomPlayers, targetScore, selectedDeck);
+            }}
+          >
+            <View className="items-center justify-center">
+              <View className="flex-row items-center" style={{ gap: 6 }}>
+                <Loader2 size={15} color="#0a0a0a" className="animate-spin" />
+                <Text className="font-black uppercase tracking-wider text-neutral-950">
+                  {isBs ? 'POKRENI IGRU' : 'BEGIN GAME'}
+                </Text>
+              </View>
+              <Text className="font-mono text-[8px] font-bold uppercase tracking-widest text-neutral-950/60">
+                {isBs ? 'ČEKA SE DOMAĆIN • TEST' : 'WAITING FOR HOST • TEST'}
+              </Text>
+            </View>
+          </ButtonTab>
         </View>
       );
     }
@@ -1016,22 +1100,56 @@ export default function Lobby() {
   };
 
   return (
-    <View className="flex-1 bg-neutral-950" style={{ paddingTop: lobbyView === 'WELCOME' || lobbyView === 'SETUP' ? 0 : 100 }}>
-      {renderTopBar()}
-      <ScrollView
-        className="flex-1 px-5"
-        contentContainerStyle={
-          lobbyView === 'WELCOME'
-            ? { flexGrow: 1, justifyContent: 'center', paddingVertical: 24 }
-            : lobbyView === 'SETUP'
-              ? { paddingBottom: 24, paddingTop: 104 }
-            : { paddingVertical: 24 }
-        }
-        showsVerticalScrollIndicator={false}
+    <>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        className="flex-1 bg-neutral-950"
       >
-        {renderContent()}
-      </ScrollView>
-      {renderBottomCTA() && <View className="px-4 pb-4 pt-2 bg-neutral-950">{renderBottomCTA()}</View>}
-    </View>
+        <View className="flex-1">
+          {lobbyView === 'ROOM_JOINING' ? (
+            <LoadingState message={joinStatusText} />
+          ) : (
+            <ScrollView
+              ref={lobbyScrollRef}
+              className="flex-1 px-5"
+              contentContainerStyle={
+                lobbyView === 'WELCOME'
+                  ? { flexGrow: 1, justifyContent: 'center', paddingVertical: 24 }
+                  : lobbyView === 'SETUP'
+                    ? { paddingBottom: 15, paddingTop: 104 }
+                    : { paddingBottom: 24, paddingTop: 100 }
+              }
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {renderContent()}
+            </ScrollView>
+          )}
+        </View>
+      </KeyboardAvoidingView>
+      <ConfirmModal
+        confirmLabel={isBs ? 'POKUŠAJ PONOVO' : 'TRY AGAIN'}
+        onConfirm={() => {
+          playSound('click');
+          setJoinCodeErrorOpen(false);
+        }}
+        onRequestClose={() => setJoinCodeErrorOpen(false)}
+        visible={joinCodeErrorOpen}
+      >
+        <View className="items-center" style={{ gap: 10 }}>
+          <Text className="text-center text-lg font-black uppercase tracking-wider text-amber-400">
+            {isBs ? 'NEISPRAVAN KOD SOBE' : 'INVALID ROOM CODE'}
+          </Text>
+          <Text className="text-center text-sm leading-6 text-neutral-300">
+            {isBs
+              ? 'Kod sobe mora imati tačno 8 znakova: 4 slova i 4 cifre, bilo kojim redoslijedom.'
+              : 'The room code must contain exactly 8 characters: 4 letters and 4 digits, in any order.'}
+          </Text>
+          <Text className="font-mono text-xs font-bold tracking-[2px] text-neutral-500">
+            A1B2C3D4
+          </Text>
+        </View>
+      </ConfirmModal>
+    </>
   );
 }

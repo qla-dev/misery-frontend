@@ -482,7 +482,7 @@ export default function Lobby() {
     deck: 'NORMAL' | 'SPICY'
   ) => {
     setSession({ mode, players, targetScore: tScore, deckType: deck });
-    requestAnimationFrame(() => router.push('/game'));
+    requestAnimationFrame(() => router.push('/game/index'));
   };
 
   const activeColorConfig = AVAILABLE_COLORS.find((c) => c.id === selectedColor) || AVAILABLE_COLORS[0];

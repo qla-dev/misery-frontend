@@ -7,12 +7,12 @@ import { Animated, Easing, Modal, Pressable, ScrollView, Text, useWindowDimensio
 import { Card, Player, Language, GameState, GameMode } from '@/types';
 import { CARD_DECK } from '@/data/cards';
 import Illustration from './Illustration';
-import { LiquidGlassBar } from './LiquidGlassBar';
 import { GradientButton } from './GradientButton';
 import { useGame } from '@/context/GameContext';
 import { playSound } from '@/lib/sound';
 import { ButtonTab } from './ButtonTab';
 import LottieView from 'lottie-react-native';
+import { ConfirmModal } from './ConfirmModal';
 
 const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
 
@@ -57,7 +57,7 @@ export default function GameBoard({
   targetScore,
   deckType = 'NORMAL',
 }: GameBoardProps) {
-  const { language, muted } = useGame();
+  const { language, muted, setGameRuntime } = useGame();
   const isBs = language === 'bs';
   const { height } = useWindowDimensions();
   const cardAreaHeight = Math.max(340, height - 104 - (mode === 'MULTIPLAYER' ? 52 : 0) - 132);
@@ -361,6 +361,22 @@ export default function GameBoard({
     ? ((Array.from(gameState.drawnCard.id).reduce((total, character) => total + character.charCodeAt(0), 0) * 37) % 1000 / 10).toFixed(1)
     : '0.0';
 
+  useEffect(() => {
+    setGameRuntime({
+      canPlaceCard:
+        gameState.phase === 'PLAYING' &&
+        isDrawnCardFlipped &&
+        Boolean(currentActingPlayer) &&
+        !currentActingPlayer?.isBot,
+      currentActingPlayer,
+      drawnCard: gameState.drawnCard,
+      guessHistory: gameState.guessHistory,
+      handleSlotSelect,
+      phase: gameState.phase,
+      players: gameState.players,
+    });
+  }, [currentActingPlayer, gameState, isDrawnCardFlipped, setGameRuntime]);
+
   if (gameState.players.length === 0 || !gameState.drawnCard) {
     return (
       <View className="flex-1 items-center justify-center bg-black">
@@ -375,24 +391,38 @@ export default function GameBoard({
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         <View className="px-5 pt-[104px] pb-32 space-y-4">
           {mode === 'MULTIPLAYER' && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="py-1">
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-5 px-5 py-1">
               <View className="flex-row gap-2.5">
                 {gameState.players.map((p, idx) => {
                   const isActiveTurn = idx === gameState.currentPlayerIndex;
                   const isStealing = activeStealer && p.id === activeStealer.id;
+                  const latestResult =
+                    ['CORRECT_REVEAL', 'WRONG_REVEAL', 'STEAL_DECISION'].includes(gameState.phase) &&
+                    gameState.guessHistory[0]?.playerName === p.name
+                      ? gameState.guessHistory[0]
+                      : null;
+                  const playerTabType = latestResult
+                    ? latestResult.success
+                      ? 'success'
+                      : 'danger'
+                    : isActiveTurn
+                      ? 'primary'
+                      : isStealing
+                        ? 'third'
+                        : 'secondary';
                   return (
                     <ButtonTab
                       key={p.id}
                       category="tab"
-                      type={isActiveTurn ? 'primary' : isStealing ? 'third' : 'secondary'}
+                      type={playerTabType}
                       size="auto"
                       glassEffect
                     >
                       <View className="flex-row items-center gap-2">
                         <View className={`w-2 h-2 rounded-full ${p.color.split(' ')[0]} ${p.color.split(' ')[1]}`} />
-                        <Text className={`text-xs font-bold ${isActiveTurn ? 'text-amber-300' : 'text-neutral-400'}`}>{p.name}</Text>
+                        <Text className={`text-xs font-bold ${latestResult ? 'text-black' : isActiveTurn ? 'text-amber-300' : 'text-neutral-400'}`}>{p.name}</Text>
                         <View className="bg-black/10 px-1.5 py-0.5 rounded">
-                          <Text className={`text-[10px] font-mono ${isActiveTurn ? 'text-amber-300' : 'text-neutral-400'}`}>{p.lane.length} pts</Text>
+                          <Text className={`text-[10px] font-mono ${latestResult ? 'text-black' : isActiveTurn ? 'text-amber-300' : 'text-neutral-400'}`}>{p.lane.length} pts</Text>
                         </View>
                       </View>
                     </ButtonTab>
@@ -564,6 +594,12 @@ export default function GameBoard({
             </View>
           )}
 
+          {(isCorrectPhase || isWrongPhase) && !currentActingPlayer.isBot && (
+            <ButtonTab category="button" type="primary" size="100" glassEffect onPress={handleProceedNextRound}>
+              {isBs ? 'SLJEDEĆI KRUG' : 'CONTINUE / NEXT TURN'}
+            </ButtonTab>
+          )}
+
           {isVictoryPhase && (
             <View className="bg-neutral-900/50 border-2 border-amber-400/80 rounded-2xl p-6 items-center space-y-5">
               <LinearGradient colors={['#fcd34d', '#facc15']} className="w-16 h-16 rounded-full items-center justify-center">
@@ -618,76 +654,8 @@ export default function GameBoard({
             </View>
           )}
 
-          {gameState.guessHistory.length > 0 && (
-            <View className="bg-neutral-900/30 border border-neutral-900 rounded-2xl p-3.5 space-y-2">
-              <Text className="text-[9px] text-neutral-500 font-mono uppercase tracking-wider font-bold">{isBs ? 'HISTORIJA ODIGRAVANJA' : 'RECENT MOVES'}</Text>
-              <View className="space-y-1.5">
-                {gameState.guessHistory.slice(0, 5).map((log, idx) => (
-                  <View key={idx} className="flex-row items-start gap-1.5 border-b border-neutral-900/30 pb-1.5 last:border-b-0">
-                    <View className={`w-1.5 h-1.5 rounded-full mt-1.5 ${log.success ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                    <Text className="text-[10px] font-mono text-neutral-400 leading-snug flex-1">
-                      <Text className="text-neutral-300 font-bold">{log.playerName}</Text> {isBs ? 'je pokušao' : 'guessed'} "<Text className="text-amber-400 font-medium">{log.cardTitle}</Text>" → <Text className={log.success ? 'text-emerald-500 font-bold' : 'text-red-500 font-bold'}>{log.success ? (isBs ? 'TAČNO' : 'CORRECT') : (isBs ? 'NETAČNO' : 'FAILED')}</Text>
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
-
         </View>
       </ScrollView>
-
-      <LiquidGlassBar position="bottom">
-        <View className="px-4 py-3">
-          {gameState.phase === 'PLAYING' &&
-            (currentActingPlayer.isBot ? (
-              <View className="py-4 bg-neutral-900 rounded-xl items-center flex-row gap-2 border border-neutral-800">
-                <Loader2 size={16} color="#fbbf24" className="animate-spin" />
-                <Text className="text-[10px] font-extrabold uppercase tracking-widest text-neutral-500">{isBs ? `${currentActingPlayer.name} bira slot...` : `${currentActingPlayer.name} is choosing...`}</Text>
-              </View>
-            ) : (
-              <ButtonTab
-                category="button"
-                type="primary"
-                size="100"
-                disabled={!isDrawnCardFlipped}
-                glassEffect
-                onPress={() => setIsLaneSheetOpen(true)}
-              >
-                {isBs ? 'TRAKA BIJEDE' : 'MISERY LANE'}
-              </ButtonTab>
-            ))}
-
-          {isStealPhase && activeStealer &&
-            (activeStealer.isBot ? (
-              <View className="py-4 bg-neutral-900 rounded-xl items-center flex-row gap-2 border border-neutral-800">
-                <Loader2 size={16} color="#fbbf24" className="animate-spin" />
-                <Text className="text-[10px] font-extrabold uppercase tracking-widest text-neutral-500">🤖 {activeStealer.name} {isBs ? 'razmišlja o krađi...' : 'is deciding...'}</Text>
-              </View>
-            ) : (
-              <View className="flex-row gap-3">
-                <ButtonTab category="button" type="primary" size="auto" className="flex-1" onPress={() => handleStealChoice(true)}>
-                  {isBs ? 'DA, POKUŠAJ KRAĐU' : 'YES, TRY STEAL'}
-                </ButtonTab>
-                <ButtonTab category="button" type="secondary" size="auto" className="flex-1" onPress={() => handleStealChoice(false)}>
-                  {isBs ? 'NE, PROSLIJEDI' : 'NO, PASS'}
-                </ButtonTab>
-              </View>
-            ))}
-
-          {(isCorrectPhase || isWrongPhase) &&
-            (currentActingPlayer.isBot ? (
-              <View className="py-4 bg-neutral-900 rounded-xl items-center flex-row gap-2 border border-neutral-800">
-                <Loader2 size={16} color="#fbbf24" className="animate-spin" />
-                <Text className="text-[10px] font-extrabold uppercase tracking-widest text-neutral-500">{isBs ? 'SLJEDEĆI KRUG (AUTOMATSKI)...' : 'NEXT ROUND (AUTOMATIC)...'}</Text>
-              </View>
-            ) : (
-              <ButtonTab category="button" type="primary" size="100" onPress={handleProceedNextRound}>
-                {isBs ? 'SLJEDEĆI KRUG' : 'CONTINUE / NEXT TURN'}
-              </ButtonTab>
-            ))}
-        </View>
-      </LiquidGlassBar>
 
       <Modal visible={isLaneSheetOpen && gameState.phase === 'PLAYING'} transparent animationType="slide" onRequestClose={() => setIsLaneSheetOpen(false)}>
         <View className="flex-1 bg-neutral-950">
@@ -771,6 +739,25 @@ export default function GameBoard({
           </ScrollView>
         </View>
       </Modal>
+
+      <ConfirmModal
+        confirmLabel={isBs ? 'POKUŠAJ KRAĐU' : 'TRY TO STEAL'}
+        onConfirm={() => handleStealChoice(true)}
+        onRequestClose={() => handleStealChoice(false)}
+        visible={Boolean(isStealPhase && activeStealer && !activeStealer.isBot)}
+      >
+        <View className="items-center" style={{ gap: 10 }}>
+          <ShieldAlert size={38} color="#fbbf24" />
+          <Text className="text-center text-lg font-black uppercase tracking-wider text-amber-400">
+            {isBs ? 'MOGUĆNOST KRAĐE' : 'STEAL OPPORTUNITY'}
+          </Text>
+          <Text className="text-center text-sm leading-6 text-neutral-300">
+            {isBs
+              ? `${activeStealer?.name}, želiš li pokušati pravilno smjestiti kartu i ukrasti je?`
+              : `${activeStealer?.name}, do you want to place the card correctly and steal it?`}
+          </Text>
+        </View>
+      </ConfirmModal>
 
     </View>
   );

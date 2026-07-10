@@ -3,6 +3,8 @@ import { Language } from '@/types';
 import { GameSession, LobbyView, PlayerInput } from './game-types';
 
 interface GameContextValue {
+  gameRuntime: any | null;
+  setGameRuntime: (runtime: any | null) => void;
   language: Language;
   toggleLanguage: () => void;
   lobbyView: LobbyView;
@@ -62,10 +64,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [muted, setMuted] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [session, setSession] = useState<GameSession | null>(null);
+  const [gameRuntime, setGameRuntime] = useState<any | null>(null);
 
   const value = useMemo(
     () => ({
       language,
+      gameRuntime,
+      setGameRuntime,
       toggleLanguage: () => setLanguage((prev) => (prev === 'en' ? 'bs' : 'en')),
       lobbyView,
       setLobbyView,
@@ -104,6 +109,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       language,
+      gameRuntime,
       lobbyView,
       setupTab,
       userName,

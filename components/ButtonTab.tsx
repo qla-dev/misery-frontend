@@ -4,7 +4,7 @@ import { GlassView } from 'expo-glass-effect';
 
 interface ButtonTabProps {
   category: 'button' | 'tab';
-  type: 'primary' | 'secondary' | 'third';
+  type: 'primary' | 'secondary' | 'third' | 'success' | 'danger';
   size: '50' | '100' | 'auto';
   onPress?: () => void;
   children: React.ReactNode;
@@ -40,6 +40,10 @@ export function ButtonTab({
   const typeClass =
     type === 'primary'
       ? 'bg-amber-400 border border-amber-400'
+      : type === 'success'
+        ? 'bg-emerald-500 border border-emerald-500'
+        : type === 'danger'
+          ? 'bg-red-500 border border-red-500'
       : type === 'third'
         ? 'bg-white border border-white'
         : 'bg-transparent border border-neutral-800';
@@ -52,7 +56,7 @@ export function ButtonTab({
     <Text
       className={`uppercase tracking-wider font-black ${
         category === 'tab' ? 'text-[15px]' : 'text-sm'
-      } ${disabled ? 'text-neutral-500' : type === 'primary' || type === 'third' ? 'text-neutral-950' : 'text-neutral-400'}`}
+      } ${disabled ? 'text-neutral-500' : type === 'primary' || type === 'third' || type === 'success' || type === 'danger' ? 'text-neutral-950' : 'text-neutral-400'}`}
     >
       {children}
     </Text>
@@ -70,7 +74,15 @@ export function ButtonTab({
           sizeStyle as any,
           { borderRadius: 12, height: category === 'tab' ? 60 : 58, overflow: 'hidden' },
         ]}
-        tintColor={type === 'primary' ? 'rgba(251,191,36,0.22)' : 'rgba(255,255,255,0.08)'}
+        tintColor={
+          type === 'primary'
+            ? 'rgba(251,191,36,0.22)'
+            : type === 'success'
+              ? 'rgba(16,185,129,0.28)'
+              : type === 'danger'
+                ? 'rgba(239,68,68,0.28)'
+                : 'rgba(255,255,255,0.08)'
+        }
       >
         <Pressable
           className={`h-full flex-row items-center justify-center gap-2 px-4 ${category === 'button' ? 'w-full' : ''} ${className}`}

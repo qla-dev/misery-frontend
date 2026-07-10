@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, Text } from 'react-native';
+import { GlassView } from 'expo-glass-effect';
 
 interface ButtonTabProps {
   category: 'button' | 'tab';
@@ -9,6 +10,7 @@ interface ButtonTabProps {
   children: React.ReactNode;
   disabled?: boolean;
   className?: string;
+  glassEffect?: boolean;
 }
 
 export function ButtonTab({
@@ -19,10 +21,13 @@ export function ButtonTab({
   children,
   disabled = false,
   className = '',
+  glassEffect = false,
 }: ButtonTabProps) {
   // Determine size styling
   const sizeStyle =
-    size === '50'
+    category === 'tab'
+      ? { alignSelf: 'flex-start' as const }
+      : size === '50'
       ? { width: '50%' }
       : size === '100'
         ? { width: '100%' }
@@ -39,7 +44,43 @@ export function ButtonTab({
         ? 'bg-white border border-white'
         : 'bg-transparent border border-neutral-800';
 
-  const stateClass = disabled ? 'bg-neutral-800 border-transparent' : typeClass;
+  const stateClass = disabled
+    ? 'bg-neutral-800 border-transparent'
+    : typeClass;
+
+  const content = typeof children === 'string' ? (
+    <Text
+      className={`uppercase tracking-wider font-black ${
+        category === 'tab' ? 'text-[15px]' : 'text-sm'
+      } ${disabled ? 'text-neutral-500' : type === 'primary' || type === 'third' ? 'text-neutral-950' : 'text-neutral-400'}`}
+    >
+      {children}
+    </Text>
+  ) : (
+    children
+  );
+
+  if (glassEffect && !disabled) {
+    return (
+      <GlassView
+        colorScheme="dark"
+        glassEffectStyle="regular"
+        isInteractive
+        style={[
+          sizeStyle as any,
+          { borderRadius: 12, height: category === 'tab' ? 60 : 58, overflow: 'hidden' },
+        ]}
+        tintColor={type === 'primary' ? 'rgba(251,191,36,0.22)' : 'rgba(255,255,255,0.08)'}
+      >
+        <Pressable
+          className={`h-full flex-row items-center justify-center gap-2 px-4 ${category === 'button' ? 'w-full' : ''} ${className}`}
+          onPress={onPress}
+        >
+          {content}
+        </Pressable>
+      </GlassView>
+    );
+  }
 
   return (
     <Pressable
@@ -51,17 +92,7 @@ export function ButtonTab({
       ]}
       className={`flex-row items-center justify-center gap-2 border px-4 ${categoryClass} ${stateClass} ${className}`}
     >
-      {typeof children === 'string' ? (
-        <Text
-          className={`uppercase tracking-wider font-black ${
-            category === 'tab' ? 'text-[15px]' : 'text-sm'
-          } ${disabled ? 'text-neutral-500' : type === 'primary' || type === 'third' ? 'text-neutral-950' : 'text-neutral-400'}`}
-        >
-          {children}
-        </Text>
-      ) : (
-        children
-      )}
+      {content}
     </Pressable>
   );
 }

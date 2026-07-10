@@ -381,22 +381,21 @@ export default function GameBoard({
                   const isActiveTurn = idx === gameState.currentPlayerIndex;
                   const isStealing = activeStealer && p.id === activeStealer.id;
                   return (
-                    <View
+                    <ButtonTab
                       key={p.id}
-                      className={`px-3 py-2 rounded-xl flex-row items-center gap-2 border ${
-                        isActiveTurn
-                          ? 'bg-amber-400 border-yellow-500'
-                          : isStealing
-                          ? 'bg-red-500/10 border-red-500/30'
-                          : 'bg-neutral-900/40 border-neutral-900/80'
-                      }`}
+                      category="tab"
+                      type={isActiveTurn ? 'primary' : isStealing ? 'third' : 'secondary'}
+                      size="auto"
+                      glassEffect
                     >
-                      <View className={`w-2 h-2 rounded-full ${p.color.split(' ')[0]} ${p.color.split(' ')[1]}`} />
-                      <Text className={`text-xs font-bold ${isActiveTurn ? 'text-black' : 'text-neutral-400'}`}>{p.name}</Text>
-                      <View className="bg-black/10 px-1.5 py-0.5 rounded">
-                        <Text className={`text-[10px] font-mono ${isActiveTurn ? 'text-black' : 'text-neutral-400'}`}>{p.lane.length} pts</Text>
+                      <View className="flex-row items-center gap-2">
+                        <View className={`w-2 h-2 rounded-full ${p.color.split(' ')[0]} ${p.color.split(' ')[1]}`} />
+                        <Text className={`text-xs font-bold ${isActiveTurn ? 'text-amber-300' : 'text-neutral-400'}`}>{p.name}</Text>
+                        <View className="bg-black/10 px-1.5 py-0.5 rounded">
+                          <Text className={`text-[10px] font-mono ${isActiveTurn ? 'text-amber-300' : 'text-neutral-400'}`}>{p.lane.length} pts</Text>
+                        </View>
                       </View>
-                    </View>
+                    </ButtonTab>
                   );
                 })}
               </View>
@@ -652,6 +651,7 @@ export default function GameBoard({
                 type="primary"
                 size="100"
                 disabled={!isDrawnCardFlipped}
+                glassEffect
                 onPress={() => setIsLaneSheetOpen(true)}
               >
                 {isBs ? 'TRAKA BIJEDE' : 'MISERY LANE'}

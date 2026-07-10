@@ -92,11 +92,15 @@ function PlayerCard({
   player: { color: string; isBot?: boolean; name: string };
   roomState: 'created' | 'joined';
 }) {
+  const playerColor =
+    AVAILABLE_COLORS.find((color) => color.borderClass === player.color) ??
+    AVAILABLE_COLORS[index % AVAILABLE_COLORS.length];
+
   return (
     <Card>
       <View className="flex-row items-center justify-between">
         <View className="flex-row items-center gap-4">
-          <View className={`h-4 w-4 rounded-full ${player.color.split(' ')[0]} ${player.color.split(' ')[1]}`} />
+          <View className={`h-4 w-4 rounded-full ${playerColor.bgClass}`} />
           <Text className="text-base font-bold text-neutral-200">{player.name}</Text>
           {index === 0 && <Crown size={18} color="#facc15" fill="#facc15" />}
         </View>
@@ -407,13 +411,12 @@ export default function Lobby() {
       setJoinStatusText(isBs ? 'Soba pronađena! Sinkronizacija...' : 'Room found! Synchronizing...');
       setTimeout(() => {
         const finalName = userName.trim() || (isBs ? 'Igrač 2' : 'Player 2');
-        const userColor = AVAILABLE_COLORS.find((c) => c.id === selectedColor)?.borderClass || AVAILABLE_COLORS[1].borderClass;
-        const hostBotColor = AVAILABLE_COLORS[3].borderClass;
-        const otherBotColor = AVAILABLE_COLORS[2].borderClass;
+        const userColorConfig = AVAILABLE_COLORS.find((c) => c.id === selectedColor) || AVAILABLE_COLORS[1];
+        const botColorConfigs = AVAILABLE_COLORS.filter((color) => color.id !== userColorConfig.id);
         setRoomPlayers([
-          { name: 'Selma 👑', color: hostBotColor, isBot: true },
-          { name: 'Kenan', color: otherBotColor, isBot: true },
-          { name: finalName, color: userColor, isBot: false },
+          { name: 'Selma 👑', color: botColorConfigs[0].borderClass, isBot: true },
+          { name: 'Kenan', color: botColorConfigs[1].borderClass, isBot: true },
+          { name: finalName, color: userColorConfig.borderClass, isBot: false },
         ]);
         setLobbyView('ROOM_JOINED');
       }, 1200);

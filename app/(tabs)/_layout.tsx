@@ -16,7 +16,13 @@ export default function TabLayout() {
   const { language, lobbyView, toggleLanguage, setInfoModalOpen, setLobbyView } = useGame();
   const isBs = language === 'bs';
   const headerTitle =
-    lobbyView === 'WELCOME' ? null : lobbyView === 'SETUP' ? 'GAME SETTINGS' : 'LOBBY';
+    lobbyView === 'WELCOME'
+      ? null
+      : lobbyView === 'SETUP'
+        ? isBs
+          ? 'POSTAVKE IGRE'
+          : 'GAME SETTINGS'
+        : 'LOBBY';
 
   return (
     <>

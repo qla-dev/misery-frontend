@@ -485,6 +485,8 @@ export default function Lobby() {
   };
 
   const activeColorConfig = AVAILABLE_COLORS.find((c) => c.id === selectedColor) || AVAILABLE_COLORS[0];
+  const hasPlayerIdentity = isSocialUser || Boolean(userName.trim());
+  const hasValidRoomCode = ROOM_CODE_REGEX.test(enteredCode.trim().toUpperCase());
 
   const renderSetupTabs = () => (
     <View style={{ alignSelf: 'center', flexDirection: 'row', gap: 8, height: 48, maxWidth: 420, width: '100%' }}>
@@ -902,9 +904,10 @@ export default function Lobby() {
               category="button"
               type="primary"
               size="100"
+              disabled={!hasPlayerIdentity}
               onPress={handleCreateRoom}
             >
-              {isBs ? 'Započni igru' : 'Start Game'}
+              {!hasPlayerIdentity ? (isBs ? 'UNESI IME' : 'ENTER NAME') : isBs ? 'Započni igru' : 'Start Game'}
             </ButtonTab>
           </View>
         );
@@ -1002,9 +1005,20 @@ export default function Lobby() {
               category="button"
               type="primary"
               size="100"
+              disabled={!hasPlayerIdentity || !hasValidRoomCode}
               onPress={handleJoinWithCode}
             >
-              {isBs ? 'Započni igru' : 'Start Game'}
+              {!hasPlayerIdentity
+                ? isBs
+                  ? 'UNESI IME'
+                  : 'ENTER NAME'
+                : !hasValidRoomCode
+                  ? isBs
+                    ? 'UNESI KOD SOBE'
+                    : 'ENTER ROOM CODE'
+                  : isBs
+                    ? 'Započni igru'
+                    : 'Start Game'}
             </ButtonTab>
           </View>
         );

@@ -1,13 +1,23 @@
 import GameBoard from '@/components/GameBoard';
 import { GameCountdown } from '@/components/GameCountdown';
+import { InfoModal } from '@/components/InfoModal';
 import { useGame } from '@/context/GameContext';
 import { playSound } from '@/lib/sound';
 import { Redirect, router, Stack } from 'expo-router';
-import { Text } from 'react-native';
+import { ImageSourcePropType, Text } from 'react-native';
 import { useState } from 'react';
+import ChevronLeftIcon from '@expo/material-symbols/chevron_left.xml';
+import HelpIcon from '@expo/material-symbols/help.xml';
+import VolumeOffIcon from '@expo/material-symbols/volume_off.xml';
+import VolumeUpIcon from '@expo/material-symbols/volume_up.xml';
+import { SFSymbol } from 'sf-symbols-typescript';
+
+function toolbarIcon(ios: SFSymbol, android: ImageSourcePropType) {
+  return process.env.EXPO_OS === 'ios' ? ios : android;
+}
 
 export default function GameScreen() {
-  const { session, language, toggleLanguage, muted, setMuted, setShowRules } = useGame();
+  const { session, language, toggleLanguage, muted, setMuted, setInfoModalOpen } = useGame();
   const [isCountingDown, setIsCountingDown] = useState(true);
 
   if (!session) {
@@ -48,19 +58,28 @@ export default function GameScreen() {
         }}
       />
       <Stack.Toolbar placement="left">
-        <Stack.Toolbar.Button onPress={handleBack} tintColor="#ffffff">
-          ←
-        </Stack.Toolbar.Button>
+        <Stack.Toolbar.Button
+          accessibilityLabel="Back to lobby"
+          icon={toolbarIcon('chevron.left', ChevronLeftIcon)}
+          onPress={handleBack}
+          tintColor="#ffffff"
+        />
       </Stack.Toolbar>
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button onPress={() => setMuted(!muted)} tintColor={muted ? '#737373' : '#fbbf24'}>
-          {muted ? '🔇' : '🔊'}
-        </Stack.Toolbar.Button>
-        <Stack.Toolbar.Button onPress={() => setShowRules(true)} tintColor="#ffffff">
-          📖
-        </Stack.Toolbar.Button>
+        <Stack.Toolbar.Button
+          accessibilityLabel={muted ? 'Unmute' : 'Mute'}
+          icon={toolbarIcon(muted ? 'speaker.slash.fill' : 'speaker.wave.2.fill', muted ? VolumeOffIcon : VolumeUpIcon)}
+          onPress={() => setMuted(!muted)}
+          tintColor={muted ? '#737373' : '#fbbf24'}
+        />
+        <Stack.Toolbar.Button
+          accessibilityLabel="Instructions"
+          icon={toolbarIcon('questionmark.circle.fill', HelpIcon)}
+          onPress={() => setInfoModalOpen(true)}
+          tintColor="#ffffff"
+        />
         <Stack.Toolbar.Button onPress={toggleLanguage} tintColor="#fbbf24">
-          {language === 'en' ? 'EN 🇺🇸' : 'BS 🇧🇦'}
+          {language === 'en' ? 'EN' : 'BS'}
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
 
@@ -70,6 +89,7 @@ export default function GameScreen() {
         targetScore={session.targetScore}
         deckType={session.deckType}
       />
+      <InfoModal />
     </>
   );
 }

@@ -1,16 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { router } from 'expo-router';
-import { AlertOctagon, ArrowRight, Check, Heart, Loader2, ShieldAlert, Trophy, X } from 'lucide-react-native';
+import { AlertOctagon, Check, Heart, Loader2, ShieldAlert, Trophy, X } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { Animated, Easing, Modal, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { Card, Player, Language, GameState, GameMode } from '@/types';
 import { CARD_DECK } from '@/data/cards';
-import CardItem from './CardItem';
 import Illustration from './Illustration';
 import { LiquidGlassBar } from './LiquidGlassBar';
 import { GradientButton } from './GradientButton';
 import { useGame } from '@/context/GameContext';
 import { playSound } from '@/lib/sound';
+import { ButtonTab } from './ButtonTab';
+import LottieView from 'lottie-react-native';
+
+const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
 
 interface GameBoardProps {
   mode: GameMode;
@@ -19,14 +23,45 @@ interface GameBoardProps {
   deckType?: 'NORMAL' | 'SPICY';
 }
 
+function CardLogo({ compact = false }: { compact?: boolean }) {
+  const fontSize = compact ? 32 : 54;
+  const lineHeight = compact ? 32 : 54;
+  return (
+    <View style={{ alignItems: 'center' }}>
+      <View style={{ alignItems: 'center', flexDirection: 'row', justifyContent: 'center' }}>
+        <Text style={{ color: '#fbbf24', fontFamily: 'Outfit_900Black', fontSize, letterSpacing: -2, lineHeight }}>M</Text>
+        <LottieView
+          autoPlay
+          loop
+          source={MASCOT_LOTTIE}
+          style={{
+            height: compact ? 48 : 78,
+            marginHorizontal: -3,
+            marginTop: compact ? -27 : -44,
+            transform: [{ translateX: compact ? 2 : 4 }],
+            width: compact ? 24 : 38,
+          }}
+        />
+        <Text style={{ color: '#fbbf24', fontFamily: 'Outfit_900Black', fontSize, letterSpacing: -2, lineHeight }}>SERY</Text>
+      </View>
+      <Text style={{ color: '#fff', fontFamily: 'Outfit_900Black', fontSize, letterSpacing: -2, lineHeight, marginTop: compact ? -8 : -13 }}>
+        METER
+      </Text>
+    </View>
+  );
+}
+
 export default function GameBoard({
   mode,
   initialPlayers,
   targetScore,
   deckType = 'NORMAL',
 }: GameBoardProps) {
-  const { language, toggleLanguage, muted, setMuted, showRules, setShowRules } = useGame();
+  const { language, muted } = useGame();
   const isBs = language === 'bs';
+  const { height } = useWindowDimensions();
+  const drawnCardHeight = Math.min(560, Math.max(360, height - 250));
+  const cardFlip = useRef(new Animated.Value(0)).current;
 
   const [gameState, setGameState] = useState<GameState>({
     mode,
@@ -43,6 +78,24 @@ export default function GameBoard({
   const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null);
   const [shakeCard, setShakeCard] = useState(false);
   const [isLaneSheetOpen, setIsLaneSheetOpen] = useState(false);
+  const [isDrawnCardFlipped, setIsDrawnCardFlipped] = useState(false);
+
+  useEffect(() => {
+    cardFlip.setValue(0);
+    setIsDrawnCardFlipped(false);
+  }, [cardFlip, gameState.drawnCard?.id]);
+
+  const flipDrawnCard = () => {
+    if (isDrawnCardFlipped) return;
+    setIsDrawnCardFlipped(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Animated.timing(cardFlip, {
+      toValue: 1,
+      duration: 560,
+      easing: Easing.inOut(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  };
 
   useEffect(() => {
     const deckPool = CARD_DECK.filter((card) => {
@@ -315,7 +368,7 @@ export default function GameBoard({
   return (
     <View className="flex-1 bg-neutral-950">
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        <View className="px-4 pt-4 pb-32 space-y-4">
+        <View className="px-5 pt-[104px] pb-32 space-y-4">
           {mode === 'MULTIPLAYER' && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} className="py-1">
               <View className="flex-row gap-2.5">
@@ -377,7 +430,7 @@ export default function GameBoard({
           </View>
 
           {!isVictoryPhase && !isGameOverPhase && (
-            <View className="items-center justify-center py-2">
+            <View className="items-center justify-center py-2 w-full">
               <View className="mb-4 px-4 py-1.5 rounded-full bg-neutral-900/60 border border-neutral-900 items-center">
                 {isStealPhase ? (
                   <Text className="text-red-400 text-[10px] font-mono tracking-wider uppercase font-bold">{isBs ? `MOGUĆNOST KRAĐE ZA ${activeStealer?.name}!` : `STEAL OPTION FOR ${activeStealer?.name}!`}</Text>
@@ -390,16 +443,105 @@ export default function GameBoard({
                 )}
               </View>
 
-              <View className={`relative ${shakeCard ? 'scale-95' : ''}`}>
-                <CardItem
-                  card={gameState.drawnCard}
-                  state={isCorrectPhase || isWrongPhase ? 'face-up' : 'mystery'}
-                  language={language}
-                  size="lg"
-                  highlighted={isWrongPhase}
-                />
+              <Pressable
+                accessibilityLabel={isBs ? 'Okreni kartu' : 'Flip card'}
+                disabled={isDrawnCardFlipped}
+                onPress={flipDrawnCard}
+                style={{ alignSelf: 'stretch', height: drawnCardHeight, transform: [{ scale: shakeCard ? 0.95 : 1 }] }}
+              >
+                <Animated.View
+                  style={{
+                    bottom: 0,
+                    height: drawnCardHeight,
+                    left: 0,
+                    opacity: cardFlip.interpolate({ inputRange: [0, 0.48, 0.52, 1], outputRange: [1, 1, 0, 0] }),
+                    position: 'absolute',
+                    right: 0,
+                    top: 0,
+                    transform: [
+                      { perspective: 850 },
+                      { rotateY: cardFlip.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) },
+                    ],
+                  }}
+                >
+                  <View
+                    style={{
+                      alignItems: 'center',
+                      backgroundColor: '#050505',
+                      borderColor: '#fbbf24',
+                      borderRadius: 36,
+                      borderWidth: 6,
+                      height: drawnCardHeight,
+                      justifyContent: 'center',
+                      overflow: 'hidden',
+                      width: '100%',
+                    }}
+                  >
+                    <LinearGradient
+                      colors={['rgba(251,191,36,0.18)', 'rgba(10,10,10,0.98)', 'rgba(251,191,36,0.1)']}
+                      style={{ bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 }}
+                    />
+                    <View style={{ borderColor: 'rgba(251,191,36,0.55)', borderRadius: 28, borderWidth: 2, bottom: 12, left: 12, position: 'absolute', right: 12, top: 12 }} />
+                    <CardLogo />
+                    <Text className="absolute bottom-8 font-mono text-[10px] font-black uppercase tracking-[3px] text-amber-400/70">
+                      {isBs ? 'DODIRNI ZA OKRETANJE' : 'TAP TO FLIP'}
+                    </Text>
+                  </View>
+                </Animated.View>
+                <Animated.View
+                  pointerEvents="none"
+                  style={{
+                    bottom: 0,
+                    height: drawnCardHeight,
+                    left: 0,
+                    opacity: cardFlip.interpolate({ inputRange: [0, 0.48, 0.52, 1], outputRange: [0, 0, 1, 1] }),
+                    position: 'absolute',
+                    right: 0,
+                    top: 0,
+                    transform: [
+                      { perspective: 850 },
+                      { rotateY: cardFlip.interpolate({ inputRange: [0, 1], outputRange: ['-180deg', '0deg'] }) },
+                    ],
+                  }}
+                >
+                  <View
+                    style={{
+                      alignItems: 'center',
+                      backgroundColor: '#090909',
+                      borderColor: isWrongPhase ? '#ef4444' : '#fbbf24',
+                      borderRadius: 36,
+                      borderWidth: 6,
+                      height: drawnCardHeight,
+                      overflow: 'hidden',
+                      paddingHorizontal: 28,
+                      paddingVertical: 26,
+                      width: '100%',
+                    }}
+                  >
+                    <View style={{ borderColor: 'rgba(251,191,36,0.35)', borderRadius: 28, borderWidth: 2, bottom: 12, left: 12, position: 'absolute', right: 12, top: 12 }} />
+                    <CardLogo compact />
+                    <View className="flex-1 items-center justify-center px-1">
+                      <Text className="text-center text-3xl font-black uppercase leading-9 tracking-tight text-white">
+                        {isBs ? gameState.drawnCard.titleBs : gameState.drawnCard.titleEn}
+                      </Text>
+                      {(gameState.drawnCard.descriptionBs || gameState.drawnCard.descriptionEn) && (
+                        <Text className="mt-4 text-center text-base leading-6 text-neutral-400">
+                          {isBs ? gameState.drawnCard.descriptionBs : gameState.drawnCard.descriptionEn}
+                        </Text>
+                      )}
+                    </View>
+                    <LinearGradient colors={['#fbbf24', '#facc15']} className="min-w-28 rounded-full px-6 py-3 items-center">
+                      <Text className="font-mono text-[9px] font-black uppercase tracking-widest text-neutral-950">
+                        {isBs ? 'INDEKS BIJEDE' : 'MISERY INDEX'}
+                      </Text>
+                      <Text className="font-mono text-2xl font-black text-neutral-950">
+                        {isCorrectPhase || isWrongPhase ? gameState.drawnCard.index.toFixed(1) : '?'}
+                      </Text>
+                    </LinearGradient>
+                  </View>
+                </Animated.View>
                 {isCorrectPhase && (
-                  <View className="absolute inset-0 bg-emerald-950/95 rounded-xl items-center justify-center p-4 z-10 border-2 border-emerald-500/30">
+                  <View className="absolute inset-0 bg-emerald-950/95 rounded-[36px] items-center justify-center p-4 z-10 border-[6px] border-emerald-500/30">
                     <View className="w-12 h-12 rounded-full bg-emerald-500 items-center justify-center mb-3">
                       <Check size={24} color="#fff" strokeWidth={4} />
                     </View>
@@ -408,7 +550,7 @@ export default function GameBoard({
                   </View>
                 )}
                 {isWrongPhase && (
-                  <View className="absolute inset-0 bg-red-950/95 rounded-xl items-center justify-center p-4 z-10 border-2 border-red-500/30">
+                  <View className="absolute inset-0 bg-red-950/95 rounded-[36px] items-center justify-center p-4 z-10 border-[6px] border-red-500/30">
                     <View className="w-12 h-12 rounded-full bg-red-500 items-center justify-center mb-3">
                       <X size={24} color="#fff" strokeWidth={4} />
                     </View>
@@ -416,7 +558,7 @@ export default function GameBoard({
                     <Text className="text-[10px] text-red-400/90 font-mono mt-1.5 text-center">{isBs ? 'Previše ili premalo bijede.' : 'Too high or too low.'}</Text>
                   </View>
                 )}
-              </View>
+              </Pressable>
             </View>
           )}
           {isStealPhase && activeStealer && (
@@ -511,17 +653,6 @@ export default function GameBoard({
             </View>
           )}
 
-          <View className="pt-8 pb-4 flex-row items-center justify-between border-t border-neutral-900/30">
-            <View className="flex-row gap-2">
-              <Text className="text-[8px] text-neutral-600 font-mono">{isBs ? 'Mod:' : 'Mode:'} <Text className="text-amber-500 font-bold">{mode}</Text></Text>
-              <Text className="text-neutral-700 text-[8px] font-mono">•</Text>
-              <Text className="text-[8px] text-neutral-600 font-mono">{isBs ? 'Špil:' : 'Deck:'} <Text className="text-amber-500 font-bold">{deckType}</Text></Text>
-            </View>
-            <View className="flex-row gap-2.5 font-bold">
-              <Text className="text-[8px] text-neutral-600 font-mono">{isBs ? 'U špilu:' : 'Remaining:'} <Text className="text-neutral-400">{gameState.deck.length}</Text></Text>
-              <Text className="text-[8px] text-neutral-600 font-mono">{isBs ? 'Izbačeno:' : 'Discard:'} <Text className="text-neutral-400">{gameState.discardPile.length}</Text></Text>
-            </View>
-          </View>
         </View>
       </ScrollView>
 
@@ -534,9 +665,15 @@ export default function GameBoard({
                 <Text className="text-[10px] font-extrabold uppercase tracking-widest text-neutral-500">{isBs ? `${currentActingPlayer.name} bira slot...` : `${currentActingPlayer.name} is choosing...`}</Text>
               </View>
             ) : (
-              <GradientButton onPress={() => setIsLaneSheetOpen(true)}>
-                <Text className="text-black font-black uppercase text-xs tracking-wider">📋 {isBs ? 'TRENUTNI RASPORED' : 'CURRENT SCHEDULE'}</Text>
-              </GradientButton>
+              <ButtonTab
+                category="button"
+                type="primary"
+                size="100"
+                disabled={!isDrawnCardFlipped}
+                onPress={() => setIsLaneSheetOpen(true)}
+              >
+                {isBs ? 'TRAKA BIJEDE' : 'MISERY LANE'}
+              </ButtonTab>
             ))}
 
           {isStealPhase && activeStealer &&
@@ -547,12 +684,12 @@ export default function GameBoard({
               </View>
             ) : (
               <View className="flex-row gap-3">
-                <GradientButton onPress={() => handleStealChoice(true)}>
-                  <Text className="text-black font-black uppercase text-xs tracking-wider">{isBs ? 'DA, POKUŠAJ KRAĐU' : 'YES, TRY STEAL'}</Text>
-                </GradientButton>
-                <Pressable onPress={() => handleStealChoice(false)} className="flex-1 py-4 bg-neutral-900 rounded-xl items-center justify-center border border-neutral-800">
-                  <Text className="text-neutral-400 font-bold uppercase text-xs tracking-wider">{isBs ? 'NE, PROSLIJEDI' : 'NO, PASS'}</Text>
-                </Pressable>
+                <ButtonTab category="button" type="primary" size="auto" className="flex-1" onPress={() => handleStealChoice(true)}>
+                  {isBs ? 'DA, POKUŠAJ KRAĐU' : 'YES, TRY STEAL'}
+                </ButtonTab>
+                <ButtonTab category="button" type="secondary" size="auto" className="flex-1" onPress={() => handleStealChoice(false)}>
+                  {isBs ? 'NE, PROSLIJEDI' : 'NO, PASS'}
+                </ButtonTab>
               </View>
             ))}
 
@@ -563,28 +700,33 @@ export default function GameBoard({
                 <Text className="text-[10px] font-extrabold uppercase tracking-widest text-neutral-500">{isBs ? 'SLJEDEĆI KRUG (AUTOMATSKI)...' : 'NEXT ROUND (AUTOMATIC)...'}</Text>
               </View>
             ) : (
-              <GradientButton onPress={handleProceedNextRound}>
-                <Text className="text-black font-black uppercase text-xs tracking-wider">{isBs ? 'SLJEDEĆI KRUG' : 'CONTINUE / NEXT TURN'}</Text>
-                <ArrowRight size={16} color="#0a0a0a" strokeWidth={3} />
-              </GradientButton>
+              <ButtonTab category="button" type="primary" size="100" onPress={handleProceedNextRound}>
+                {isBs ? 'SLJEDEĆI KRUG' : 'CONTINUE / NEXT TURN'}
+              </ButtonTab>
             ))}
         </View>
       </LiquidGlassBar>
 
       <Modal visible={isLaneSheetOpen && gameState.phase === 'PLAYING'} transparent animationType="slide" onRequestClose={() => setIsLaneSheetOpen(false)}>
         <View className="flex-1 bg-neutral-950">
-          <View className="bg-neutral-900 px-5 py-4 border-b border-neutral-800 flex-row items-center justify-between">
+          <View
+            className="bg-neutral-900 px-5 pb-4 border-b border-neutral-800 flex-row items-center justify-between"
+            style={{ paddingTop: 64 }}
+          >
             <View>
-              <Text className="text-xs font-black tracking-widest uppercase text-amber-400">{isBs ? 'TRENUTNI RASPORED' : 'CURRENT ALIGNMENT'}</Text>
-              <Text className="text-[10px] text-neutral-500 font-mono uppercase mt-0.5">{isBs ? 'TRAKA BIJEDE' : 'MISERY LANE'}</Text>
+              <Text className="text-base font-black tracking-widest uppercase text-amber-400">{isBs ? 'TRAKA BIJEDE' : 'MISERY LANE'}</Text>
             </View>
-            <Pressable onPress={() => setIsLaneSheetOpen(false)} className="p-1.5 rounded-lg bg-neutral-800">
-              <X size={16} color="#a3a3a3" />
+            <Pressable onPress={() => setIsLaneSheetOpen(false)} hitSlop={10} className="p-2.5 rounded-xl bg-neutral-800">
+              <X size={20} color="#d4d4d4" />
             </Pressable>
           </View>
-          <ScrollView className="flex-1 p-5" showsVerticalScrollIndicator={false}>
-            <Text className="text-center text-[10px] font-mono uppercase tracking-widest text-neutral-500 font-bold mb-4">{isBs ? 'Gdje se ovaj događaj uklapa u tvoju traku?' : 'Where does this fit in your Misery Lane?'}</Text>
-            <View className="relative pl-8 pr-1 py-2 space-y-4">
+          <ScrollView
+            className="flex-1 px-5"
+            contentContainerStyle={{ paddingBottom: 48, paddingTop: 20 }}
+            showsVerticalScrollIndicator={false}
+          >
+            <Text className="text-center text-xs font-mono uppercase tracking-widest text-neutral-400 font-bold mb-6">{isBs ? 'Gdje se ovaj događaj uklapa u tvoju traku?' : 'Where does this fit in your Misery Lane?'}</Text>
+            <View className="relative pl-8 pr-1 py-2" style={{ gap: 22 }}>
               <LinearGradient colors={['rgba(251,191,36,0.3)', 'rgba(251,191,36,0.1)', 'rgba(251,191,36,0.3)']} className="absolute left-3 top-0 bottom-0 w-[2px]" />
               {currentActingPlayer.lane.map((card, idx) => (
                 <View key={card.id}>
@@ -596,11 +738,11 @@ export default function GameBoard({
                       className={`w-full py-2.5 px-3 border border-dashed rounded-xl flex-row items-center justify-between ${currentActingPlayer.isBot ? 'border-neutral-800 bg-neutral-900/10' : 'border-amber-400/20 bg-amber-400/[0.01]'}`}
                     >
                       {currentActingPlayer.isBot ? (
-                        <Text className="text-[10px] uppercase tracking-wider text-neutral-500">{isBs ? `${currentActingPlayer.name} bira slot...` : `${currentActingPlayer.name} is choosing...`}</Text>
+                        <Text className="text-xs uppercase tracking-wider text-neutral-500">{isBs ? `${currentActingPlayer.name} bira slot...` : `${currentActingPlayer.name} is choosing...`}</Text>
                       ) : (
                         <>
                           <Text className="font-extrabold text-amber-400">➕ <Text className="font-sans">{isBs ? 'Ubaci ovdje' : 'Insert Here'}</Text></Text>
-                          <Text className="text-[9px] text-neutral-500">
+                          <Text className="text-[11px] text-neutral-500">
                             {idx === 0
                               ? isBs ? `(manje od ${card.index.toFixed(1)})` : `(less than ${card.index.toFixed(1)})`
                               : isBs ? `između ${currentActingPlayer.lane[idx - 1].index.toFixed(1)} i ${card.index.toFixed(1)}` : `between ${currentActingPlayer.lane[idx - 1].index.toFixed(1)} and ${card.index.toFixed(1)}`}
@@ -616,8 +758,8 @@ export default function GameBoard({
                         <Text className="font-mono text-amber-400 font-black text-xs">{card.index.toFixed(1)}</Text>
                       </View>
                       <View className="flex-1">
-                        <Text className="text-[11px] font-black uppercase tracking-wide text-neutral-200" numberOfLines={1}>{isBs ? card.titleBs : card.titleEn}</Text>
-                        {(card.descriptionBs || card.descriptionEn) && <Text className="text-[9px] text-neutral-500" numberOfLines={1}>{isBs ? card.descriptionBs : card.descriptionEn}</Text>}
+                        <Text className="text-sm font-black uppercase tracking-wide text-neutral-200" numberOfLines={2}>{isBs ? card.titleBs : card.titleEn}</Text>
+                        {(card.descriptionBs || card.descriptionEn) && <Text className="text-[11px] text-neutral-500" numberOfLines={2}>{isBs ? card.descriptionBs : card.descriptionEn}</Text>}
                       </View>
                       <View className="w-8 h-8 opacity-45 items-center justify-center">
                         <Illustration type={card.illustrationType} className="w-7 h-7" />
@@ -634,11 +776,11 @@ export default function GameBoard({
                   className={`w-full py-2.5 px-3 border border-dashed rounded-xl flex-row items-center justify-between ${currentActingPlayer.isBot ? 'border-neutral-800 bg-neutral-900/10' : 'border-amber-400/20 bg-amber-400/[0.01]'}`}
                 >
                   {currentActingPlayer.isBot ? (
-                    <Text className="text-[10px] uppercase tracking-wider text-neutral-500">{isBs ? `${currentActingPlayer.name} bira slot...` : `${currentActingPlayer.name} is choosing...`}</Text>
+                    <Text className="text-xs uppercase tracking-wider text-neutral-500">{isBs ? `${currentActingPlayer.name} bira slot...` : `${currentActingPlayer.name} is choosing...`}</Text>
                   ) : (
                     <>
                       <Text className="font-extrabold text-amber-400">➕ <Text className="font-sans">{isBs ? 'Ubaci ovdje' : 'Insert Here'}</Text></Text>
-                      <Text className="text-[9px] text-neutral-500">{isBs ? `(više od ${currentActingPlayer.lane[currentActingPlayer.lane.length - 1].index.toFixed(1)})` : `(greater than ${currentActingPlayer.lane[currentActingPlayer.lane.length - 1].index.toFixed(1)})`}</Text>
+                      <Text className="text-[11px] text-neutral-500">{isBs ? `(više od ${currentActingPlayer.lane[currentActingPlayer.lane.length - 1].index.toFixed(1)})` : `(greater than ${currentActingPlayer.lane[currentActingPlayer.lane.length - 1].index.toFixed(1)})`}</Text>
                     </>
                   )}
                 </Pressable>
@@ -648,44 +790,6 @@ export default function GameBoard({
         </View>
       </Modal>
 
-      <Modal visible={showRules} transparent animationType="fade" onRequestClose={() => setShowRules(false)}>
-        <View className="flex-1 bg-neutral-950/95 p-6">
-      <ScrollView className="flex-1 pt-[100px]" showsVerticalScrollIndicator={false}>
-            <View className="flex-row items-center justify-between border-b border-neutral-900 pb-3 mb-4">
-              <Text className="text-base font-black text-amber-400 uppercase tracking-widest">📖 {isBs ? 'PRAVILA IGRE' : 'GAME RULES'}</Text>
-              <Pressable onPress={() => setShowRules(false)} className="p-1.5 rounded-lg bg-neutral-800">
-                <X size={16} color="#a3a3a3" />
-              </Pressable>
-            </View>
-            <View className="space-y-3.5">
-              <Text className="text-sm text-neutral-300 leading-6 font-sans">
-                {isBs ? 'Dobrodošli u Misery Meter! Cilj igre je da tačno posložite kartice sa nesrećnim životnim događajima na skalu od 0 do 100.' : 'Welcome to Misery Meter! Your goal is to correctly arrange miserable real-life events along your personal Misery Lane from 0 to 100.'}
-              </Text>
-              <View className="p-3.5 bg-neutral-900/40 rounded-xl border border-neutral-900 space-y-1">
-                <Text className="font-bold text-amber-400 block font-mono text-[11px] uppercase tracking-wider">{isBs ? '1. TRACA BIJEDE' : '1. MISERY LANE'}</Text>
-                <Text className="text-neutral-300 text-sm leading-6">{isBs ? 'Svaki igrač počinje sa 3 već poredane kartice (od najmanje do najviše bijedne). To je vaša Traka Bijede.' : 'Each player starts with 3 pre-arranged cards, ordered from lowest to highest misery index. This forms your starting lane.'}</Text>
-              </View>
-              <View className="p-3.5 bg-neutral-900/40 rounded-xl border border-neutral-900 space-y-1">
-                <Text className="font-bold text-amber-400 block font-mono text-[11px] uppercase tracking-wider">{isBs ? '2. VAŠ POTEZ' : '2. YOUR TURN'}</Text>
-                <Text className="text-neutral-300 text-sm leading-6">{isBs ? 'Izvlači se nova misteriozna kartica. Vidite naziv i ilustraciju, ali je ocjena skrivena. Kliknite na "Ubaci ovdje" dugme na traci gdje mislite da taj događaj pripada.' : 'A new mystery card is drawn. You can read the scenario and see the graphic, but the score is hidden. Tap the "Insert Here" slot in your lane where you guess this card belongs.'}</Text>
-              </View>
-              <View className="p-3.5 bg-neutral-900/40 rounded-xl border border-neutral-900 space-y-1">
-                <Text className="font-bold text-amber-400 block font-mono text-[11px] uppercase tracking-wider">{isBs ? '3. KRAĐE (VIŠE IGRAČA)' : '3. STEALING (MULTIPLAYER)'}</Text>
-                <Text className="text-neutral-300 text-sm leading-6">{isBs ? 'Ako pogriješite, drugi igrači po krugu dobijaju ponudan da UKRADU karticu! Oni mogu procijeniti i ubaciti je na svoju traku.' : 'If you guess wrong, other players in clockwise order get a single chance to STEAL the card by correctly placing it in their own lanes.'}</Text>
-              </View>
-              <View className="p-3.5 bg-neutral-900/40 rounded-xl border border-neutral-900 space-y-1">
-                <Text className="font-bold text-amber-400 block font-mono text-[11px] uppercase tracking-wider">{isBs ? '4. KAKO POBIJEDITI' : '4. HOW TO WIN'}</Text>
-                <Text className="text-neutral-300 text-sm leading-6">{isBs ? `Prvi igrač koji uspije sakupiti ${targetScore} kartica u svojoj traci pobjeđuje! U solo modu imate 3 života.` : `First player to correctly build a lane of ${targetScore} cards wins! In Solo Mode, you try to build the longest lane with 3 lives.`}</Text>
-              </View>
-            </View>
-          </ScrollView>
-          <Pressable onPress={() => setShowRules(false)} className="mt-5 rounded-xl overflow-hidden">
-            <View className="bg-amber-400 py-3.5 items-center">
-              <Text className="text-black font-extrabold uppercase text-[10px] tracking-wider">{isBs ? 'ZATVORI I IGRAJ' : 'CLOSE & CONTINUE'}</Text>
-            </View>
-          </Pressable>
-        </View>
-      </Modal>
     </View>
   );
 }

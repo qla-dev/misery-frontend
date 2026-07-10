@@ -5,6 +5,8 @@ import ChevronLeftIcon from '@expo/material-symbols/chevron_left.xml';
 import HelpIcon from '@expo/material-symbols/help.xml';
 import { SFSymbol } from 'sf-symbols-typescript';
 import { useGame } from '@/context/GameContext';
+import { playSound } from '@/lib/sound';
+import { InfoModal } from '@/components/InfoModal';
 
 function toolbarIcon(ios: SFSymbol, android: ImageSourcePropType) {
   return process.env.EXPO_OS === 'ios' ? ios : android;
@@ -30,7 +32,10 @@ export default function TabLayout() {
           <Stack.Toolbar.Button
             accessibilityLabel="Back to welcome"
             icon={toolbarIcon('chevron.left', ChevronLeftIcon)}
-            onPress={() => setLobbyView('WELCOME')}
+            onPress={() => {
+              playSound('click');
+              setLobbyView('WELCOME');
+            }}
             tintColor="#ffffff"
           />
         </Stack.Toolbar>
@@ -39,7 +44,10 @@ export default function TabLayout() {
         <Stack.Toolbar.Button
           accessibilityLabel="Instructions"
           icon={toolbarIcon('questionmark.circle.fill', HelpIcon)}
-          onPress={() => setInfoModalOpen(true)}
+          onPress={() => {
+            playSound('click');
+            setInfoModalOpen(true);
+          }}
           tintColor="#ffffff"
         />
         <Stack.Toolbar.Button onPress={toggleLanguage} tintColor="#fbbf24">
@@ -70,6 +78,7 @@ export default function TabLayout() {
           <NativeTabs.Trigger.Label>{isBs ? 'O igri' : 'About'}</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
       </NativeTabs>
+      <InfoModal />
     </>
   );
 }

@@ -44,6 +44,7 @@ export default function RootLayout() {
     JetBrainsMono_700Bold,
     BebasNeue_400Regular,
     AmaticSC_Bold: require('../assets/fonts/AmaticSC-Bold.ttf'),
+    FacebookSansBold: require('../assets/fonts/FacebookSansBold.ttf'),
   });
 
   useEffect(() => {

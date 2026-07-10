@@ -12,7 +12,6 @@ import { playSound } from '@/lib/sound';
 import { AppButton, Section, Surface } from './AppPrimitives';
 import { AppInput } from './AppInput';
 import { GradientButton } from './GradientButton';
-import { InfoModal } from './InfoModal';
 import ManSilhouette from './ManSilhouette';
 import { ButtonTab } from './ButtonTab';
 
@@ -328,10 +327,14 @@ export default function Lobby() {
     <View style={{ alignSelf: 'center', flexDirection: 'row', gap: 8, height: 48, maxWidth: 420, width: '100%' }}>
       <GlassView
         colorScheme="dark"
-        glassEffectStyle="clear"
+        glassEffectStyle={{
+          style: setupTab === 'CREATE' ? 'regular' : 'none',
+          animate: true,
+          animationDuration: 0.6,
+        }}
         isInteractive
         style={{ alignItems: 'center', borderRadius: 12, flex: 1, justifyContent: 'center' }}
-        tintColor="rgba(0,0,0,0)"
+        tintColor="rgba(251,191,36,0.16)"
       >
         <Pressable
           accessibilityRole="tab"
@@ -362,10 +365,14 @@ export default function Lobby() {
 
       <GlassView
         colorScheme="dark"
-        glassEffectStyle="clear"
+        glassEffectStyle={{
+          style: setupTab === 'JOIN' ? 'regular' : 'none',
+          animate: true,
+          animationDuration: 0.6,
+        }}
         isInteractive
         style={{ alignItems: 'center', borderRadius: 12, flex: 1, justifyContent: 'center' }}
-        tintColor="rgba(0,0,0,0)"
+        tintColor="rgba(251,191,36,0.16)"
       >
         <Pressable
           accessibilityRole="tab"
@@ -466,7 +473,7 @@ export default function Lobby() {
 
             <View className="items-center" style={{ display: 'none' }}>
               <Text className="text-[10px] text-neutral-500 font-mono tracking-widest uppercase text-center font-black">
-                {isBs ? 'MJERAC BIJEDE • MISERABLE MATCH' : 'MISERY METER • MISERABLE MATCH'}
+                {isBs ? 'MJERAČ BIJEDE • MISERABLE MATCH' : 'MISERY METER • MISERABLE MATCH'}
               </Text>
               <Text className="text-center text-[46px] font-black uppercase leading-[46px] tracking-tight">
                 <Text className="text-amber-400">MISERY</Text>
@@ -544,7 +551,7 @@ export default function Lobby() {
           </View>
           <View className="bg-neutral-900/35 border border-neutral-900/60 p-6 rounded-2xl shadow-lg" style={{ display: 'none' }}>
             <Text className="text-[10px] text-neutral-500 font-mono tracking-widest uppercase text-center font-bold">
-              {isBs ? 'MJERAC BIJEDE • MISERABLE MATCH' : 'MISERY METER • MISERABLE MATCH'}
+              {isBs ? 'MJERAČ BIJEDE • MISERABLE MATCH' : 'MISERY METER • MISERABLE MATCH'}
             </Text>
             <View className="flex-row items-center justify-around py-3 bg-neutral-950/40 rounded-xl relative overflow-hidden border border-neutral-900/40 px-2">
               {['Gost 1', 'Gost 2', null, 'Gost 3', 'Gost 4'].map((label, idx) => (
@@ -623,7 +630,7 @@ export default function Lobby() {
           <View className="pt-4 pb-2 items-center" style={{ gap: 4 }}>
             <Text className="text-[10px] text-neutral-600 font-mono">© 2026 Misery Meter</Text>
             <Text className="text-[10px] text-neutral-600 font-mono opacity-80">
-              {isBs ? 'Simulirani mrežni kod • Potpuno klijentska simulacija' : 'Simulated netplay • Zero servers required'}
+              {isBs ? 'Serveri aktivni • Multiplayer mode' : 'Servers active • Multiplayer mode'}
             </Text>
           </View>
         </View>
@@ -1025,7 +1032,6 @@ export default function Lobby() {
         {renderContent()}
       </ScrollView>
       {renderBottomCTA() && <View className="px-4 pb-4 pt-2 bg-neutral-950">{renderBottomCTA()}</View>}
-      <InfoModal />
     </View>
   );
 }

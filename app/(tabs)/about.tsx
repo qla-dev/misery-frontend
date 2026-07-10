@@ -1,20 +1,26 @@
-import { ScrollView, Text, View } from 'react-native';
+import { Linking, Pressable, Text, View } from 'react-native';
 import LottieView from 'lottie-react-native';
 import { useGame } from '@/context/GameContext';
+import { playSound } from '@/lib/sound';
 
 const MASCOT_LOTTIE = require('../../assets/animations/mascot_lottie.json');
+const PRIVACY_URL = 'https://misery.qla.dev/privacy';
+const TERMS_URL = 'https://misery.qla.dev/terms';
+const COOKIES_URL = 'https://misery.qla.dev/cookies';
+const PRODUCER_URL = 'https://qla.dev';
 
 export default function AboutScreen() {
   const { language } = useGame();
   const isBs = language === 'bs';
 
+  const handleOpenUrl = (url: string) => {
+    playSound('click');
+    void Linking.openURL(url).catch(() => undefined);
+  };
+
   return (
-    <ScrollView
-      className="flex-1 bg-neutral-950"
-      contentContainerStyle={{ alignItems: 'center', paddingHorizontal: 24, paddingTop: 100, paddingBottom: 32 }}
-      showsVerticalScrollIndicator={false}
-    >
-      <View className="items-center" style={{ gap: 10 }}>
+    <View className="flex-1 justify-center bg-neutral-950 px-5">
+      <View className="items-center">
         <View className="items-center">
           <View className="flex-row items-center justify-center">
             <Text className="text-center text-[66px] font-black uppercase leading-[66px] tracking-tight text-amber-400">
@@ -41,36 +47,90 @@ export default function AboutScreen() {
             METER
           </Text>
         </View>
-        <Text className="text-2xl text-neutral-400 text-center leading-7 font-handwritten tracking-[1px] uppercase px-2">
+        <Text className="text-2xl text-neutral-400 text-center leading-7 font-handwritten tracking-[1px] uppercase">
           {isBs
-            ? 'Svako od nas ima lose dane. Dokazi ko prezivljava najgoru patnju.'
+            ? 'Svako od nas ima loše dane. Dokaži ko preživljava najgoru patnju.'
             : 'We all have bad days. Prove who survives the worst misery.'}
         </Text>
       </View>
 
-      <View className="mt-8 space-y-4 w-full">
+      <View className="w-full" style={{ gap: 16, marginTop: 10 }}>
         <View className="p-4 bg-neutral-900/40 rounded-xl border border-neutral-900">
           <Text className="text-sm text-neutral-300 leading-6">
             {isBs
-              ? 'Zabavna igra u kojoj procjenjujete blesave, neprijatne ili potpuno bizarne zivotne situacije na skali od 0 (nebitno) do 100 (maksimalna nesreca).'
+              ? 'Zabavna igra u kojoj procjenjujete blesave, neprijatne ili potpuno bizarne životne situacije na skali od 0 (nebitno) do 100 (maksimalna nesreća).'
               : 'A card game where you rank real-life, painful, funny, or extremely awkward situations on a scale of 0 (meh) to 100 (miserable).'}
           </Text>
         </View>
         <View className="p-4 bg-neutral-900/40 rounded-xl border border-neutral-900">
           <Text className="text-sm text-neutral-300 leading-6">
             {isBs
-              ? 'Vas cilj je da tacno plasirate novu kartu unutar vaseg postojeceg niza od laksih prema tezim zivotnim situacijama.'
+              ? 'Vaš cilj je da tačno plasirate novu kartu unutar vašeg postojećeg niza od lakših prema težim životnim situacijama.'
               : 'Your goal is to accurately place a newly drawn card into your existing sequence of cards sorted from least miserable to most miserable.'}
           </Text>
         </View>
       </View>
 
-      <View className="mt-10 items-center">
-        <Text className="text-[10px] text-neutral-600 font-mono">© 2026 Misery Meter</Text>
-        <Text className="text-[10px] text-neutral-600 font-mono opacity-80">
-          {isBs ? 'Simulirani mrezni kod • Potpuno klijentska simulacija' : 'Simulated netplay • Zero servers required'}
-        </Text>
+      <View className="mt-10 w-full items-center" style={{ gap: 25 }}>
+        <View className="items-center" style={{ gap: 4 }}>
+          <Text className="text-[10px] text-neutral-600 font-mono">© 2026 Misery Meter</Text>
+          <Text className="text-[10px] text-neutral-600 font-mono opacity-80">
+            {isBs ? 'Serveri aktivni • Multiplayer mode' : 'Servers active • Multiplayer mode'}
+          </Text>
+        </View>
+
+        <View
+          className="flex-row flex-wrap items-center justify-center"
+          style={{ columnGap: 8, rowGap: 4 }}
+        >
+          <Pressable
+            accessibilityLabel={isBs ? 'Otvori politiku privatnosti' : 'Open privacy policy'}
+            accessibilityRole="link"
+            hitSlop={10}
+            onPress={() => handleOpenUrl(PRIVACY_URL)}
+          >
+            <Text className="text-[10px] font-extrabold text-neutral-500">
+              {isBs ? 'Politika privatnosti' : 'Privacy Policy'}
+            </Text>
+          </Pressable>
+          <Text className="text-[10px] font-black text-neutral-700">•</Text>
+          <Pressable
+            accessibilityLabel={isBs ? 'Otvori uslove korištenja' : 'Open terms of use'}
+            accessibilityRole="link"
+            hitSlop={10}
+            onPress={() => handleOpenUrl(TERMS_URL)}
+          >
+            <Text className="text-[10px] font-extrabold text-neutral-500">
+              {isBs ? 'Uslovi korištenja' : 'Terms of Use'}
+            </Text>
+          </Pressable>
+          <Text className="text-[10px] font-black text-neutral-700">•</Text>
+          <Pressable
+            accessibilityLabel={isBs ? 'Otvori politiku kolačića' : 'Open cookie policy'}
+            accessibilityRole="link"
+            hitSlop={10}
+            onPress={() => handleOpenUrl(COOKIES_URL)}
+          >
+            <Text className="text-[10px] font-extrabold text-neutral-500">
+              {isBs ? 'Kolačići' : 'Cookies'}
+            </Text>
+          </Pressable>
+        </View>
+
+        <Pressable
+          accessibilityLabel="Open qla.dev"
+          accessibilityRole="link"
+          className="items-center"
+          hitSlop={10}
+          onPress={() => handleOpenUrl(PRODUCER_URL)}
+        >
+          <Text className="mb-0.5 text-[10px] font-semibold leading-3 text-neutral-500">from</Text>
+          <Text style={{ fontFamily: 'FacebookSansBold', fontSize: 16, lineHeight: 18 }}>
+            <Text className="text-white">qla</Text>
+            <Text style={{ color: '#0195F5' }}>.dev</Text>
+          </Text>
+        </Pressable>
       </View>
-    </ScrollView>
+    </View>
   );
 }

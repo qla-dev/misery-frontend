@@ -32,7 +32,10 @@ export function HeaderActions({ showBack, onBack }: { showBack?: boolean; onBack
         </Text>
       </Pressable>
       <Pressable
-        onPress={() => setInfoModalOpen(true)}
+        onPress={() => {
+          playSound('click');
+          setInfoModalOpen(true);
+        }}
         className="p-1.5 rounded-full bg-neutral-900/80 border border-neutral-800"
       >
         <Info size={14} color="#fbbf24" />

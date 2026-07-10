@@ -46,7 +46,7 @@ interface GameContextValue {
 const GameContext = createContext<GameContextValue | null>(null);
 
 export function GameProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguage] = useState<Language>('bs');
+  const [language, setLanguage] = useState<Language>('en');
   const [lobbyView, setLobbyView] = useState<LobbyView>('WELCOME');
   const [setupTab, setSetupTab] = useState<'CREATE' | 'JOIN'>('CREATE');
   const [userName, setUserName] = useState('');

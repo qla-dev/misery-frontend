@@ -1,11 +1,14 @@
 import GameBoard from '@/components/GameBoard';
+import { GameCountdown } from '@/components/GameCountdown';
 import { useGame } from '@/context/GameContext';
 import { playSound } from '@/lib/sound';
 import { Redirect, router, Stack } from 'expo-router';
 import { Text } from 'react-native';
+import { useState } from 'react';
 
 export default function GameScreen() {
   const { session, language, toggleLanguage, muted, setMuted, setShowRules } = useGame();
+  const [isCountingDown, setIsCountingDown] = useState(true);
 
   if (!session) {
     return <Redirect href="/" />;
@@ -15,6 +18,19 @@ export default function GameScreen() {
     playSound('click');
     router.back();
   };
+
+  if (isCountingDown) {
+    return (
+      <>
+        <Stack.Screen options={{ headerShown: false }} />
+        <GameCountdown
+          bottomLabel={language === 'bs' ? 'SPREMI SE ZA NESREĆU' : 'GET READY FOR MISERY'}
+          finalLabel={language === 'bs' ? 'KRENI' : 'GO'}
+          onComplete={() => setIsCountingDown(false)}
+        />
+      </>
+    );
+  }
 
   return (
     <>

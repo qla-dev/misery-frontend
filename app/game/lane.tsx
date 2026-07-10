@@ -29,9 +29,9 @@ export default function MiseryLaneScreen() {
             : 'The lane is available to view. Placement activates on your turn after you flip the card.'}
       </Text>
 
-      <View style={{ gap: 18 }}>
+      <View style={{ gap: 12 }}>
         {player.lane.map((card: any, index: number) => (
-          <View key={card.id} style={{ gap: 8 }}>
+          <View key={card.id} style={{ gap: 12 }}>
             {gameRuntime.canPlaceCard && (
               <Pressable
                 className="items-center rounded-xl border border-dashed border-amber-400/40 bg-amber-400/5 px-4 py-3"

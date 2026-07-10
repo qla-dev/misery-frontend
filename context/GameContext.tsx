@@ -5,6 +5,10 @@ import { GameSession, LobbyView, PlayerInput } from './game-types';
 interface GameContextValue {
   gameRuntime: any | null;
   setGameRuntime: (runtime: any | null) => void;
+  isGameCountingDown: boolean;
+  setIsGameCountingDown: (value: boolean) => void;
+  laneResult: 'success' | 'failure' | null;
+  setLaneResult: (result: 'success' | 'failure' | null) => void;
   language: Language;
   toggleLanguage: () => void;
   lobbyView: LobbyView;
@@ -65,12 +69,18 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [showRules, setShowRules] = useState(false);
   const [session, setSession] = useState<GameSession | null>(null);
   const [gameRuntime, setGameRuntime] = useState<any | null>(null);
+  const [isGameCountingDown, setIsGameCountingDown] = useState(false);
+  const [laneResult, setLaneResult] = useState<'success' | 'failure' | null>(null);
 
   const value = useMemo(
     () => ({
       language,
       gameRuntime,
       setGameRuntime,
+      isGameCountingDown,
+      setIsGameCountingDown,
+      laneResult,
+      setLaneResult,
       toggleLanguage: () => setLanguage((prev) => (prev === 'en' ? 'bs' : 'en')),
       lobbyView,
       setLobbyView,
@@ -110,6 +120,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     [
       language,
       gameRuntime,
+      isGameCountingDown,
+      laneResult,
       lobbyView,
       setupTab,
       userName,

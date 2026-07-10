@@ -358,6 +358,7 @@ export default function Lobby() {
     setIsCopied,
     joinStatusText,
     setJoinStatusText,
+    setIsGameCountingDown,
     setSession,
   } = useGame();
 
@@ -481,8 +482,9 @@ export default function Lobby() {
     tScore: number,
     deck: 'NORMAL' | 'SPICY'
   ) => {
+    setIsGameCountingDown(true);
     setSession({ mode, players, targetScore: tScore, deckType: deck });
-    requestAnimationFrame(() => router.push('/game/index'));
+    requestAnimationFrame(() => router.push('./game'));
   };
 
   const activeColorConfig = AVAILABLE_COLORS.find((c) => c.id === selectedColor) || AVAILABLE_COLORS[0];

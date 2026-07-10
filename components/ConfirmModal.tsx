@@ -1,10 +1,13 @@
 import React from 'react';
 import { Modal, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { ButtonTab } from './ButtonTab';
 
 type ConfirmModalProps = {
   children: React.ReactNode;
+  cancelLabel?: string;
   confirmLabel: string;
+  onCancel?: () => void;
   onConfirm: () => void;
   onRequestClose?: () => void;
   visible: boolean;
@@ -12,11 +15,23 @@ type ConfirmModalProps = {
 
 export function ConfirmModal({
   children,
+  cancelLabel,
   confirmLabel,
+  onCancel,
   onConfirm,
   onRequestClose = onConfirm,
   visible,
 }: ConfirmModalProps) {
+  const handleConfirm = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onConfirm();
+  };
+
+  const handleCancel = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onCancel?.();
+  };
+
   return (
     <Modal
       animationType="fade"
@@ -31,13 +46,25 @@ export function ConfirmModal({
             <View className="mt-4">
               <ButtonTab
                 category="button"
-                onPress={onConfirm}
+                onPress={handleConfirm}
                 size="100"
                 type="primary"
               >
                 {confirmLabel}
               </ButtonTab>
             </View>
+            {cancelLabel && onCancel && (
+              <View className="mt-3">
+                <ButtonTab
+                  category="button"
+                  onPress={handleCancel}
+                  size="100"
+                  type="secondary"
+                >
+                  {cancelLabel}
+                </ButtonTab>
+              </View>
+            )}
           </View>
         </View>
       </View>

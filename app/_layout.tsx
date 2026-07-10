@@ -19,7 +19,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { GameProvider } from '@/context/GameContext';
+import { GameProvider, useGame } from '@/context/GameContext';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -57,23 +57,37 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider value={miseryTheme}>
         <GameProvider>
-          <View className="flex-1 bg-neutral-950">
-            <StatusBar style="light" />
-            <Stack
-              screenOptions={{
-                headerTransparent: true,
-                headerShadowVisible: false,
-                headerStyle: { backgroundColor: 'transparent' },
-                contentStyle: { backgroundColor: '#0a0a0a' },
-                animation: 'slide_from_right',
-              }}
-            >
-              <Stack.Screen name="(tabs)" options={{ headerShown: true }} />
-              <Stack.Screen name="game" options={{ headerShown: true }} />
-            </Stack>
-          </View>
+          <RootStack />
         </GameProvider>
       </ThemeProvider>
     </GestureHandlerRootView>
+  );
+}
+
+function RootStack() {
+  const { isGameCountingDown } = useGame();
+
+  return (
+    <View className="flex-1 bg-neutral-950">
+      <StatusBar style="light" />
+      <Stack
+        screenOptions={{
+          headerTransparent: true,
+          headerShadowVisible: false,
+          headerStyle: { backgroundColor: 'transparent' },
+          contentStyle: { backgroundColor: '#0a0a0a' },
+          animation: 'slide_from_right',
+        }}
+      >
+        <Stack.Screen name="(tabs)" options={{ headerShown: true }} />
+        <Stack.Screen
+          name="game"
+          options={{
+            gestureEnabled: false,
+            headerShown: !isGameCountingDown,
+          }}
+        />
+      </Stack>
+    </View>
   );
 }

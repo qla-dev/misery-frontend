@@ -33,8 +33,8 @@ export function ButtonTab({
         ? { width: '100%' }
         : { width: 'auto' };
 
-  // Determine category height & padding
-  const categoryClass = category === 'tab' ? 'h-[60px] rounded-xl' : 'h-[58px] rounded-xl';
+  // Tabs stay compact; regular buttons retain the larger touch target.
+  const categoryClass = category === 'tab' ? 'h-11 rounded-xl' : 'h-[58px] rounded-xl';
   
   // Determine type colors
   const typeClass =
@@ -72,7 +72,7 @@ export function ButtonTab({
         isInteractive
         style={[
           sizeStyle as any,
-          { borderRadius: 12, height: category === 'tab' ? 60 : 58, overflow: 'hidden' },
+          { borderRadius: 12, height: category === 'tab' ? 44 : 58, overflow: 'hidden' },
         ]}
         tintColor={
           type === 'primary'

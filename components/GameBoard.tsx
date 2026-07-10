@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { router } from 'expo-router';
-import { AlertOctagon, Check, Loader2, ShieldAlert, Trophy, X } from 'lucide-react-native';
+import { AlertOctagon, Loader2, ShieldAlert, Trophy, X } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { Animated, Easing, Modal, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
@@ -57,7 +57,7 @@ export default function GameBoard({
   targetScore,
   deckType = 'NORMAL',
 }: GameBoardProps) {
-  const { language, muted, setGameRuntime } = useGame();
+  const { language, muted, setGameRuntime, setLaneResult } = useGame();
   const isBs = language === 'bs';
   const { height } = useWindowDimensions();
   const cardAreaHeight = Math.max(340, height - 104 - (mode === 'MULTIPLAYER' ? 52 : 0) - 132);
@@ -178,6 +178,7 @@ export default function GameBoard({
     const isCorrect = verifySlotChoice(actingPlayer.lane, drawnCard, slotIdx);
 
     if (isCorrect) {
+      setLaneResult('success');
       triggerSound('correct');
       const updatedPlayers = players.map((p, idx) => {
         if (idx === actingPlayerIndex) {
@@ -204,6 +205,7 @@ export default function GameBoard({
         };
       });
     } else {
+      setLaneResult('failure');
       triggerSound('wrong');
       setShakeCard(true);
       setTimeout(() => setShakeCard(false), 600);
@@ -436,8 +438,8 @@ export default function GameBoard({
             <View className="items-center justify-center w-full" style={{ minHeight: cardAreaHeight }}>
               <Pressable
                 accessibilityLabel={isBs ? 'Okreni kartu' : 'Flip card'}
-                disabled={isDrawnCardFlipped}
-                onPress={flipDrawnCard}
+                disabled={isDrawnCardFlipped && !isCorrectPhase && !isWrongPhase}
+                onPress={isCorrectPhase || isWrongPhase ? handleProceedNextRound : flipDrawnCard}
                 style={{ alignSelf: 'stretch', height: drawnCardHeight, transform: [{ scale: shakeCard ? 0.95 : 1 }] }}
               >
                 <Animated.View
@@ -499,7 +501,7 @@ export default function GameBoard({
                     style={{
                       alignItems: 'center',
                       backgroundColor: '#090909',
-                      borderColor: isWrongPhase ? '#ef4444' : '#fbbf24',
+                      borderColor: isWrongPhase ? '#ef4444' : isCorrectPhase ? '#10b981' : '#fbbf24',
                       borderRadius: 36,
                       borderWidth: 6,
                       height: drawnCardHeight,
@@ -527,6 +529,11 @@ export default function GameBoard({
                         </Text>
                       </View>
                     </View>
+                    {(isCorrectPhase || isWrongPhase) && !currentActingPlayer.isBot && (
+                      <Text className="absolute bottom-[106px] font-mono text-[10px] font-black uppercase tracking-[2px] text-white">
+                        {isBs ? 'DODIRNI KARTU ZA NASTAVAK' : 'TAP CARD TO CONTINUE'}
+                      </Text>
+                    )}
                     <View className="absolute bottom-0 left-0 right-0 items-center">
                       <Text
                         className="mb-1 text-base uppercase tracking-wider text-amber-400"
@@ -551,24 +558,6 @@ export default function GameBoard({
                     </View>
                   </View>
                 </Animated.View>
-                {isCorrectPhase && (
-                  <View className="absolute inset-0 bg-emerald-950/95 rounded-[36px] items-center justify-center p-4 z-10 border-[6px] border-emerald-500/30">
-                    <View className="w-12 h-12 rounded-full bg-emerald-500 items-center justify-center mb-3">
-                      <Check size={24} color="#fff" strokeWidth={4} />
-                    </View>
-                    <Text className="text-lg font-black uppercase text-white tracking-wider">{isBs ? 'TAČNO!' : 'CORRECT!'}</Text>
-                    <Text className="text-[10px] text-emerald-400/90 font-mono mt-1.5 text-center">{isBs ? 'Događaj je ubačen.' : 'Event successfully placed.'}</Text>
-                  </View>
-                )}
-                {isWrongPhase && (
-                  <View className="absolute inset-0 bg-red-950/95 rounded-[36px] items-center justify-center p-4 z-10 border-[6px] border-red-500/30">
-                    <View className="w-12 h-12 rounded-full bg-red-500 items-center justify-center mb-3">
-                      <X size={24} color="#fff" strokeWidth={4} />
-                    </View>
-                    <Text className="text-lg font-black uppercase text-white tracking-wider">{isBs ? 'NETAČNO!' : 'INCORRECT!'}</Text>
-                    <Text className="text-[10px] text-red-400/90 font-mono mt-1.5 text-center">{isBs ? 'Previše ili premalo bijede.' : 'Too high or too low.'}</Text>
-                  </View>
-                )}
               </Pressable>
             </View>
           )}
@@ -584,20 +573,6 @@ export default function GameBoard({
                   : `${currentPlayer.name} guessed wrong! ${activeStealer.name}, would you like to attempt a steal? If correct, you keep the card. If incorrect, you pass.`}
               </Text>
             </View>
-          )}
-
-          {(isCorrectPhase || isWrongPhase) && (
-            <View className="bg-neutral-900/40 border border-neutral-900 rounded-2xl p-5 items-center space-y-4">
-              <Text className="text-[10px] text-neutral-500 font-mono uppercase tracking-widest font-bold">{isBs ? 'STVARNI INDEKS BIJEDE JE BIO:' : 'THE ACTUAL MISERY INDEX WAS:'}</Text>
-              <Text className="text-4xl font-black text-amber-400 font-mono">{gameState.drawnCard?.index.toFixed(1)}</Text>
-              <Text className="text-[10px] text-neutral-500 italic">{isBs ? 'Rezultat je potvrđen.' : 'The outcome is locked.'}</Text>
-            </View>
-          )}
-
-          {(isCorrectPhase || isWrongPhase) && !currentActingPlayer.isBot && (
-            <ButtonTab category="button" type="primary" size="100" glassEffect onPress={handleProceedNextRound}>
-              {isBs ? 'SLJEDEĆI KRUG' : 'CONTINUE / NEXT TURN'}
-            </ButtonTab>
           )}
 
           {isVictoryPhase && (

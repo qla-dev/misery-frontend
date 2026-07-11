@@ -32,6 +32,8 @@ export default function GameScreen() {
         initialPlayers={session.players}
         targetScore={session.targetScore}
         deckType={session.deckType}
+        gameId={session.gameId}
+        userId={session.userId}
       />
     </>
   );

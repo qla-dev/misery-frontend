@@ -13,14 +13,17 @@ import { playSound } from '@/lib/sound';
 import { ButtonTab } from './ButtonTab';
 import LottieView from 'lottie-react-native';
 import { ConfirmModal } from './ConfirmModal';
+import { api, ApiCard } from '@/lib/api';
 
 const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
 
 interface GameBoardProps {
   mode: GameMode;
-  initialPlayers: { name: string; color: string; isBot?: boolean }[];
+  initialPlayers: { id?: number; name: string; color: string; isBot?: boolean }[];
   targetScore: number;
   deckType?: 'NORMAL' | 'SPICY';
+  gameId?: number;
+  userId?: number;
 }
 
 function CardLogo({ compact = false }: { compact?: boolean }) {
@@ -56,6 +59,8 @@ export default function GameBoard({
   initialPlayers,
   targetScore,
   deckType = 'NORMAL',
+  gameId,
+  userId,
 }: GameBoardProps) {
   const { language, muted, setGameRuntime, setLaneResult } = useGame();
   const isBs = language === 'bs';
@@ -81,6 +86,7 @@ export default function GameBoard({
   const [shakeCard, setShakeCard] = useState(false);
   const [isLaneSheetOpen, setIsLaneSheetOpen] = useState(false);
   const [isDrawnCardFlipped, setIsDrawnCardFlipped] = useState(false);
+  const toLocalCard = (card: ApiCard): Card => ({ id: String(card.id), titleEn: card.title, titleBs: card.title, index: card.score, illustrationType: 'general_misery' });
 
   useEffect(() => {
     cardFlip.setValue(0);
@@ -129,7 +135,7 @@ export default function GameBoard({
       initialPlayers.forEach((p, idx) => {
         const startingLane = shuffledDeck.splice(0, 3).sort((a, b) => a.index - b.index);
         playersList.push({
-          id: `player-${idx}`,
+          id: String(p.id ?? `player-${idx}`),
           name: p.name.trim() || `${isBs ? 'Igrač' : 'Player'} ${idx + 1}`,
           lane: startingLane,
           color: p.color,
@@ -176,6 +182,7 @@ export default function GameBoard({
     const actingPlayerIndex = activeStealerIndex !== undefined ? activeStealerIndex : currentPlayerIndex;
     const actingPlayer = players[actingPlayerIndex];
     const isCorrect = verifySlotChoice(actingPlayer.lane, drawnCard, slotIdx);
+    if (gameId && userId) api.submitMove(gameId, userId, isCorrect).catch(() => undefined);
 
     if (isCorrect) {
       setLaneResult('success');
@@ -241,6 +248,27 @@ export default function GameBoard({
       }
     }
   };
+
+  useEffect(() => {
+    if (!gameId) return;
+    const poll = async () => {
+      try {
+        const game = await api.getGame(gameId);
+        setGameState((prev) => ({
+          ...prev,
+          drawnCard: game.current_card ? toLocalCard(game.current_card) : prev.drawnCard,
+          players: prev.players.map((player) => {
+            const hand = game.hands[player.id];
+            return hand ? { ...player, lane: hand.map(toLocalCard).sort((a, b) => a.index - b.index), score: hand.length } : player;
+          }),
+          guessHistory: game.moves.map((move) => ({ playerName: move.player.name, cardTitle: move.card?.title ?? '', guessIndex: -1, correctIndex: -1, success: move.correct })),
+        }));
+      } catch { /* Retry after three seconds. */ }
+    };
+    poll();
+    const timer = setInterval(poll, 3000);
+    return () => clearInterval(timer);
+  }, [gameId]);
 
   const handleStealChoice = (accept: boolean) => {
     const { players, currentPlayerIndex, activeStealerIndex, drawnCard } = gameState;

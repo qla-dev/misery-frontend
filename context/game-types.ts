@@ -1,4 +1,5 @@
 export interface PlayerInput {
+  id?: number;
   name: string;
   color: string;
   isBot?: boolean;
@@ -11,4 +12,6 @@ export interface GameSession {
   players: PlayerInput[];
   targetScore: number;
   deckType: 'NORMAL' | 'SPICY';
+  gameId?: number;
+  userId?: number;
 }

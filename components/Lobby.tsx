@@ -18,6 +18,7 @@ import { ButtonTab } from './ButtonTab';
 import { Card } from './Card';
 import { ConfirmModal } from './ConfirmModal';
 import { LoadingState } from './LoadingState';
+import { api, ApiGame, API_BASE_URL } from '@/lib/api';
 
 const AVAILABLE_COLORS = [
   { id: 'yellow', nameEn: 'Amber Gold', nameBs: 'Zlatni Ćilibar', bgClass: 'bg-yellow-400', borderClass: 'border-yellow-400 bg-yellow-400/5 text-yellow-400' },
@@ -368,6 +369,24 @@ export default function Lobby() {
   const copyResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isCodeInputFocused, setIsCodeInputFocused] = useState(false);
   const [joinCodeErrorOpen, setJoinCodeErrorOpen] = useState(false);
+  const [serverGameId, setServerGameId] = useState<number | null>(null);
+  const [serverUserId, setServerUserId] = useState<number | null>(null);
+  const [startModal, setStartModal] = useState<{ visible: boolean; title: string; message: string }>({
+    visible: false,
+    title: '',
+    message: '',
+  });
+  const serverStartedRef = useRef(false);
+
+  const applyServerGame = (game: ApiGame) => {
+    setRoomCode(game.code);
+    setRoomPlayers(game.members.map((member, index) => ({
+      id: member.id,
+      name: member.name,
+      color: AVAILABLE_COLORS[index % AVAILABLE_COLORS.length].borderClass,
+      isBot: false,
+    })));
+  };
 
   useEffect(() => {
     const keyboardSubscription = Keyboard.addListener('keyboardDidShow', () => {
@@ -386,17 +405,41 @@ export default function Lobby() {
     };
   }, []);
 
-  const handleCreateRoom = () => {
+  const handleCreateRoom = async () => {
+    setStartModal({
+      visible: true,
+      title: 'START GAME PRESSED',
+      message: `Creating room at ${API_BASE_URL}...`,
+    });
     playSound('click');
     const finalName = userName.trim() || (isBs ? 'Igrač 1' : 'Player 1');
-    const userColor = AVAILABLE_COLORS.find((c) => c.id === selectedColor)?.borderClass || AVAILABLE_COLORS[0].borderClass;
-    setRoomCode(generateRoomCode());
-    setIsCopied(false);
-    setRoomPlayers([{ name: finalName, color: userColor, isBot: false }]);
-    setLobbyView('ROOM_CREATED');
+    try {
+      const result = await api.createGame(finalName);
+      setStartModal({
+        visible: true,
+        title: 'ROOM CREATED',
+        message: `Room ${result.game.code} created. Opening lobby...`,
+      });
+      setServerGameId(result.game.id);
+      setServerUserId(result.user.id);
+      applyServerGame(result.game);
+      setIsCopied(false);
+      setTimeout(() => {
+        setStartModal((current) => ({ ...current, visible: false }));
+        setLobbyView('ROOM_CREATED');
+      }, 700);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setJoinStatusText(message);
+      setStartModal({
+        visible: true,
+        title: 'CREATE ROOM FAILED',
+        message: `${message}\n\nAPI: ${API_BASE_URL}`,
+      });
+    }
   };
 
-  const handleJoinWithCode = () => {
+  const handleJoinWithCode = async () => {
     const cleanCode = enteredCode.trim().toUpperCase();
     if (!ROOM_CODE_REGEX.test(cleanCode)) {
       Keyboard.dismiss();
@@ -409,20 +452,18 @@ export default function Lobby() {
     setLobbyView('ROOM_JOINING');
     setJoinStatusText(isBs ? 'Traženje sobe...' : 'Searching for room...');
 
-    setTimeout(() => {
-      setJoinStatusText(isBs ? 'Soba pronađena! Sinkronizacija...' : 'Room found! Synchronizing...');
-      setTimeout(() => {
-        const finalName = userName.trim() || (isBs ? 'Igrač 2' : 'Player 2');
-        const userColorConfig = AVAILABLE_COLORS.find((c) => c.id === selectedColor) || AVAILABLE_COLORS[1];
-        const botColorConfigs = AVAILABLE_COLORS.filter((color) => color.id !== userColorConfig.id);
-        setRoomPlayers([
-          { name: 'Selma 👑', color: botColorConfigs[0].borderClass, isBot: true },
-          { name: 'Kenan', color: botColorConfigs[1].borderClass, isBot: true },
-          { name: finalName, color: userColorConfig.borderClass, isBot: false },
-        ]);
-        setLobbyView('ROOM_JOINED');
-      }, 1200);
-    }, 1000);
+    try {
+      const finalName = userName.trim() || (isBs ? 'Igrač 2' : 'Player 2');
+      const result = await api.joinGame(cleanCode, finalName);
+      setServerGameId(result.game.id);
+      setServerUserId(result.user.id);
+      applyServerGame(result.game);
+      setJoinStatusText(isBs ? 'Soba pronađena!' : 'Room found!');
+      setLobbyView('ROOM_JOINED');
+    } catch (error) {
+      setJoinStatusText(error instanceof Error ? error.message : 'Room not found.');
+      setLobbyView('SETUP');
+    }
   };
 
   const handleCopyRoomCode = async () => {
@@ -462,6 +503,7 @@ export default function Lobby() {
   };
 
   useEffect(() => {
+    if (serverGameId) return;
     if (lobbyView !== 'ROOM_CREATED') return;
     if (roomPlayers.length >= 4) return;
     const timer = setTimeout(() => {
@@ -474,18 +516,87 @@ export default function Lobby() {
       setRoomPlayers((prev) => [...prev, { name: botName, color: botColorConfig.borderClass, isBot: true }]);
     }, 1200 + Math.random() * 800);
     return () => clearTimeout(timer);
-  }, [lobbyView, roomPlayers, userName, setRoomPlayers]);
+  }, [lobbyView, roomPlayers, userName, setRoomPlayers, serverGameId]);
 
-  const startGame = (
+  const startGame = async (
     mode: 'SOLO' | 'MULTIPLAYER',
     players: { name: string; color: string; isBot?: boolean }[],
     tScore: number,
     deck: 'NORMAL' | 'SPICY'
   ) => {
+    setStartModal({
+      visible: true,
+      title: 'STARTING GAME',
+      message: `Sending request to ${API_BASE_URL}\nGame: ${serverGameId ?? 'missing'} | User: ${serverUserId ?? 'missing'}`,
+    });
+    console.log('[StartGame] clicked', {
+      gameId: serverGameId,
+      userId: serverUserId,
+      mode,
+      playerCount: players.length,
+      targetScore: tScore,
+      deck,
+    });
+    if (serverGameId && serverUserId) {
+      try {
+        const game = await api.startGame(serverGameId, serverUserId);
+        console.log('[StartGame] API success', {
+          gameId: game.id,
+          started: game.started,
+          memberCount: game.members.length,
+        });
+        setStartModal({
+          visible: true,
+          title: 'GAME STARTED',
+          message: `Server started game ${game.id}. Opening the game screen...`,
+        });
+        applyServerGame(game);
+      } catch (error) {
+        console.error('[StartGame] API failed', error);
+        const message = error instanceof Error ? error.message : String(error);
+        setJoinStatusText(message);
+        setStartModal({
+          visible: true,
+          title: 'START FAILED',
+          message: `${message}\n\nAPI: ${API_BASE_URL}\nGame: ${serverGameId} | User: ${serverUserId}`,
+        });
+        return;
+      }
+    }
     setIsGameCountingDown(true);
-    setSession({ mode, players, targetScore: tScore, deckType: deck });
-    requestAnimationFrame(() => router.push('./game'));
+    setSession({ mode, players, targetScore: tScore, deckType: deck, gameId: serverGameId ?? undefined, userId: serverUserId ?? undefined });
+    console.log('[StartGame] navigating to game screen');
+    setTimeout(() => {
+      setStartModal((current) => ({ ...current, visible: false }));
+      router.push('./game');
+    }, 700);
   };
+
+  useEffect(() => {
+    if (!serverGameId) return;
+    const poll = async () => {
+      try {
+        const game = await api.getGame(serverGameId);
+        applyServerGame(game);
+        if (game.started && !serverStartedRef.current) {
+          serverStartedRef.current = true;
+          setIsGameCountingDown(true);
+          setSession({
+            mode: 'MULTIPLAYER',
+            players: game.members.map((member, index) => ({ id: member.id, name: member.name, color: AVAILABLE_COLORS[index % AVAILABLE_COLORS.length].borderClass })),
+            targetScore,
+            deckType: selectedDeck,
+            gameId: game.id,
+            userId: serverUserId ?? undefined,
+          });
+          router.push('./game');
+        }
+      } catch { /* Retry on the next poll. */ }
+    };
+    poll();
+    const timer = setInterval(poll, 3000);
+    return () => clearInterval(timer);
+  }, [serverGameId, serverUserId, targetScore, selectedDeck, setIsGameCountingDown, setSession]);
 
   const activeColorConfig = AVAILABLE_COLORS.find((c) => c.id === selectedColor) || AVAILABLE_COLORS[0];
   const hasPlayerIdentity = isSocialUser || Boolean(userName.trim());
@@ -1061,8 +1172,15 @@ export default function Lobby() {
             category="button"
             type="primary"
             size="100"
-            disabled={roomPlayers.length < 2}
+            disabled={roomPlayers.length < 1}
             onPress={() => {
+              console.log('[GameSettings] BEGIN NOW pressed', {
+                gameId: serverGameId,
+                userId: serverUserId,
+                playerCount: roomPlayers.length,
+                targetScore,
+                selectedDeck,
+              });
               playSound('click');
               startGame('MULTIPLAYER', roomPlayers, targetScore, selectedDeck);
             }}
@@ -1098,6 +1216,13 @@ export default function Lobby() {
             type="primary"
             size="100"
             onPress={() => {
+              console.log('[GameSettings] BEGIN GAME pressed', {
+                gameId: serverGameId,
+                userId: serverUserId,
+                playerCount: roomPlayers.length,
+                targetScore,
+                selectedDeck,
+              });
               playSound('click');
               startGame('MULTIPLAYER', roomPlayers, targetScore, selectedDeck);
             }}
@@ -1170,6 +1295,21 @@ export default function Lobby() {
           </Text>
           <Text className="font-mono text-xs font-bold tracking-[2px] text-neutral-500">
             A1B2C3D4
+          </Text>
+        </View>
+      </ConfirmModal>
+      <ConfirmModal
+        confirmLabel={startModal.title === 'STARTING GAME' || startModal.title === 'START GAME PRESSED' ? 'CLOSE' : 'OK'}
+        onConfirm={() => setStartModal((current) => ({ ...current, visible: false }))}
+        onRequestClose={() => setStartModal((current) => ({ ...current, visible: false }))}
+        visible={startModal.visible}
+      >
+        <View className="items-center" style={{ gap: 12 }}>
+          <Text className={`text-center text-lg font-black uppercase tracking-wider ${startModal.title.includes('FAILED') ? 'text-red-400' : 'text-amber-400'}`}>
+            {startModal.title}
+          </Text>
+          <Text className="text-center text-sm leading-6 text-neutral-300">
+            {startModal.message}
           </Text>
         </View>
       </ConfirmModal>

@@ -49,6 +49,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   signInWithGoogle: (idToken: string) => request<SocialAuthResponse>('/auth/google', { method: 'POST', body: JSON.stringify({ id_token: idToken }) }),
   signInWithApple: (identityToken: string, fullName?: string) => request<SocialAuthResponse>('/auth/apple', { method: 'POST', body: JSON.stringify({ identity_token: identityToken, full_name: fullName || undefined }) }),
+  updateProfile: (name: string, token: string) => request<{ user: ApiUser }>('/auth/profile', {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ name }),
+  }),
+  logout: (token: string) => request<{ message: string }>('/auth/logout', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  }),
   listAvailableGames: () => request<ApiGame[]>('/games'),
   createGame: (name: string, color: string) => request<{ game: ApiGame; user: ApiUser }>('/games', { method: 'POST', body: JSON.stringify({ name, color }) }),
   joinGame: (code: string, name: string, color: string) => {

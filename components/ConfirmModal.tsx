@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { ButtonTab } from './ButtonTab';
 
@@ -7,6 +7,7 @@ type ConfirmModalProps = {
   children: React.ReactNode;
   cancelLabel?: string;
   confirmLabel: string;
+  confirmLoading?: boolean;
   onCancel?: () => void;
   onConfirm: () => void;
   onRequestClose?: () => void;
@@ -17,6 +18,7 @@ export function ConfirmModal({
   children,
   cancelLabel,
   confirmLabel,
+  confirmLoading = false,
   onCancel,
   onConfirm,
   onRequestClose = onConfirm,
@@ -39,24 +41,34 @@ export function ConfirmModal({
       transparent
       visible={visible}
     >
-      <View className="flex-1 items-center justify-center bg-black/85 p-4">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        className="flex-1 items-center justify-center bg-black/85 p-4"
+      >
         <View className="w-full max-w-sm">
           <View className="relative rounded-2xl border border-neutral-800 bg-neutral-900 p-6 shadow-2xl">
             {children}
             <View className="mt-4">
               <ButtonTab
                 category="button"
+                disabled={confirmLoading}
                 onPress={handleConfirm}
                 size="100"
                 type="primary"
               >
-                {confirmLabel}
+                {confirmLoading ? (
+                  <View className="flex-row items-center justify-center gap-2">
+                    <ActivityIndicator color="#737373" size="small" />
+                    <Text className="text-sm font-black uppercase tracking-wider text-neutral-500">{confirmLabel}</Text>
+                  </View>
+                ) : confirmLabel}
               </ButtonTab>
             </View>
             {cancelLabel && onCancel && (
               <View className="mt-3">
                 <ButtonTab
                   category="button"
+                  disabled={confirmLoading}
                   onPress={handleCancel}
                   size="100"
                   type="secondary"
@@ -67,7 +79,7 @@ export function ConfirmModal({
             )}
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

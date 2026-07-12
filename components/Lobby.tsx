@@ -405,6 +405,10 @@ export default function Lobby() {
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
   const [isStartingGame, setIsStartingGame] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const [usernameModalOpen, setUsernameModalOpen] = useState(false);
+  const [usernameDraft, setUsernameDraft] = useState('');
+  const [usernameError, setUsernameError] = useState('');
+  const [isSavingUsername, setIsSavingUsername] = useState(false);
   const [lobbyOpening, setLobbyOpening] = useState({ changed: false, color: AVAILABLE_COLORS[0].hex, visible: false });
   const [serverGameId, setServerGameId] = useState<number | null>(null);
   const [serverUserId, setServerUserId] = useState<number | null>(null);
@@ -415,7 +419,8 @@ export default function Lobby() {
     message: '',
   });
   const serverStartedRef = useRef(false);
-  const [, , promptGoogleSignIn] = Google.useIdTokenAuthRequest({
+  const processedGoogleTokenRef = useRef<string | null>(null);
+  const [, googleAuthResponse, promptGoogleSignIn] = Google.useIdTokenAuthRequest({
     ...GOOGLE_AUTH_CONFIG,
     redirectUri: GOOGLE_REDIRECT_URI,
     selectAccount: true,
@@ -684,8 +689,6 @@ export default function Lobby() {
     setIsSigningIn(true);
 
     try {
-      let result;
-
       if (provider === 'google') {
         const hasGoogleConfig = Boolean(
           GOOGLE_AUTH_CONFIG.webClientId ||
@@ -696,28 +699,25 @@ export default function Lobby() {
           throw new Error('Google sign-in is not configured yet. Add the Google client IDs first.');
         }
 
-        const googleResult = await promptGoogleSignIn();
-        if (googleResult.type !== 'success') return;
-        const idToken = googleResult.params?.id_token || googleResult.authentication?.idToken;
-        if (!idToken) throw new Error('Google did not return an ID token.');
-        result = await api.signInWithGoogle(idToken);
-      } else {
-        if (Platform.OS !== 'ios' || !(await AppleAuthentication.isAvailableAsync())) {
-          throw new Error('Sign in with Apple is only available on supported Apple devices.');
-        }
-
-        const credential = await AppleAuthentication.signInAsync({
-          requestedScopes: [
-            AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-            AppleAuthentication.AppleAuthenticationScope.EMAIL,
-          ],
-        });
-        if (!credential.identityToken) throw new Error('Apple did not return an identity token.');
-        const fullName = [credential.fullName?.givenName, credential.fullName?.familyName]
-          .filter(Boolean)
-          .join(' ');
-        result = await api.signInWithApple(credential.identityToken, fullName);
+        await promptGoogleSignIn();
+        return;
       }
+
+      if (Platform.OS !== 'ios' || !(await AppleAuthentication.isAvailableAsync())) {
+        throw new Error('Sign in with Apple is only available on supported Apple devices.');
+      }
+
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      if (!credential.identityToken) throw new Error('Apple did not return an identity token.');
+      const fullName = [credential.fullName?.givenName, credential.fullName?.familyName]
+        .filter(Boolean)
+        .join(' ');
+      const result = await api.signInWithApple(credential.identityToken, fullName);
 
       await AsyncStorage.multiSet([
         [AUTH_TOKEN_KEY, result.token],
@@ -741,6 +741,97 @@ export default function Lobby() {
     } finally {
       setIsSigningIn(false);
     }
+  };
+
+  useEffect(() => {
+    if (!googleAuthResponse) return;
+
+    if (googleAuthResponse.type !== 'success') {
+      if (googleAuthResponse.type === 'error') {
+        setStartModal({
+          visible: true,
+          title: isBs ? 'PRIJAVA NIJE USPJELA' : 'SIGN-IN FAILED',
+          message: 'Google sign-in failed.',
+        });
+      }
+      return;
+    }
+
+    const idToken = googleAuthResponse.params?.id_token || googleAuthResponse.authentication?.idToken;
+    if (!idToken || processedGoogleTokenRef.current === idToken) return;
+    processedGoogleTokenRef.current = idToken;
+    setIsSigningIn(true);
+
+    void api.signInWithGoogle(idToken)
+      .then(async (result) => {
+        await AsyncStorage.multiSet([
+          [AUTH_TOKEN_KEY, result.token],
+          [AUTH_USER_KEY, JSON.stringify(result.user)],
+          [AUTH_PROVIDER_KEY, 'google'],
+          [LAST_USERNAME_KEY, result.user.name],
+        ]);
+        setUserName(result.user.name);
+        setIsSocialUser(true);
+        setSocialProvider('google');
+        transitionLobbyView('SETUP');
+      })
+      .catch((error) => {
+        processedGoogleTokenRef.current = null;
+        const message = error instanceof Error ? error.message : 'Google sign-in failed.';
+        console.error('[SocialAuth] Google sign-in failed', { message });
+        setStartModal({
+          visible: true,
+          title: isBs ? 'PRIJAVA NIJE USPJELA' : 'SIGN-IN FAILED',
+          message,
+        });
+      })
+      .finally(() => setIsSigningIn(false));
+  }, [googleAuthResponse]);
+
+  const openUsernameModal = () => {
+    playSound('click');
+    setUsernameDraft(userName);
+    setUsernameError('');
+    setUsernameModalOpen(true);
+  };
+
+  const saveUsername = async () => {
+    if (isSavingUsername) return;
+    const name = usernameDraft.trim();
+    if (name.length < 2) {
+      setUsernameError(isBs ? 'Ime mora imati najmanje 2 znaka.' : 'Username must contain at least 2 characters.');
+      return;
+    }
+
+    setUsernameError('');
+    setIsSavingUsername(true);
+    try {
+      const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+      if (!token) throw new Error('Your session has expired. Please sign in again.');
+      const result = await api.updateProfile(name, token);
+      await AsyncStorage.multiSet([
+        [LAST_USERNAME_KEY, result.user.name],
+        [AUTH_USER_KEY, JSON.stringify(result.user)],
+      ]);
+      setUserName(result.user.name);
+      setUsernameModalOpen(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not save username.';
+      setUsernameError(message);
+    } finally {
+      setIsSavingUsername(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    playSound('click');
+    const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+    if (token) void api.logout(token).catch(() => undefined);
+    await AsyncStorage.multiRemove([AUTH_TOKEN_KEY, AUTH_USER_KEY, AUTH_PROVIDER_KEY]);
+    setIsSocialUser(false);
+    setSocialProvider(null);
+    setUserName('');
+    transitionLobbyView('WELCOME');
   };
 
   const startGame = async (
@@ -1115,11 +1206,6 @@ export default function Lobby() {
               {isSocialUser ? (
                 <View className="flex-row items-center justify-between bg-neutral-900/30 p-3.5 rounded-xl border border-neutral-900">
                   <View className="flex-row items-center gap-3">
-                    <LinearGradient colors={['#f59e0b', '#facc15']} className="relative w-10 h-10 rounded-full items-center justify-center">
-                      <Text className="text-neutral-950 font-black text-xs">
-                        {userName.split(' ').map((n) => n[0]).join('')}
-                      </Text>
-                    </LinearGradient>
                     <View>
                       <Text className="font-bold text-xs text-neutral-200">{userName}</Text>
                       <Text className="text-[8px] text-emerald-400 font-mono">
@@ -1127,17 +1213,14 @@ export default function Lobby() {
                       </Text>
                     </View>
                   </View>
-                  <Pressable
-                    onPress={() => {
-                      setIsSocialUser(false);
-                      setSocialProvider(null);
-                      setUserName('');
-                      transitionLobbyView('WELCOME');
-                    }}
-                    className="px-2 py-1 rounded bg-neutral-800"
-                  >
-                    <Text className="text-[9px] text-neutral-400">{isBs ? 'Odjavi se' : 'Sign out'}</Text>
-                  </Pressable>
+                  <View className="flex-row items-center gap-2">
+                    <Pressable onPress={openUsernameModal} className="px-2 py-1 rounded bg-neutral-800">
+                      <Text className="text-[9px] text-neutral-400">{isBs ? 'Promijeni ime' : 'Change username'}</Text>
+                    </Pressable>
+                    <Pressable onPress={handleSignOut} className="px-2 py-1 rounded bg-neutral-800">
+                      <Text className="text-[9px] text-neutral-400">{isBs ? 'Odjavi se' : 'Sign out'}</Text>
+                    </Pressable>
+                  </View>
                 </View>
               ) : (
                 <AppInput
@@ -1250,11 +1333,6 @@ export default function Lobby() {
               {isSocialUser ? (
                 <View className="flex-row items-center justify-between bg-neutral-900/30 p-3.5 rounded-xl border border-neutral-900">
                   <View className="flex-row items-center gap-3">
-                    <LinearGradient colors={['#f59e0b', '#facc15']} className="relative w-10 h-10 rounded-full items-center justify-center">
-                      <Text className="text-neutral-950 font-black text-xs">
-                        {userName.split(' ').map((n) => n[0]).join('')}
-                      </Text>
-                    </LinearGradient>
                     <View>
                       <Text className="font-bold text-xs text-neutral-200">{userName}</Text>
                       <Text className="text-[8px] text-emerald-400 font-mono">
@@ -1262,17 +1340,14 @@ export default function Lobby() {
                       </Text>
                     </View>
                   </View>
-                  <Pressable
-                    onPress={() => {
-                      setIsSocialUser(false);
-                      setSocialProvider(null);
-                      setUserName('');
-                      transitionLobbyView('WELCOME');
-                    }}
-                    className="px-2 py-1 rounded bg-neutral-800"
-                  >
-                    <Text className="text-[9px] text-neutral-400">{isBs ? 'Odjavi se' : 'Sign out'}</Text>
-                  </Pressable>
+                  <View className="flex-row items-center gap-2">
+                    <Pressable onPress={openUsernameModal} className="px-2 py-1 rounded bg-neutral-800">
+                      <Text className="text-[9px] text-neutral-400">{isBs ? 'Promijeni ime' : 'Change username'}</Text>
+                    </Pressable>
+                    <Pressable onPress={handleSignOut} className="px-2 py-1 rounded bg-neutral-800">
+                      <Text className="text-[9px] text-neutral-400">{isBs ? 'Odjavi se' : 'Sign out'}</Text>
+                    </Pressable>
+                  </View>
                 </View>
               ) : (
                 <AppInput
@@ -1475,6 +1550,45 @@ export default function Lobby() {
           {lobbyView === 'SETUP' && isKeyboardVisible && renderSetupAction(true)}
         </Animated.View>
       </KeyboardAvoidingView>
+      <ConfirmModal
+        cancelLabel={isBs ? 'ODUSTANI' : 'CANCEL'}
+        confirmLabel={isSavingUsername ? (isBs ? 'PROVJERA...' : 'CHECKING...') : (isBs ? 'SPREMI' : 'SAVE')}
+        confirmLoading={isSavingUsername}
+        onCancel={() => setUsernameModalOpen(false)}
+        onConfirm={saveUsername}
+        onRequestClose={() => {
+          if (!isSavingUsername) setUsernameModalOpen(false);
+        }}
+        visible={usernameModalOpen}
+      >
+        <View style={{ gap: 14 }}>
+          <Text className="text-center text-lg font-black uppercase tracking-wider text-amber-400">
+            {isBs ? 'PROMIJENI IME' : 'CHANGE USERNAME'}
+          </Text>
+          <View className="relative h-[78px]">
+            <AppInput
+              autoCapitalize="words"
+              autoCorrect={false}
+              autoFocus
+              blurOnSubmit={false}
+              maxLength={15}
+              onChangeText={(value) => {
+                setUsernameDraft(value);
+                setUsernameError('');
+              }}
+              onSubmitEditing={saveUsername}
+              placeholder={isBs ? 'Novo ime' : 'New username'}
+              returnKeyType="done"
+              value={usernameDraft}
+            />
+            {usernameError ? (
+              <Text className="absolute left-0 right-0 top-[62px] text-center text-xs font-semibold text-red-400">
+                {usernameError}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+      </ConfirmModal>
       <ConfirmModal
         confirmLabel={isBs ? 'POKUŠAJ PONOVO' : 'TRY AGAIN'}
         onConfirm={() => {

@@ -1104,7 +1104,7 @@ export default function Lobby() {
             ? isBs ? 'UNESI IME' : 'ENTER NAME'
             : !hasValidRoomCode
               ? isBs ? 'UNESI KOD SOBE' : 'ENTER ROOM CODE'
-              : isBs ? 'Započni igru' : 'Start Game'}
+              : isBs ? 'PRIDRUŽI SE SOBI' : 'JOIN ROOM'}
       </ButtonTab>
     </View>
   );
@@ -1471,13 +1471,13 @@ export default function Lobby() {
                     playSound('click');
                     setSelectedDeck('NORMAL');
                   }}
-                  className={`flex-1 py-3 px-3 rounded-xl border-2 items-center justify-center gap-1 ${selectedDeck === 'NORMAL' ? 'border-emerald-500 bg-emerald-500/5' : 'border-neutral-900 bg-transparent'}`}
+                  className={`flex-1 py-3 px-3 rounded-xl border-2 items-center justify-center gap-1 ${selectedDeck === 'NORMAL' ? 'border-amber-400 bg-amber-400/5' : 'border-neutral-900 bg-transparent'}`}
                 >
-                  <Sparkles size={16} color={selectedDeck === 'NORMAL' ? '#34d399' : '#737373'} />
-                  <Text className={`text-[10px] uppercase tracking-wider font-bold ${selectedDeck === 'NORMAL' ? 'text-emerald-400' : 'text-neutral-500'}`}>
+                  <Sparkles size={16} color={selectedDeck === 'NORMAL' ? '#facc15' : '#737373'} />
+                  <Text className={`text-[10px] uppercase tracking-wider font-bold ${selectedDeck === 'NORMAL' ? 'text-amber-400' : 'text-neutral-500'}`}>
                     {isBs ? 'Normala' : 'Normal'}
                   </Text>
-                  <Text className={`text-[7px] ${selectedDeck === 'NORMAL' ? 'text-emerald-400/75' : 'text-neutral-500'} text-center leading-tight`}>
+                  <Text className={`text-[7px] ${selectedDeck === 'NORMAL' ? 'text-amber-400/75' : 'text-neutral-500'} text-center leading-tight`}>
                     {isBs ? 'Smiješne i čudne situacije' : 'Funny & awkward situations'}
                   </Text>
                 </Pressable>
@@ -1490,12 +1490,14 @@ export default function Lobby() {
                     }
                     setSelectedDeck('SPICY');
                   }}
-                  className={`flex-1 py-3 px-3 rounded-xl border-2 items-center justify-center gap-1 ${selectedDeck === 'SPICY' ? 'border-rose-500 bg-rose-500/5' : 'border-neutral-900 bg-transparent'}`}
+                  className={`relative flex-1 py-3 px-3 rounded-xl border-2 items-center justify-center gap-1 ${selectedDeck === 'SPICY' ? 'border-rose-500 bg-rose-500/5' : 'border-neutral-900 bg-transparent'}`}
                 >
-                  <View className="flex-row items-center gap-1">
-                    <Flame size={16} color={selectedDeck === 'SPICY' ? '#fb7185' : '#737373'} />
-                    {!isPremium && <Crown size={13} color="#c084fc" />}
-                  </View>
+                  {!isPremium && (
+                    <View className="absolute right-2 top-2">
+                      <Crown size={14} color="#facc15" fill="#facc15" />
+                    </View>
+                  )}
+                  <Flame size={16} color={selectedDeck === 'SPICY' ? '#fb7185' : '#737373'} />
                   <Text className={`text-[10px] uppercase tracking-wider font-bold ${selectedDeck === 'SPICY' ? 'text-rose-400' : 'text-neutral-500'}`}>
                     {isBs ? 'Ljuti (Spicy)' : 'Spicy'}
                   </Text>

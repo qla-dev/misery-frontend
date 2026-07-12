@@ -40,7 +40,7 @@ function SelectedInsertSlot({ isBs, result, shouldFade }: { isBs: boolean; resul
   );
 }
 
-function LaneCard({ card, isBs, isNew }: { card: any; isBs: boolean; isNew: boolean }) {
+function LaneCard({ card, hiddenScore = false, isBs, isNew }: { card: any; hiddenScore?: boolean; isBs: boolean; isNew: boolean }) {
   const entrance = useRef(new Animated.Value(isNew ? 0 : 1)).current;
 
   useEffect(() => {
@@ -71,7 +71,9 @@ function LaneCard({ card, isBs, isNew }: { card: any; isBs: boolean; isNew: bool
     >
       <Card>
         <View className="flex-row items-center gap-4">
-          <Text className="font-mono text-xl font-black text-amber-400">{card.index.toFixed(1)}</Text>
+          <Text className="font-mono text-xl font-black text-amber-400">
+            {hiddenScore ? '?.??' : card.index.toFixed(1)}
+          </Text>
           <View className="flex-1">
             <Text className="text-base font-black uppercase leading-5 text-neutral-100">
               {isBs ? card.titleBs : card.titleEn}
@@ -103,18 +105,28 @@ export default function MiseryLaneScreen() {
       contentContainerStyle={{ paddingBottom: 120, paddingTop: 104 }}
       showsVerticalScrollIndicator={false}
     >
-      <Text className="text-base font-black uppercase tracking-widest text-amber-400">
-        {isBs ? 'TRAKA BIJEDE' : 'MISERY LANE'}
-      </Text>
-      <Text className="mb-6 mt-2 text-xs leading-5 text-neutral-400">
-        {gameRuntime.canPlaceCard
-          ? isBs
-            ? 'Odaberi gdje pripada okrenuta karta.'
-            : 'Choose where the flipped card belongs.'
-          : isBs
-            ? 'Traka je dostupna za pregled. Umetanje će se aktivirati na tvom potezu nakon okretanja karte.'
-            : 'The lane is available to view. Placement activates on your turn after you flip the card.'}
-      </Text>
+      {gameRuntime.drawnCard &&
+      gameRuntime.selectedSlotResult !== 'success' &&
+      gameRuntime.lastInsertedCardId !== gameRuntime.drawnCard.id ? (
+        <View className="mb-6 overflow-hidden rounded-xl border border-amber-400/50 bg-amber-400/5">
+          <LaneCard
+            card={gameRuntime.isDrawnCardFlipped
+              ? gameRuntime.drawnCard
+              : { ...gameRuntime.drawnCard, titleBs: '????????', titleEn: '????????', descriptionBs: '???', descriptionEn: '???' }}
+            hiddenScore
+            isBs={isBs}
+            isNew={false}
+          />
+        </View>
+      ) : null}
+
+      <View className="mb-6 flex-row items-center gap-3">
+        <View className="h-px flex-1 bg-neutral-800" />
+        <Text className="font-mono text-[9px] font-black uppercase tracking-[2px] text-neutral-500">
+          {isBs ? 'TVOJA TRAKA' : 'YOUR LANE'}
+        </Text>
+        <View className="h-px flex-1 bg-neutral-800" />
+      </View>
 
       <View style={{ gap: 12 }}>
         {player.lane.map((card: any, index: number) => (

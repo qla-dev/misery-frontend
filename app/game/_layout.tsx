@@ -138,8 +138,8 @@ export default function GameTabsLayout() {
         tintColor="#fbbf24"
       >
         <NativeTabs.Trigger name="index" contentStyle={{ backgroundColor: '#0a0a0a' }}>
-          <NativeTabs.Trigger.Icon sf={{ default: 'bolt', selected: 'bolt.fill' } as any} md="bolt" />
-          <NativeTabs.Trigger.Label>{isBs ? 'Igra' : 'Game'}</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon sf={{ default: 'rectangle.portrait', selected: 'rectangle.portrait.fill' } as any} md="playing_cards" />
+          <NativeTabs.Trigger.Label>{isBs ? 'Karta' : 'Card'}</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
         <NativeTabs.Trigger name="lane" contentStyle={{ backgroundColor: '#0a0a0a' }}>
           <NativeTabs.Trigger.Icon sf={{ default: 'rectangle.stack', selected: 'rectangle.stack.fill' } as any} md="view_agenda" />

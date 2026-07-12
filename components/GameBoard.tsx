@@ -113,6 +113,7 @@ export default function GameBoard({
   const [lastInsertedCardId, setLastInsertedCardId] = useState<string | null>(null);
   const [isServerTurnReady, setIsServerTurnReady] = useState(!gameId);
   const [isAwaitingTurnFinish, setIsAwaitingTurnFinish] = useState(false);
+  const laneNavigationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [serverCurrentPlayerId, setServerCurrentPlayerId] = useState<number | null>(null);
   const toLocalCard = (card: ApiCard): Card => ({
     id: String(card.id),
@@ -181,6 +182,12 @@ export default function GameBoard({
 
   const flipDrawnCard = () => {
     if (isDrawnCardFlipped) return;
+    if (
+      gameId &&
+      (!isServerTurnReady ||
+        isAwaitingTurnFinish ||
+        Number(serverCurrentPlayerId) !== Number(userId))
+    ) return;
     setIsDrawnCardFlipped(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Animated.timing(cardFlip, {
@@ -188,8 +195,18 @@ export default function GameBoard({
       duration: 560,
       easing: Easing.inOut(Easing.cubic),
       useNativeDriver: true,
-    }).start();
+    }).start(({ finished }) => {
+      if (!finished) return;
+      if (laneNavigationTimerRef.current) clearTimeout(laneNavigationTimerRef.current);
+      laneNavigationTimerRef.current = setTimeout(() => {
+        router.navigate('/game/lane');
+      }, 500);
+    });
   };
+
+  useEffect(() => () => {
+    if (laneNavigationTimerRef.current) clearTimeout(laneNavigationTimerRef.current);
+  }, []);
 
   useEffect(() => {
     const deckPool = CARD_DECK.filter((card) => {
@@ -549,6 +566,7 @@ export default function GameBoard({
         (!gameId || (isServerTurnReady && !isAwaitingTurnFinish && Number(serverCurrentPlayerId) === Number(userId))),
       currentActingPlayer,
       drawnCard: gameState.drawnCard,
+      isDrawnCardFlipped,
       guessHistory: gameState.guessHistory,
       handleSlotSelect,
       lastInsertedCardId,
@@ -622,7 +640,14 @@ export default function GameBoard({
             <View className="items-center justify-start w-full" style={{ minHeight: cardAreaHeight, paddingTop: cardTopPadding }}>
               <Pressable
                 accessibilityLabel={isCorrectPhase || isWrongPhase ? (isBs ? 'Završi potez' : 'Finish turn') : (isBs ? 'Okreni kartu' : 'Flip card')}
-                disabled={isDrawnCardFlipped && !isCorrectPhase && !isWrongPhase}
+                disabled={
+                  (isDrawnCardFlipped && !isCorrectPhase && !isWrongPhase) ||
+                  Boolean(gameId && (
+                    !isServerTurnReady ||
+                    isAwaitingTurnFinish ||
+                    Number(serverCurrentPlayerId) !== Number(userId)
+                  ))
+                }
                 onPress={isCorrectPhase || isWrongPhase ? handleProceedNextRound : flipDrawnCard}
                 style={{ alignSelf: 'stretch', height: drawnCardHeight, transform: [{ scale: shakeCard ? 0.95 : 1 }] }}
               >
@@ -684,7 +709,11 @@ export default function GameBoard({
                   <View
                     style={{
                       alignItems: 'center',
-                      backgroundColor: '#090909',
+                      backgroundColor: isWrongPhase
+                        ? 'rgba(239,68,68,0.14)'
+                        : isCorrectPhase
+                          ? 'rgba(16,185,129,0.14)'
+                          : '#090909',
                       borderColor: isWrongPhase ? '#ef4444' : isCorrectPhase ? '#10b981' : '#fbbf24',
                       borderRadius: 16,
                       borderWidth: 6,

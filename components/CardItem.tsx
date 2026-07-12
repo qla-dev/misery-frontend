@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, Language } from '@/types';
 import Illustration from './Illustration';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Pressable, Text, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
 
 interface CardItemProps {
   card: Card;
@@ -26,6 +26,9 @@ export default function CardItem({
   const isBs = language === 'bs';
   const title = isBs ? card.titleBs : card.titleEn;
   const description = isBs ? card.descriptionBs : card.descriptionEn;
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => setImageFailed(false), [card.image]);
 
   let cardSize: { width: number | `${number}%`; height: number | `${number}%` } = { width: 160, height: 224 };
   let iconSize = 'w-16 h-16';
@@ -144,7 +147,17 @@ export default function CardItem({
 
       <View className="flex-1 items-center justify-center py-1">
         <View className={`${size === 'xl' ? 'w-44 h-44' : 'w-20 h-20'} rounded-full bg-neutral-950/60 items-center justify-center border border-neutral-800/60`}>
-          <Illustration type={card.illustrationType} className={iconSize} />
+          {card.image && !imageFailed ? (
+            <Image
+              accessibilityLabel={title}
+              onError={() => setImageFailed(true)}
+              resizeMode="contain"
+              source={{ uri: card.image }}
+              style={{ height: '88%', width: '88%' }}
+            />
+          ) : (
+            <Illustration type={card.illustrationType} className={iconSize} />
+          )}
         </View>
       </View>
 

@@ -3,6 +3,7 @@ export interface Card {
   titleEn: string;
   titleBs: string;
   index: number;
+  image?: string;
   illustrationType: 'car' | 'tire' | 'pepper' | 'fart' | 'burger' | 'house' | 'bear' | 'lego' | 'toilet' | 'phone' | 'lightning' | 'heart' | 'goose' | 'wifi' | 'tooth' | 'coffee' | 'passport' | 'spider' | 'wasp' | 'money' | 'clippy' | 'general_misery';
   descriptionEn?: string;
   descriptionBs?: string;

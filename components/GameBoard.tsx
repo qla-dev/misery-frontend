@@ -13,7 +13,7 @@ import { playSound } from '@/lib/sound';
 import { ButtonTab } from './ButtonTab';
 import LottieView from 'lottie-react-native';
 import { ConfirmModal } from './ConfirmModal';
-import { api, ApiCard } from '@/lib/api';
+import { api, ApiCard, API_BASE_URL } from '@/lib/api';
 
 const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
 
@@ -122,6 +122,11 @@ export default function GameBoard({
     descriptionEn: card.subtitle ?? undefined,
     descriptionBs: card.subtitle ?? undefined,
     index: Number(card.score),
+    image: card.image && card.image !== '0'
+      ? card.image.startsWith('http://') || card.image.startsWith('https://')
+        ? card.image
+        : `${API_BASE_URL.replace(/\/api\/?$/, '')}/storage/${card.image.replace(/^\/?(?:storage\/)?/, '')}`
+      : undefined,
     illustrationType: 'general_misery',
   });
 

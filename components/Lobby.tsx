@@ -413,7 +413,9 @@ export default function Lobby() {
     setJoinStatusText,
     roomExitWarningOpen,
     setRoomExitWarningOpen,
+    isGameCountingDown,
     setIsGameCountingDown,
+    session,
     setSession,
   } = useGame();
 
@@ -422,6 +424,7 @@ export default function Lobby() {
   const lobbyContentOpacity = useRef(new Animated.Value(1)).current;
   const authButtonsOpacity = useRef(new Animated.Value(1)).current;
   const lobbyTransitioningRef = useRef(false);
+  const pendingLobbyFadeInRef = useRef<'WELCOME' | 'SETUP' | null>(null);
   const authButtonsTransitioningRef = useRef(false);
   const joinPendingRef = useRef(false);
   const codeInputFocusedRef = useRef(false);
@@ -467,6 +470,19 @@ export default function Lobby() {
 
   useEffect(() => {
     logLobbyTransition('view-rendered', { lobbyView });
+    if (pendingLobbyFadeInRef.current !== lobbyView) return;
+
+    pendingLobbyFadeInRef.current = null;
+    logLobbyTransition('transition-fade-in-start', { nextView: lobbyView });
+    Animated.timing(lobbyContentOpacity, {
+      duration: 220,
+      easing: Easing.out(Easing.quad),
+      toValue: 1,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      logLobbyTransition('transition-fade-in-end', { finished, nextView: lobbyView });
+      lobbyTransitioningRef.current = false;
+    });
   }, [lobbyView]);
 
   useEffect(() => {
@@ -517,19 +533,8 @@ export default function Lobby() {
         return;
       }
       logLobbyTransition('transition-fade-out-end', { from: lobbyView, nextView });
+      pendingLobbyFadeInRef.current = nextView;
       setLobbyView(nextView);
-      requestAnimationFrame(() => {
-        logLobbyTransition('transition-fade-in-start', { nextView });
-        Animated.timing(lobbyContentOpacity, {
-          duration: 220,
-          easing: Easing.out(Easing.quad),
-          toValue: 1,
-          useNativeDriver: true,
-        }).start(({ finished: fadeInFinished }) => {
-          logLobbyTransition('transition-fade-in-end', { finished: fadeInFinished, nextView });
-          lobbyTransitioningRef.current = false;
-        });
-      });
     });
   };
 
@@ -996,6 +1001,7 @@ export default function Lobby() {
         return;
       }
     }
+    if (serverGameId) serverStartedRef.current = true;
     setIsGameCountingDown(true);
     setSession({ mode, players, targetScore: tScore, deckType: deck, gameId: serverGameId ?? undefined, userId: serverUserId ?? undefined });
     console.log('[StartGame] navigating to game screen');
@@ -1034,6 +1040,20 @@ export default function Lobby() {
     const timer = setInterval(poll, 3000);
     return () => clearInterval(timer);
   }, [serverGameId, serverUserId, targetScore, selectedDeck, setIsGameCountingDown, setSession]);
+
+  useEffect(() => {
+    if (lobbyView !== 'SETUP' || session !== null || isGameCountingDown) return;
+
+    setServerGameId(null);
+    setServerUserId(null);
+    setIsCreatingRoom(false);
+    setIsStartingGame(false);
+    setLobbyOpening((current) => ({ ...current, visible: false }));
+    setRoomCode('');
+    setRoomPlayers([]);
+    joinPendingRef.current = false;
+    serverStartedRef.current = false;
+  }, [isGameCountingDown, lobbyView, session, setRoomCode, setRoomPlayers]);
 
   const activeColorConfig = AVAILABLE_COLORS.find((c) => c.id === selectedColor) || AVAILABLE_COLORS[0];
   const hasPlayerIdentity = isSocialUser || Boolean(userName.trim());
@@ -1383,7 +1403,7 @@ export default function Lobby() {
 
             <Section titleEn="PLAYER PROFILE" titleBs="PROFIL IGRAČA">
               {isSocialUser ? (
-                <View className="flex-row items-center justify-between bg-neutral-900/30 p-3.5 rounded-xl border border-neutral-900">
+                <View className="flex-row items-center justify-between p-3.5 rounded-xl border border-neutral-800">
                   <View className="flex-row items-center gap-3">
                     <View className="h-8 w-8 items-center justify-center">
                       {socialProvider === 'google' ? (
@@ -1519,7 +1539,7 @@ export default function Lobby() {
 
             <Section titleEn="PLAYER PROFILE" titleBs="PROFIL IGRAČA">
               {isSocialUser ? (
-                <View className="flex-row items-center justify-between bg-neutral-900/30 p-3.5 rounded-xl border border-neutral-900">
+                <View className="flex-row items-center justify-between p-3.5 rounded-xl border border-neutral-800">
                   <View className="flex-row items-center gap-3">
                     <View className="h-8 w-8 items-center justify-center">
                       {socialProvider === 'google' ? (

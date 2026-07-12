@@ -23,10 +23,7 @@ export default function HistoryScreen() {
       contentContainerStyle={{ paddingBottom: 120, paddingTop: 104 }}
       showsVerticalScrollIndicator={false}
     >
-      <Text className="text-base font-black uppercase tracking-widest text-amber-400">
-        {isBs ? 'HISTORIJA' : 'HISTORY'}
-      </Text>
-      <View className="mt-5" style={{ gap: 12 }}>
+      <View style={{ gap: 12 }}>
         {history.map((entry: any, index: number) => (
           <Card key={`${entry.playerName}-${index}`}>
             <View className="flex-row gap-3">

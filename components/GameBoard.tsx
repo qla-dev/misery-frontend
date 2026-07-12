@@ -379,7 +379,10 @@ export default function GameBoard({
           if (Number(latestMove.player_id) !== Number(userId)) {
             if (!muted) playSound(latestMove.correct ? 'correct' : 'wrong');
             setLaneResultPlayerName(latestMove.player.name);
-            setLaneResult(latestMove.correct ? 'success' : 'failure');
+            const wasStolen = latestMove.correct &&
+              game.turn_owner_id !== null &&
+              Number(latestMove.player_id) !== Number(game.turn_owner_id);
+            setLaneResult(wasStolen ? 'steal' : latestMove.correct ? 'success' : 'failure');
           }
         }
         setGameState((prev) => ({
@@ -563,12 +566,19 @@ export default function GameBoard({
         isDrawnCardFlipped &&
         Boolean(currentActingPlayer) &&
         !currentActingPlayer?.isBot &&
-        (!gameId || (isServerTurnReady && !isAwaitingTurnFinish && Number(serverCurrentPlayerId) === Number(userId))),
+          (!gameId || (isServerTurnReady && !isAwaitingTurnFinish && Number(serverCurrentPlayerId) === Number(userId))),
+      canFinishTurn: Boolean(
+        gameId &&
+        userId &&
+        isAwaitingTurnFinish &&
+        Number(serverCurrentPlayerId) === Number(userId)
+      ),
       currentActingPlayer,
       drawnCard: gameState.drawnCard,
       isDrawnCardFlipped,
       guessHistory: gameState.guessHistory,
       handleSlotSelect,
+      handleProceedNextRound,
       lastInsertedCardId,
       laneResult,
       selectedSlotIndex,
@@ -624,9 +634,9 @@ export default function GameBoard({
                           className="h-2.5 w-2.5 rounded-full border border-white/20"
                           style={{ backgroundColor: getPlayerColorHex(p.color) }}
                         />
-                        <Text className={`text-xs font-bold ${latestResult ? 'text-black' : isActiveTurn ? 'text-amber-300' : 'text-neutral-400'}`}>{p.name}</Text>
+                        <Text className="text-xs font-bold text-white">{p.name}</Text>
                         <View className="bg-black/10 px-1.5 py-0.5 rounded">
-                          <Text className={`text-[10px] font-mono ${latestResult ? 'text-black' : isActiveTurn ? 'text-amber-300' : 'text-neutral-400'}`}>{p.lane.length} pts</Text>
+                          <Text className="text-[10px] font-mono text-white">{p.lane.length} pts</Text>
                         </View>
                       </View>
                     </ButtonTab>

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Modal, Text, View } from 'react-native';
-import { Ban, Check } from 'lucide-react-native';
+import { Ban, Check, ShieldAlert } from 'lucide-react-native';
 
 type LaneModalProps = {
   failureMessage: string;
@@ -11,6 +11,7 @@ type LaneModalProps = {
   successMessage: string;
   successTitle: string;
   visible: boolean;
+  warning?: boolean;
 };
 
 export function LaneModal({
@@ -22,6 +23,7 @@ export function LaneModal({
   successMessage,
   successTitle,
   visible,
+  warning = false,
 }: LaneModalProps) {
   const [rendered, setRendered] = useState(false);
   const opacity = useRef(new Animated.Value(0)).current;
@@ -89,7 +91,7 @@ export function LaneModal({
   return (
     <Modal animationType="none" statusBarTranslucent transparent visible={rendered && visible}>
       <Animated.View
-        className={`flex-1 items-center justify-center px-8 ${success ? 'bg-emerald-500' : 'bg-red-500'}`}
+        className={`flex-1 items-center justify-center px-8 ${warning ? 'bg-amber-400' : success ? 'bg-emerald-500' : 'bg-red-500'}`}
         style={{ opacity }}
       >
         <Animated.View
@@ -97,7 +99,9 @@ export function LaneModal({
           style={{ gap: 22, transform: [{ scale }, { rotate }] }}
         >
           <View className="h-40 w-40 items-center justify-center rounded-full border-[6px] border-white bg-white/15">
-            {success ? (
+            {warning ? (
+              <ShieldAlert color="#ffffff" size={90} strokeWidth={3.5} />
+            ) : success ? (
               <Check color="#ffffff" size={94} strokeWidth={4} />
             ) : (
               <Ban color="#ffffff" size={90} strokeWidth={3.5} />

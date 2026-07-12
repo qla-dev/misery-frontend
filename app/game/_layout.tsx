@@ -157,14 +157,21 @@ export default function GameTabsLayout() {
         failureMessage={isBs ? 'PREVIŠE ILI PREMALO BIJEDE' : 'TOO HIGH OR TOO LOW'}
         failureTitle={isBs ? 'NETAČNO' : 'INCORRECT'}
         onComplete={() => {
+          const shouldFinishTurn = Boolean(gameRuntime?.canFinishTurn);
           setLaneResult(null);
           setLaneResultPlayerName(null);
+          if (shouldFinishTurn) void gameRuntime?.handleProceedNextRound?.();
         }}
         playerName={laneResultPlayerName ?? undefined}
-        success={laneResult === 'success'}
-        successMessage={isBs ? 'DOGAĐAJ JE USPJEŠNO DODAN' : 'EVENT ADDED TO YOUR LANE'}
-        successTitle={isBs ? 'TAČNO' : 'CORRECT'}
+        success={laneResult !== 'failure'}
+        successMessage={laneResult === 'steal'
+          ? isBs ? 'DRUGI IGRAČ JE PREUZEO KARTU' : 'ANOTHER PLAYER TOOK THE CARD'
+          : isBs ? 'DOGAĐAJ JE USPJEŠNO DODAN' : 'EVENT ADDED TO YOUR LANE'}
+        successTitle={laneResult === 'steal'
+          ? isBs ? 'KARTA UKRADENA' : 'CARD STOLEN'
+          : isBs ? 'TAČNO' : 'CORRECT'}
         visible={laneResult !== null}
+        warning={laneResult === 'steal'}
       />
       <ConfirmModal
         cancelLabel={isBs ? 'NAPUSTI IGRU' : 'LEAVE GAME'}
@@ -173,9 +180,11 @@ export default function GameTabsLayout() {
           setIsExitConfirmOpen(false);
           setGameRuntime(null);
           setIsGameCountingDown(false);
+          setLaneResult(null);
+          setLaneResultPlayerName(null);
           setSession(null);
           setLobbyView('SETUP');
-          router.back();
+          requestAnimationFrame(() => router.replace('/'));
         }}
         onConfirm={() => setIsExitConfirmOpen(false)}
         onRequestClose={() => setIsExitConfirmOpen(false)}

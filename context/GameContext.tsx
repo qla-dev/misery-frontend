@@ -10,8 +10,8 @@ interface GameContextValue {
   setGameRuntime: (runtime: any | null) => void;
   isGameCountingDown: boolean;
   setIsGameCountingDown: (value: boolean) => void;
-  laneResult: 'success' | 'failure' | null;
-  setLaneResult: (result: 'success' | 'failure' | null) => void;
+  laneResult: 'success' | 'failure' | 'steal' | null;
+  setLaneResult: (result: 'success' | 'failure' | 'steal' | null) => void;
   laneResultPlayerName: string | null;
   setLaneResultPlayerName: (name: string | null) => void;
   language: Language;
@@ -82,7 +82,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<GameSession | null>(null);
   const [gameRuntime, setGameRuntime] = useState<any | null>(null);
   const [isGameCountingDown, setIsGameCountingDown] = useState(false);
-  const [laneResult, setLaneResult] = useState<'success' | 'failure' | null>(null);
+  const [laneResult, setLaneResult] = useState<'success' | 'failure' | 'steal' | null>(null);
   const [laneResultPlayerName, setLaneResultPlayerName] = useState<string | null>(null);
 
   useEffect(() => {

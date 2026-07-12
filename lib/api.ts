@@ -1,7 +1,7 @@
 export type ApiTarget = 'local' | 'production';
 
 // Change this value before building the app.
-export const API_TARGET: ApiTarget = 'local';
+export const API_TARGET: ApiTarget = 'production';
 
 const API_URLS = {
   local: 'http://192.168.0.31:8000/api',

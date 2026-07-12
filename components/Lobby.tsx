@@ -377,6 +377,7 @@ export default function Lobby() {
   const lobbyScrollRef = useRef<ScrollView>(null);
   const lobbyContentOpacity = useRef(new Animated.Value(1)).current;
   const lobbyTransitioningRef = useRef(false);
+  const joinPendingRef = useRef(false);
   const codeInputFocusedRef = useRef(false);
   const copyResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lobbyOpeningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -538,6 +539,7 @@ export default function Lobby() {
   const handleLeaveRoom = () => {
     const gameId = serverGameId;
 
+    joinPendingRef.current = false;
     setRoomExitWarningOpen(false);
     setServerGameId(null);
     setServerUserId(null);
@@ -552,6 +554,7 @@ export default function Lobby() {
   };
 
   const handleJoinWithCode = async (codeOverride?: string) => {
+    if (joinPendingRef.current) return;
     const cleanCode = (codeOverride ?? enteredCode).trim().toUpperCase();
     if (!ROOM_CODE_REGEX.test(cleanCode)) {
       Keyboard.dismiss();
@@ -559,6 +562,7 @@ export default function Lobby() {
       setJoinCodeErrorOpen(true);
       return;
     }
+    joinPendingRef.current = true;
     playSound('click');
     setRoomCode(cleanCode);
     setLobbyView('ROOM_JOINING');
@@ -586,6 +590,7 @@ export default function Lobby() {
         }, 1800);
       }
     } catch (error) {
+      joinPendingRef.current = false;
       const message = error instanceof Error ? error.message : 'Room not found.';
       setJoinStatusText(message);
       transitionLobbyView('SETUP');

@@ -1,8 +1,11 @@
-export const API_TARGET: 'local' | 'production' = 'local';
+export type ApiTarget = 'local' | 'production';
+
+// Change this value before building the app.
+export const API_TARGET: ApiTarget = 'local';
 
 const API_URLS = {
   local: 'http://192.168.0.31:8000/api',
-  production: 'http://misery.qla.dev/api',
+  production: 'https://misery.qla.dev/api',
 } as const;
 
 export const API_BASE_URL = API_URLS[API_TARGET];

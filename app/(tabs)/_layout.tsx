@@ -83,13 +83,23 @@ export default function TabLayout() {
           }}
           tintColor="#ffffff"
         />
-        <Stack.Toolbar.Button onPress={toggleLanguage} tintColor="#fbbf24">
-          {language === 'en' ? 'EN' : 'BS'}
+        <Stack.Toolbar.Button
+          accessibilityLabel={language === 'en' ? 'Switch to Bosnian' : 'Switch to English'}
+          onPress={() => {
+            playSound('click');
+            toggleLanguage();
+          }}
+          tintColor="#fbbf24"
+        >
+          {language === 'en' ? '🇬🇧' : '🇧🇦'}
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
 
       <NativeTabs
         disableTransparentOnScrollEdge
+        screenListeners={{
+          tabPress: () => playSound('click'),
+        }}
         iconColor={{ default: '#737373', selected: '#fbbf24' }}
         labelStyle={{
           default: { color: '#737373', fontSize: 10, fontWeight: '900' },

@@ -1,6 +1,7 @@
 import { ScrollView, Text, View } from 'react-native';
 import { useGame } from '@/context/GameContext';
 import { Card } from '@/components/Card';
+import { TabFadeView } from '@/components/TabFadeView';
 
 export default function RulesScreen() {
   const { language } = useGame();
@@ -30,12 +31,13 @@ export default function RulesScreen() {
   ];
 
   return (
-    <ScrollView
-      className="flex-1 bg-neutral-950"
-      contentContainerStyle={{ paddingBottom: 32, paddingHorizontal: 24, paddingTop: 16 }}
-      contentInsetAdjustmentBehavior="automatic"
-      showsVerticalScrollIndicator={false}
-    >
+    <TabFadeView>
+      <ScrollView
+        className="flex-1 bg-neutral-950"
+        contentContainerStyle={{ paddingBottom: 32, paddingHorizontal: 24, paddingTop: 16 }}
+        contentInsetAdjustmentBehavior="automatic"
+        showsVerticalScrollIndicator={false}
+      >
       <Text className="text-center text-2xl font-black uppercase tracking-widest text-amber-400 mb-1">📖 {isBs ? 'PRAVILA IGRE' : 'GAME RULES'}</Text>
       <Text className="text-center text-sm text-neutral-400 leading-6 mb-6">
         {isBs
@@ -47,6 +49,7 @@ export default function RulesScreen() {
           <Card key={s.n} body={isBs ? s.bs : s.en} title={s.n} />
         ))}
       </View>
-    </ScrollView>
+      </ScrollView>
+    </TabFadeView>
   );
 }

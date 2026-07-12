@@ -24,11 +24,14 @@ export function HeaderActions({ showBack, onBack }: { showBack?: boolean; onBack
         </Pressable>
       )}
       <Pressable
-        onPress={toggleLanguage}
-        className="px-3 py-1.5 rounded-full bg-neutral-900/80 border border-neutral-800"
+        onPress={() => {
+          playSound('click');
+          toggleLanguage();
+        }}
+        className="h-10 w-10 items-center justify-center rounded-full"
       >
-        <Text className="text-neutral-300 font-extrabold text-[10px] tracking-wider uppercase">
-          {language === 'en' ? 'English 🇺🇸' : 'Bosanski 🇧🇦'}
+        <Text className="text-xl">
+          {language === 'en' ? '🇬🇧' : '🇧🇦'}
         </Text>
       </Pressable>
       <Pressable

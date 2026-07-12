@@ -3,6 +3,7 @@ import LottieView from 'lottie-react-native';
 import { useGame } from '@/context/GameContext';
 import { playSound } from '@/lib/sound';
 import { Card } from '@/components/Card';
+import { TabFadeView } from '@/components/TabFadeView';
 
 const MASCOT_LOTTIE = require('../../assets/animations/mascot_lottie.json');
 const PRIVACY_URL = 'https://misery.qla.dev/privacy';
@@ -30,7 +31,8 @@ export default function AboutScreen() {
   };
 
   return (
-    <View className="flex-1 justify-center bg-neutral-950 px-5">
+    <TabFadeView>
+      <View className="flex-1 justify-center bg-neutral-950 px-5">
       <View className="items-center">
         <View className="items-center">
           <View className="flex-row items-center justify-center">
@@ -133,6 +135,7 @@ export default function AboutScreen() {
           </Text>
         </Pressable>
       </View>
-    </View>
+      </View>
+    </TabFadeView>
   );
 }

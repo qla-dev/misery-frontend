@@ -3,11 +3,12 @@ import { router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Google from 'expo-auth-session/providers/google';
+import * as Haptics from 'expo-haptics';
 import * as WebBrowser from 'expo-web-browser';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Apple, Check, Copy, Crown, Flame, Loader2, Share2, Sparkles, User } from 'lucide-react-native';
+import { Check, Copy, Crown, Flame, Loader2, Share2, Sparkles, User, X } from 'lucide-react-native';
 import LottieView from 'lottie-react-native';
-import { Animated, BackHandler, Easing, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Share, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, BackHandler, Easing, Keyboard, KeyboardAvoidingView, LayoutAnimation, Platform, Pressable, ScrollView, Share, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassView } from 'expo-glass-effect';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Path, Stop } from 'react-native-svg';
@@ -91,11 +92,35 @@ const WARNING_PATH = 'M 317 317 L 256 388 L 258 394 L 265 395 L 289 376 L 290 38
 const HEAD_PATH = 'M 134.98 391.89 L 128.34 393.84 Q 121.00 396.00 114.25 399.60 L 112.75 400.40 Q 106.00 404.00 100.28 409.08 L 92.57 415.93 Q 88.00 420.00 84.40 424.95 L 83.60 426.05 Q 80.00 431.00 77.26 436.47 L 76.15 438.70 Q 73.00 445.00 71.11 451.79 L 70.25 454.90 Q 68.00 463.00 67.60 471.40 L 67.28 478.09 Q 67.00 484.00 67.90 489.85 L 68.10 491.15 Q 69.00 497.00 70.97 502.58 L 72.38 506.58 Q 75.00 514.00 79.05 520.75 L 79.95 522.25 Q 84.00 529.00 89.37 534.75 L 93.82 539.53 Q 98.00 544.00 102.95 547.60 L 104.05 548.40 Q 109.00 552.00 114.47 554.74 L 117.14 556.07 Q 123.00 559.00 129.30 560.80 L 130.70 561.20 Q 137.00 563.00 143.55 563.00 L 163.00 563.00 Q 173.00 563.00 182.36 559.49 L 190.34 556.50 Q 197.00 554.00 202.85 549.95 L 204.15 549.05 Q 210.00 545.00 214.89 539.83 L 222.71 531.54 Q 227.00 527.00 230.15 521.60 L 230.85 520.40 Q 234.00 515.00 236.07 509.10 L 239.19 500.17 Q 241.00 495.00 241.90 489.60 L 242.10 488.40 Q 243.00 483.00 242.74 477.53 L 242.40 470.40 Q 242.00 462.00 239.75 453.90 L 238.89 450.79 Q 237.00 444.00 233.85 437.70 L 232.46 434.91 Q 230.00 430.00 226.85 425.50 L 226.15 424.50 Q 223.00 420.00 218.99 416.24 L 213.31 410.92 Q 207.00 405.00 199.35 400.95 L 190.00 396.00 Q 190.00 396.00 190.00 396.00 L 159.23 438.90 Q 157.00 442.00 154.30 444.70 L 153.70 445.30 Q 151.00 448.00 147.20 448.38 L 144.50 448.65 Q 141.00 449.00 138.30 446.75 L 137.19 445.82 Q 135.00 444.00 134.10 441.30 L 133.90 440.70 Q 133.00 438.00 133.75 435.25 L 144.64 395.30 Q 145.00 394.00 145.00 392.65 L 145.00 391.00 Q 145.00 391.00 145.00 391.00 L 141.15 391.00 Q 138.00 391.00 134.98 391.89 Z';
 const BODY_PATH = 'M 69.25 582.25 L 66.35 583.22 Q 61.00 585.00 56.05 587.70 L 54.95 588.30 Q 50.00 591.00 45.82 594.78 L 35.67 603.96 Q 29.00 610.00 24.53 617.81 L 20.53 624.82 Q 17.00 631.00 14.75 637.75 L 13.87 640.38 Q 12.00 646.00 11.10 651.85 L 10.90 653.15 Q 10.00 659.00 10.03 664.92 L 10.98 839.37 Q 11.00 843.00 12.80 846.15 L 13.20 846.85 Q 15.00 850.00 17.57 852.57 L 18.30 853.30 Q 21.00 856.00 24.55 857.42 L 26.82 858.33 Q 31.00 860.00 35.50 860.00 L 36.50 860.00 Q 41.00 860.00 45.18 858.33 L 47.45 857.42 Q 51.00 856.00 53.70 853.30 L 54.43 852.57 Q 57.00 850.00 58.80 846.85 L 59.20 846.15 Q 61.00 843.00 61.02 839.37 L 61.97 700.87 Q 62.00 697.00 64.25 693.85 L 64.75 693.15 Q 67.00 690.00 70.85 689.57 L 73.14 689.32 Q 76.00 689.00 78.25 690.80 L 78.78 691.22 Q 81.00 693.00 81.90 695.70 L 82.10 696.30 Q 83.00 699.00 83.00 701.85 L 83.00 1167.15 Q 83.00 1172.00 84.80 1176.50 L 85.22 1177.56 Q 87.00 1182.00 90.15 1185.60 L 91.20 1186.81 Q 94.00 1190.00 97.60 1192.25 L 98.40 1192.75 Q 102.00 1195.00 106.07 1196.22 L 108.98 1197.09 Q 112.00 1198.00 115.15 1198.00 L 115.85 1198.00 Q 119.00 1198.00 122.01 1197.07 L 126.15 1195.80 Q 132.00 1194.00 136.51 1189.86 L 141.03 1185.72 Q 144.00 1183.00 145.80 1179.40 L 146.20 1178.60 Q 148.00 1175.00 148.09 1170.98 L 149.96 1086.00 Q 150.00 1084.00 149.99 1082.00 L 149.01 908.29 Q 149.00 906.00 149.45 903.75 L 149.55 903.25 Q 150.00 901.00 151.62 899.38 L 153.06 897.94 Q 155.00 896.00 157.70 895.55 L 158.30 895.45 Q 161.00 895.00 163.23 896.59 L 166.03 898.59 Q 168.00 900.00 168.90 902.25 L 169.10 902.75 Q 170.00 905.00 170.00 907.42 L 170.00 1165.15 Q 170.00 1171.00 172.25 1176.40 L 172.75 1177.60 Q 175.00 1183.00 179.31 1186.95 L 182.49 1189.86 Q 187.00 1194.00 192.85 1195.80 L 195.25 1196.54 Q 200.00 1198.00 204.95 1197.55 L 206.17 1197.44 Q 211.00 1197.00 215.50 1195.20 L 216.56 1194.78 Q 221.00 1193.00 224.60 1189.85 L 225.81 1188.80 Q 229.00 1186.00 231.25 1182.40 L 231.75 1181.60 Q 234.00 1178.00 234.95 1173.86 L 235.65 1170.85 Q 237.00 1165.00 237.00 1159.00 L 237.00 699.51 Q 237.00 696.00 239.25 693.30 L 239.75 692.70 Q 242.00 690.00 245.49 689.61 L 248.14 689.32 Q 251.00 689.00 253.25 690.80 L 254.43 691.74 Q 256.00 693.00 256.90 694.80 L 257.10 695.20 Q 258.00 697.00 258.00 699.01 L 258.00 837.15 Q 258.00 840.00 258.90 842.70 L 259.10 843.30 Q 260.00 846.00 261.90 848.12 L 266.98 853.76 Q 269.00 856.00 271.70 857.35 L 272.30 857.65 Q 275.00 859.00 278.01 859.22 L 286.16 859.80 Q 289.00 860.00 291.70 859.10 L 292.30 858.90 Q 295.00 858.00 297.22 856.22 L 300.75 853.40 Q 305.00 850.00 307.25 845.05 L 307.75 843.95 Q 310.00 839.00 310.00 833.56 L 310.00 663.47 Q 310.00 658.00 309.10 652.60 L 308.90 651.40 Q 308.00 646.00 306.13 640.86 L 301.79 628.93 Q 300.00 624.00 297.30 619.50 L 296.70 618.50 Q 294.00 614.00 290.64 609.97 L 288.50 607.40 Q 284.00 602.00 278.42 597.73 L 274.04 594.38 Q 267.00 589.00 258.90 585.40 L 252.39 582.51 Q 249.00 581.00 245.40 580.10 L 244.60 579.90 Q 241.00 579.00 237.29 578.94 L 180.00 578.03 Q 178.00 578.00 176.00 578.04 L 83.11 579.86 Q 76.00 580.00 69.25 582.25 Z';
 
-function GoogleIcon({ color = '#000' }: { color?: string }) {
+function GoogleIcon({ color = '#000', size = 16 }: { color?: string; size?: number }) {
   return (
-    <View style={{ width: 16, height: 16 }}>
-      <Text style={{ color, fontSize: 16, fontWeight: '900', lineHeight: 16 }}>G</Text>
-    </View>
+    <Svg width={size} height={size} viewBox="0 0 210 210" fill={color}>
+      <Path d="M0 105C0 47.103 47.103 0 105 0c23.383 0 45.515 7.523 64.004 21.756l-24.4 31.696C133.172 44.652 119.477 40 105 40c-35.841 0-65 29.159-65 65s29.159 65 65 65c28.867 0 53.398-18.913 61.852-45H105V85h105v20c0 57.897-47.103 105-105 105S0 162.897 0 105Z" />
+    </Svg>
+  );
+}
+
+function AppleIcon({
+  buttonAligned = false,
+  color = '#000',
+  size = 16,
+}: {
+  buttonAligned?: boolean;
+  color?: string;
+  size?: number;
+}) {
+  const renderedSize = buttonAligned ? size + 2 : size;
+
+  return (
+    <Svg
+      width={renderedSize}
+      height={renderedSize}
+      viewBox="0 0 814 1000"
+      fill={color}
+      style={buttonAligned ? { transform: [{ translateX: 3 }, { translateY: -2 }] } : undefined}
+    >
+      <Path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76.5 0-103.7 40.8-165.9 40.8s-105.6-57-155.5-127C46.7 790.7 0 663 0 541.8c0-194.4 126.4-297.5 250.8-297.5 66.1 0 121.2 43.4 162.7 43.4 39.5 0 101.1-46 176.3-46 28.5 0 130.9 2.6 198.3 99.2Zm-234-181.5c31.1-36.9 53.1-88.1 53.1-139.3 0-7.1-.6-14.3-1.9-20.1-50.6 1.9-110.8 33.7-147.1 75.8-28.5 32.4-55.1 83.6-55.1 135.5 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 135.5-71.3Z" />
+    </Svg>
   );
 }
 
@@ -109,7 +134,7 @@ function SocialButtonContent({
   tone: 'light' | 'dark';
 }) {
   return (
-    <View className="flex-row items-center justify-center gap-3">
+    <View className="flex-row items-center justify-center" style={{ gap: 6 }}>
       {icon}
       <Text className={`font-black text-sm tracking-wider uppercase ${tone === 'light' ? 'text-black' : 'text-neutral-300'}`}>
         {label}
@@ -395,7 +420,9 @@ export default function Lobby() {
   const isBs = language === 'bs';
   const lobbyScrollRef = useRef<ScrollView>(null);
   const lobbyContentOpacity = useRef(new Animated.Value(1)).current;
+  const authButtonsOpacity = useRef(new Animated.Value(1)).current;
   const lobbyTransitioningRef = useRef(false);
+  const authButtonsTransitioningRef = useRef(false);
   const joinPendingRef = useRef(false);
   const codeInputFocusedRef = useRef(false);
   const copyResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -405,6 +432,7 @@ export default function Lobby() {
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
   const [isStartingGame, setIsStartingGame] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const [signingInProvider, setSigningInProvider] = useState<'google' | 'apple' | null>(null);
   const [usernameModalOpen, setUsernameModalOpen] = useState(false);
   const [usernameDraft, setUsernameDraft] = useState('');
   const [usernameError, setUsernameError] = useState('');
@@ -427,7 +455,6 @@ export default function Lobby() {
   });
 
   useEffect(() => {
-    logLobbyTransition('view-rendered', { lobbyView });
     lobbyContentOpacity.setValue(0);
     logLobbyTransition('view-fade-in-start', { lobbyView });
     Animated.timing(lobbyContentOpacity, {
@@ -436,7 +463,11 @@ export default function Lobby() {
       toValue: 1,
       useNativeDriver: true,
     }).start(({ finished }) => logLobbyTransition('view-fade-in-end', { finished, lobbyView }));
-  }, [lobbyContentOpacity, lobbyView]);
+  }, [lobbyContentOpacity]);
+
+  useEffect(() => {
+    logLobbyTransition('view-rendered', { lobbyView });
+  }, [lobbyView]);
 
   useEffect(() => {
     const canPrefetchAvailableGames = lobbyView === 'WELCOME' || lobbyView === 'SETUP';
@@ -464,7 +495,11 @@ export default function Lobby() {
     const shouldFade =
       (lobbyView === 'WELCOME' && nextView === 'SETUP') ||
       (lobbyView === 'SETUP' && nextView === 'WELCOME');
-    if (!shouldFade || lobbyTransitioningRef.current) {
+    if (lobbyTransitioningRef.current) {
+      logLobbyTransition('transition-ignored', { from: lobbyView, nextView });
+      return;
+    }
+    if (!shouldFade) {
       logLobbyTransition('transition-immediate', { from: lobbyView, nextView, transitionBusy: lobbyTransitioningRef.current });
       setLobbyView(nextView);
       return;
@@ -476,10 +511,25 @@ export default function Lobby() {
       easing: Easing.in(Easing.quad),
       toValue: 0,
       useNativeDriver: true,
-    }).start(() => {
+    }).start(({ finished }) => {
+      if (!finished) {
+        lobbyTransitioningRef.current = false;
+        return;
+      }
       logLobbyTransition('transition-fade-out-end', { from: lobbyView, nextView });
       setLobbyView(nextView);
-      lobbyTransitioningRef.current = false;
+      requestAnimationFrame(() => {
+        logLobbyTransition('transition-fade-in-start', { nextView });
+        Animated.timing(lobbyContentOpacity, {
+          duration: 220,
+          easing: Easing.out(Easing.quad),
+          toValue: 1,
+          useNativeDriver: true,
+        }).start(({ finished: fadeInFinished }) => {
+          logLobbyTransition('transition-fade-in-end', { finished: fadeInFinished, nextView });
+          lobbyTransitioningRef.current = false;
+        });
+      });
     });
   };
 
@@ -686,7 +736,6 @@ export default function Lobby() {
   const handleSocialSignIn = async (provider: 'google' | 'apple') => {
     if (isSigningIn) return;
     playSound('click');
-    setIsSigningIn(true);
 
     try {
       if (provider === 'google') {
@@ -699,7 +748,11 @@ export default function Lobby() {
           throw new Error('Google sign-in is not configured yet. Add the Google client IDs first.');
         }
 
-        await promptGoogleSignIn();
+        const googleResult = await promptGoogleSignIn();
+        if (googleResult.type === 'success') {
+          setIsSigningIn(true);
+          setSigningInProvider('google');
+        }
         return;
       }
 
@@ -714,6 +767,8 @@ export default function Lobby() {
         ],
       });
       if (!credential.identityToken) throw new Error('Apple did not return an identity token.');
+      setIsSigningIn(true);
+      setSigningInProvider('apple');
       const fullName = [credential.fullName?.givenName, credential.fullName?.familyName]
         .filter(Boolean)
         .join(' ');
@@ -730,6 +785,8 @@ export default function Lobby() {
       setSocialProvider(provider);
       transitionLobbyView('SETUP');
     } catch (error: any) {
+      setIsSigningIn(false);
+      setSigningInProvider(null);
       if (error?.code === 'ERR_REQUEST_CANCELED') return;
       const message = error instanceof Error ? error.message : 'Social sign-in failed.';
       console.error('[SocialAuth] sign-in failed', { provider, message });
@@ -738,8 +795,6 @@ export default function Lobby() {
         title: isBs ? 'PRIJAVA NIJE USPJELA' : 'SIGN-IN FAILED',
         message,
       });
-    } finally {
-      setIsSigningIn(false);
     }
   };
 
@@ -747,6 +802,8 @@ export default function Lobby() {
     if (!googleAuthResponse) return;
 
     if (googleAuthResponse.type !== 'success') {
+      setIsSigningIn(false);
+      setSigningInProvider(null);
       if (googleAuthResponse.type === 'error') {
         setStartModal({
           visible: true,
@@ -758,9 +815,20 @@ export default function Lobby() {
     }
 
     const idToken = googleAuthResponse.params?.id_token || googleAuthResponse.authentication?.idToken;
-    if (!idToken || processedGoogleTokenRef.current === idToken) return;
+    if (!idToken) {
+      setIsSigningIn(false);
+      setSigningInProvider(null);
+      setStartModal({
+        visible: true,
+        title: isBs ? 'PRIJAVA NIJE USPJELA' : 'SIGN-IN FAILED',
+        message: 'Google did not return an ID token.',
+      });
+      return;
+    }
+    if (processedGoogleTokenRef.current === idToken) return;
     processedGoogleTokenRef.current = idToken;
     setIsSigningIn(true);
+    setSigningInProvider('google');
 
     void api.signInWithGoogle(idToken)
       .then(async (result) => {
@@ -777,6 +845,8 @@ export default function Lobby() {
       })
       .catch((error) => {
         processedGoogleTokenRef.current = null;
+        setIsSigningIn(false);
+        setSigningInProvider(null);
         const message = error instanceof Error ? error.message : 'Google sign-in failed.';
         console.error('[SocialAuth] Google sign-in failed', { message });
         setStartModal({
@@ -784,9 +854,15 @@ export default function Lobby() {
           title: isBs ? 'PRIJAVA NIJE USPJELA' : 'SIGN-IN FAILED',
           message,
         });
-      })
-      .finally(() => setIsSigningIn(false));
+      });
   }, [googleAuthResponse]);
+
+  useEffect(() => {
+    if (lobbyView !== 'WELCOME') {
+      setIsSigningIn(false);
+      setSigningInProvider(null);
+    }
+  }, [lobbyView]);
 
   const openUsernameModal = () => {
     playSound('click');
@@ -827,11 +903,59 @@ export default function Lobby() {
     playSound('click');
     const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
     if (token) void api.logout(token).catch(() => undefined);
-    await AsyncStorage.multiRemove([AUTH_TOKEN_KEY, AUTH_USER_KEY, AUTH_PROVIDER_KEY]);
+    await AsyncStorage.multiRemove([AUTH_TOKEN_KEY, AUTH_USER_KEY, AUTH_PROVIDER_KEY, LAST_USERNAME_KEY]);
     setIsSocialUser(false);
     setSocialProvider(null);
     setUserName('');
     transitionLobbyView('WELCOME');
+  };
+
+  const resetRememberedSession = () => {
+    if (authButtonsTransitioningRef.current) return;
+    authButtonsTransitioningRef.current = true;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    Animated.timing(authButtonsOpacity, {
+      duration: 140,
+      easing: Easing.in(Easing.quad),
+      toValue: 0,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (!finished) {
+        authButtonsTransitioningRef.current = false;
+        return;
+      }
+
+      void (async () => {
+        const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+        if (token) void api.logout(token).catch(() => undefined);
+        await AsyncStorage.multiRemove([AUTH_TOKEN_KEY, AUTH_USER_KEY, AUTH_PROVIDER_KEY, LAST_USERNAME_KEY]);
+
+        LayoutAnimation.configureNext({
+          duration: 320,
+          create: { property: LayoutAnimation.Properties.opacity, type: LayoutAnimation.Types.easeInEaseOut },
+          delete: { property: LayoutAnimation.Properties.opacity, type: LayoutAnimation.Types.easeInEaseOut },
+          update: { type: LayoutAnimation.Types.easeInEaseOut },
+        });
+        setIsSocialUser(false);
+        setSocialProvider(null);
+        setUserName('');
+
+        requestAnimationFrame(() => {
+          Animated.timing(authButtonsOpacity, {
+            duration: 280,
+            easing: Easing.out(Easing.quad),
+            toValue: 1,
+            useNativeDriver: true,
+          }).start(() => {
+            authButtonsTransitioningRef.current = false;
+          });
+        });
+      })().catch(() => {
+        authButtonsOpacity.setValue(1);
+        authButtonsTransitioningRef.current = false;
+      });
+    });
   };
 
   const startGame = async (
@@ -986,9 +1110,13 @@ export default function Lobby() {
   );
 
   const renderContent = () => {
+    const hasRememberedSocialSession = Boolean(
+      isSocialUser && socialProvider && userName && !isSigningIn
+    );
+
     if (lobbyView === 'WELCOME') {
       return (
-        <View style={{ gap: 24 }}>
+        <View style={{ gap: 24, position: 'relative' }}>
           <View
             style={{ gap: 22 }}
           >
@@ -1042,7 +1170,37 @@ export default function Lobby() {
               </Text>
             </View>
 
-            <View style={{ gap: 12 }}>
+            <Animated.View style={{ gap: 12, opacity: authButtonsOpacity }}>
+              {hasRememberedSocialSession ? (
+                <View className="relative">
+                <ButtonTab
+                  category="button"
+                  type="third"
+                  size="100"
+                  onPress={() => {
+                    playSound('click');
+                    transitionLobbyView('SETUP');
+                  }}
+                >
+                  <SocialButtonContent
+                    icon={socialProvider === 'google' ? <GoogleIcon /> : <AppleIcon buttonAligned />}
+                    label={isBs ? `Nastavi kao ${userName}` : `Continue as ${userName}`}
+                    tone="light"
+                  />
+                </ButtonTab>
+                <Pressable
+                  accessibilityLabel={isBs ? 'Prijavi se ponovo' : 'Sign in again'}
+                  accessibilityRole="button"
+                  className="absolute z-20 h-8 w-8 items-center justify-center rounded-full bg-neutral-900"
+                  onPress={resetRememberedSession}
+                  style={{ right: -16, top: -16 }}
+                >
+                  <X color="#facc15" size={17} />
+                </Pressable>
+                </View>
+              ) : null}
+
+              <View style={{ display: hasRememberedSocialSession ? 'none' : 'flex', gap: 12 }}>
               <View style={{ gap: 10 }}>
                 <ButtonTab
                   category="button"
@@ -1050,15 +1208,25 @@ export default function Lobby() {
                   size="100"
                   onPress={() => handleSocialSignIn(Platform.OS === 'ios' ? 'apple' : 'google')}
                 >
-                  <SocialButtonContent
-                    icon={Platform.OS === 'ios' ? <Apple size={16} color="#000" /> : <GoogleIcon />}
-                    label={
-                      Platform.OS === 'ios'
-                        ? isBs ? 'Prijavi se sa Apple-om' : 'Sign in with Apple'
-                        : isBs ? 'Prijavi se sa Google-om' : 'Sign in with Google'
-                    }
-                    tone="light"
-                  />
+                  {signingInProvider === (Platform.OS === 'ios' ? 'apple' : 'google') ? (
+                    <SocialButtonContent
+                      icon={<ActivityIndicator color="#000" size="small" />}
+                      label={Platform.OS === 'ios'
+                        ? (isBs ? 'Prijava sa Apple-om' : 'Signing in with Apple')
+                        : (isBs ? 'Prijava sa Google-om' : 'Signing in with Google')}
+                      tone="light"
+                    />
+                  ) : (
+                    <SocialButtonContent
+                      icon={Platform.OS === 'ios' ? <AppleIcon buttonAligned /> : <GoogleIcon />}
+                      label={
+                        Platform.OS === 'ios'
+                          ? isBs ? 'Prijavi se sa Apple-om' : 'Sign in with Apple'
+                          : isBs ? 'Prijavi se sa Google-om' : 'Sign in with Google'
+                      }
+                      tone="light"
+                    />
+                  )}
                 </ButtonTab>
                 <ButtonTab
                   category="button"
@@ -1066,15 +1234,25 @@ export default function Lobby() {
                   size="100"
                   onPress={() => handleSocialSignIn(Platform.OS === 'ios' ? 'google' : 'apple')}
                 >
-                  <SocialButtonContent
-                    icon={Platform.OS === 'ios' ? <GoogleIcon color="#fff" /> : <Apple size={16} color="#fff" />}
-                    label={
-                      Platform.OS === 'ios'
-                        ? isBs ? 'Prijavi se sa Google-om' : 'Sign in with Google'
-                        : isBs ? 'Prijavi se sa Apple-om' : 'Sign in with Apple'
-                    }
-                    tone="dark"
-                  />
+                  {signingInProvider === (Platform.OS === 'ios' ? 'google' : 'apple') ? (
+                    <SocialButtonContent
+                      icon={<ActivityIndicator color="#fff" size="small" />}
+                      label={Platform.OS === 'ios'
+                        ? (isBs ? 'Prijava sa Google-om' : 'Signing in with Google')
+                        : (isBs ? 'Prijava sa Apple-om' : 'Signing in with Apple')}
+                      tone="dark"
+                    />
+                  ) : (
+                    <SocialButtonContent
+                      icon={Platform.OS === 'ios' ? <GoogleIcon color="#fff" /> : <AppleIcon buttonAligned color="#fff" />}
+                      label={
+                        Platform.OS === 'ios'
+                          ? isBs ? 'Prijavi se sa Google-om' : 'Sign in with Google'
+                          : isBs ? 'Prijavi se sa Apple-om' : 'Sign in with Apple'
+                      }
+                      tone="dark"
+                    />
+                  )}
                 </ButtonTab>
               </View>
               <View className="flex-row items-center justify-center gap-4 py-1">
@@ -1101,7 +1279,8 @@ export default function Lobby() {
                   tone="dark"
                 />
               </ButtonTab>
-            </View>
+              </View>
+            </Animated.View>
 
             <WelcomeSilhouetteRow flip />
           </View>
@@ -1156,7 +1335,7 @@ export default function Lobby() {
                 }}
                 className="w-full py-3.5 px-4 bg-black rounded-xl flex-row items-center justify-center gap-3 shadow-md border border-neutral-800"
               >
-                <Apple size={16} color="#fff" />
+                <AppleIcon color="#fff" />
                 <Text className="text-white font-black text-xs tracking-wider uppercase">
                   {isBs ? 'Prijavi se sa Apple-om' : 'Sign in with Apple'}
                 </Text>
@@ -1206,6 +1385,13 @@ export default function Lobby() {
               {isSocialUser ? (
                 <View className="flex-row items-center justify-between bg-neutral-900/30 p-3.5 rounded-xl border border-neutral-900">
                   <View className="flex-row items-center gap-3">
+                    <View className="h-8 w-8 items-center justify-center">
+                      {socialProvider === 'google' ? (
+                        <GoogleIcon color="#facc15" size={22} />
+                      ) : (
+                        <AppleIcon color="#facc15" size={22} />
+                      )}
+                    </View>
                     <View>
                       <Text className="font-bold text-xs text-neutral-200">{userName}</Text>
                       <Text className="text-[8px] text-emerald-400 font-mono">
@@ -1333,6 +1519,13 @@ export default function Lobby() {
               {isSocialUser ? (
                 <View className="flex-row items-center justify-between bg-neutral-900/30 p-3.5 rounded-xl border border-neutral-900">
                   <View className="flex-row items-center gap-3">
+                    <View className="h-8 w-8 items-center justify-center">
+                      {socialProvider === 'google' ? (
+                        <GoogleIcon color="#facc15" size={22} />
+                      ) : (
+                        <AppleIcon color="#facc15" size={22} />
+                      )}
+                    </View>
                     <View>
                       <Text className="font-bold text-xs text-neutral-200">{userName}</Text>
                       <Text className="text-[8px] text-emerald-400 font-mono">

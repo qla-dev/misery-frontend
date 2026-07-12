@@ -7,8 +7,8 @@ const API_URLS = {
 
 export const API_BASE_URL = API_URLS[API_TARGET];
 
-export interface ApiUser { id: number; name: string; email: string | null }
-export interface ApiCard { id: number; title: string; score: number | string; image: string; deck: string }
+export interface ApiUser { id: number; name: string; email: string | null; color: string | null }
+export interface ApiCard { id: number; title: string; subtitle: string | null; score: number | string; image: string; deck: string }
 export interface ApiMove { id: number; player_id: number; correct: boolean; player: ApiUser; card: ApiCard | null; created_at: string }
 export interface ApiGame { id: number; code: string; owner_id: number; started: boolean; members: ApiUser[]; hands: Record<string, ApiCard[]>; current_card: ApiCard | null; moves: ApiMove[] }
 
@@ -23,11 +23,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  createGame: (name: string) => request<{ game: ApiGame; user: ApiUser }>('/games', { method: 'POST', body: JSON.stringify({ name }) }),
-  joinGame: (code: string, name: string) => {
+  createGame: (name: string, color: string) => request<{ game: ApiGame; user: ApiUser }>('/games', { method: 'POST', body: JSON.stringify({ name, color }) }),
+  joinGame: (code: string, name: string, color: string) => {
     const normalizedCode = code.trim().toUpperCase();
     if (!normalizedCode) throw new Error('Enter a room code.');
-    return request<{ game: ApiGame; user: ApiUser }>(`/games/code/${encodeURIComponent(normalizedCode)}/join`, { method: 'POST', body: JSON.stringify({ name }) });
+    return request<{ game: ApiGame; user: ApiUser; color_changed: boolean }>(`/games/code/${encodeURIComponent(normalizedCode)}/join`, { method: 'POST', body: JSON.stringify({ name, color }) });
   },
   getGame: (id: number) => request<ApiGame>(`/games/${id}`),
   deleteGame: (id: number) => request<void>(`/games/${id}`, { method: 'DELETE' }),

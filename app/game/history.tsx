@@ -1,4 +1,5 @@
 import { LoadingState } from '@/components/LoadingState';
+import { Card } from '@/components/Card';
 import { useGame } from '@/context/GameContext';
 import { ScrollView, Text, View } from 'react-native';
 
@@ -26,17 +27,19 @@ export default function HistoryScreen() {
       </Text>
       <View className="mt-5" style={{ gap: 12 }}>
         {history.map((entry: any, index: number) => (
-          <View key={`${entry.playerName}-${index}`} className="flex-row gap-3 rounded-2xl border border-neutral-800 bg-neutral-900/50 p-4">
-            <View className={`mt-1 h-3 w-3 rounded-full ${entry.success ? 'bg-emerald-500' : 'bg-red-500'}`} />
-            <Text className="flex-1 text-sm leading-6 text-neutral-300">
-              <Text className="font-black text-white">{entry.playerName}</Text>{' '}
-              {isBs ? 'je odigrao/la' : 'played'}{' '}
-              <Text className="font-bold text-amber-400">{entry.cardTitle}</Text> —{' '}
-              <Text className={entry.success ? 'font-black text-emerald-400' : 'font-black text-red-400'}>
-                {entry.success ? (isBs ? 'TAČNO' : 'CORRECT') : isBs ? 'NETAČNO' : 'WRONG'}
+          <Card key={`${entry.playerName}-${index}`}>
+            <View className="flex-row gap-3">
+              <View className={`mt-1 h-3 w-3 rounded-full ${entry.success ? 'bg-emerald-500' : 'bg-red-500'}`} />
+              <Text className="flex-1 text-sm leading-6 text-neutral-300">
+                <Text className="font-black text-white">{entry.playerName}</Text>{' '}
+                {isBs ? 'je odigrao/la' : 'played'}{' '}
+                <Text className="font-bold text-amber-400">{entry.cardTitle}</Text> —{' '}
+                <Text className={entry.success ? 'font-black text-emerald-400' : 'font-black text-red-400'}>
+                  {entry.success ? (isBs ? 'TAČNO' : 'CORRECT') : isBs ? 'NETAČNO' : 'WRONG'}
+                </Text>
               </Text>
-            </Text>
-          </View>
+            </View>
+          </Card>
         ))}
       </View>
     </ScrollView>

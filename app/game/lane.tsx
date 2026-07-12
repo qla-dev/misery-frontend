@@ -1,4 +1,5 @@
 import { useGame } from '@/context/GameContext';
+import { Card } from '@/components/Card';
 import { useEffect, useRef } from 'react';
 import { Animated, Pressable, ScrollView, Text, View } from 'react-native';
 
@@ -22,7 +23,6 @@ function LaneCard({ card, isBs, isNew }: { card: any; isBs: boolean; isNew: bool
 
   return (
     <Animated.View
-      className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4"
       style={{
         opacity: entrance.interpolate({ inputRange: [0, 1], outputRange: [0, 1], extrapolate: 'clamp' }),
         transform: [
@@ -32,19 +32,21 @@ function LaneCard({ card, isBs, isNew }: { card: any; isBs: boolean; isNew: bool
         ],
       }}
     >
-      <View className="flex-row items-center gap-4">
-        <Text className="font-mono text-xl font-black text-amber-400">{card.index.toFixed(1)}</Text>
-        <View className="flex-1">
-          <Text className="text-base font-black uppercase leading-5 text-neutral-100">
-            {isBs ? card.titleBs : card.titleEn}
-          </Text>
-          {(card.descriptionBs || card.descriptionEn) && (
-            <Text className="mt-1 text-xs leading-5 text-neutral-500">
-              {isBs ? card.descriptionBs : card.descriptionEn}
+      <Card>
+        <View className="flex-row items-center gap-4">
+          <Text className="font-mono text-xl font-black text-amber-400">{card.index.toFixed(1)}</Text>
+          <View className="flex-1">
+            <Text className="text-base font-black uppercase leading-5 text-neutral-100">
+              {isBs ? card.titleBs : card.titleEn}
             </Text>
-          )}
+            {(card.descriptionBs || card.descriptionEn) && (
+              <Text className="mt-1 text-xs leading-5 text-neutral-500">
+                {isBs ? card.descriptionBs : card.descriptionEn}
+              </Text>
+            )}
+          </View>
         </View>
-      </View>
+      </Card>
     </Animated.View>
   );
 }

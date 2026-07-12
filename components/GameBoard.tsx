@@ -17,6 +17,22 @@ import { api, ApiCard } from '@/lib/api';
 
 const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
 
+const PLAYER_COLOR_HEX: Record<string, string> = {
+  yellow: '#facc15',
+  blue: '#60a5fa',
+  emerald: '#10b981',
+  purple: '#c084fc',
+  red: '#ef4444',
+  orange: '#f97316',
+  '#8B5A2B': '#8B5A2B',
+  neutral: '#d4d4d4',
+};
+
+function getPlayerColorHex(colorClasses: string) {
+  const colorKey = Object.keys(PLAYER_COLOR_HEX).find((key) => colorClasses.includes(key));
+  return colorKey ? PLAYER_COLOR_HEX[colorKey] : '#facc15';
+}
+
 interface GameBoardProps {
   mode: GameMode;
   initialPlayers: { id?: number; name: string; color: string; isBot?: boolean }[];
@@ -62,14 +78,17 @@ export default function GameBoard({
   gameId,
   userId,
 }: GameBoardProps) {
-  const { language, muted, setGameRuntime, setLaneResult } = useGame();
+  const { language, laneResult, muted, setGameRuntime, setLaneResult } = useGame();
   const isBs = language === 'bs';
   const { height } = useWindowDimensions();
-  const cardAreaHeight = Math.max(340, height - 104 - (mode === 'MULTIPLAYER' ? 52 : 0) - 132);
-  const drawnCardHeight = Math.min(560, Math.max(320, cardAreaHeight - 24));
+  const cardTopOffset = 104 + (mode === 'MULTIPLAYER' ? 52 : 0);
+  const cardTopPadding = 12;
+  const drawnCardHeight = height - cardTopOffset - cardTopPadding - 105;
+  const cardAreaHeight = drawnCardHeight + cardTopPadding;
   const dummyArtworkSize = Math.min(192, drawnCardHeight * 0.34);
   const cardFlip = useRef(new Animated.Value(0)).current;
   const optimisticLaneCardsRef = useRef<Record<string, Card[]>>({});
+  const pendingPlacementRef = useRef<{ actingPlayerId: string; card: Card; slotIdx: number } | null>(null);
 
   const [gameState, setGameState] = useState<GameState>({
     mode,
@@ -92,6 +111,8 @@ export default function GameBoard({
     id: String(card.id),
     titleEn: card.title,
     titleBs: card.title,
+    descriptionEn: card.subtitle ?? undefined,
+    descriptionBs: card.subtitle ?? undefined,
     index: Number(card.score),
     illustrationType: 'general_misery',
   });
@@ -100,6 +121,27 @@ export default function GameBoard({
     cardFlip.setValue(0);
     setIsDrawnCardFlipped(false);
   }, [cardFlip, gameState.drawnCard?.id]);
+
+  useEffect(() => {
+    const pending = pendingPlacementRef.current;
+    if (laneResult !== null || !pending) return;
+
+    pendingPlacementRef.current = null;
+    const optimisticCards = optimisticLaneCardsRef.current[pending.actingPlayerId] ?? [];
+    if (!optimisticCards.some((card) => card.id === pending.card.id)) {
+      optimisticLaneCardsRef.current[pending.actingPlayerId] = [...optimisticCards, pending.card];
+    }
+    setLastInsertedCardId(pending.card.id);
+    setGameState((prev) => ({
+      ...prev,
+      players: prev.players.map((player) => {
+        if (player.id !== pending.actingPlayerId || player.lane.some((card) => card.id === pending.card.id)) return player;
+        const lane = [...player.lane];
+        lane.splice(pending.slotIdx, 0, pending.card);
+        return { ...player, lane, score: lane.length };
+      }),
+    }));
+  }, [laneResult]);
 
   const flipDrawnCard = () => {
     if (isDrawnCardFlipped) return;
@@ -193,21 +235,9 @@ export default function GameBoard({
     if (gameId && userId) api.submitMove(gameId, userId, isCorrect).catch(() => undefined);
 
     if (isCorrect) {
-      const optimisticCards = optimisticLaneCardsRef.current[actingPlayer.id] ?? [];
-      if (!optimisticCards.some((card) => card.id === drawnCard.id)) {
-        optimisticLaneCardsRef.current[actingPlayer.id] = [...optimisticCards, drawnCard];
-      }
-      setLastInsertedCardId(drawnCard.id);
+      pendingPlacementRef.current = { actingPlayerId: actingPlayer.id, card: drawnCard, slotIdx };
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setLaneResult('success');
-      triggerSound('correct');
-      const updatedPlayers = players.map((p, idx) => {
-        if (idx === actingPlayerIndex) {
-          const newLane = [...p.lane];
-          newLane.splice(slotIdx, 0, drawnCard);
-          return { ...p, lane: newLane, score: newLane.length };
-        }
-        return p;
-      });
       const historyLog = {
         playerName: actingPlayer.name,
         cardTitle: isBs ? drawnCard.titleBs : drawnCard.titleEn,
@@ -216,10 +246,9 @@ export default function GameBoard({
         success: true,
       };
       setGameState((prev) => {
-        const checkVictory = updatedPlayers[actingPlayerIndex].lane.length >= targetScore;
+        const checkVictory = actingPlayer.lane.length + 1 >= targetScore;
         return {
           ...prev,
-          players: updatedPlayers,
           phase: checkVictory ? 'VICTORY' : 'CORRECT_REVEAL',
           guessHistory: [historyLog, ...prev.guessHistory],
         };
@@ -273,7 +302,8 @@ export default function GameBoard({
           players: prev.players.map((player) => {
             const hand = game.hands[player.id];
             if (!hand) return player;
-            const serverLane = hand.map(toLocalCard);
+            const pendingCardId = pendingPlacementRef.current?.card.id;
+            const serverLane = hand.map(toLocalCard).filter((card) => card.id !== pendingCardId);
             const serverCardIds = new Set(serverLane.map((card) => card.id));
             const pendingCards = (optimisticLaneCardsRef.current[player.id] ?? [])
               .filter((card) => !serverCardIds.has(card.id));
@@ -466,7 +496,10 @@ export default function GameBoard({
                       glassEffect
                     >
                       <View className="flex-row items-center gap-2">
-                        <View className={`w-2 h-2 rounded-full ${p.color.split(' ')[0]} ${p.color.split(' ')[1]}`} />
+                        <View
+                          className="h-2.5 w-2.5 rounded-full border border-white/20"
+                          style={{ backgroundColor: getPlayerColorHex(p.color) }}
+                        />
                         <Text className={`text-xs font-bold ${latestResult ? 'text-black' : isActiveTurn ? 'text-amber-300' : 'text-neutral-400'}`}>{p.name}</Text>
                         <View className="bg-black/10 px-1.5 py-0.5 rounded">
                           <Text className={`text-[10px] font-mono ${latestResult ? 'text-black' : isActiveTurn ? 'text-amber-300' : 'text-neutral-400'}`}>{p.lane.length} pts</Text>
@@ -480,7 +513,7 @@ export default function GameBoard({
           )}
 
           {!isVictoryPhase && !isGameOverPhase && (
-            <View className="items-center justify-center w-full" style={{ minHeight: cardAreaHeight }}>
+            <View className="items-center justify-start w-full" style={{ minHeight: cardAreaHeight, paddingTop: cardTopPadding }}>
               <Pressable
                 accessibilityLabel={isBs ? 'Okreni kartu' : 'Flip card'}
                 disabled={isDrawnCardFlipped && !isCorrectPhase && !isWrongPhase}
@@ -507,7 +540,7 @@ export default function GameBoard({
                       alignItems: 'center',
                       backgroundColor: '#050505',
                       borderColor: '#fbbf24',
-                      borderRadius: 36,
+                      borderRadius: 16,
                       borderWidth: 6,
                       height: drawnCardHeight,
                       justifyContent: 'center',
@@ -519,7 +552,7 @@ export default function GameBoard({
                       colors={['rgba(251,191,36,0.18)', 'rgba(10,10,10,0.98)', 'rgba(251,191,36,0.1)']}
                       style={{ bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 }}
                     />
-                    <View style={{ borderColor: 'rgba(251,191,36,0.55)', borderRadius: 28, borderWidth: 2, bottom: 12, left: 12, position: 'absolute', right: 12, top: 12 }} />
+                    <View style={{ borderColor: 'rgba(251,191,36,0.55)', borderRadius: 10, borderWidth: 2, bottom: 12, left: 12, position: 'absolute', right: 12, top: 12 }} />
                     <CardLogo />
                     <Text className="absolute bottom-8 font-mono text-[10px] font-black uppercase tracking-[3px] text-amber-400/70">
                       {isBs ? 'DODIRNI ZA OKRETANJE' : 'TAP TO FLIP'}
@@ -547,18 +580,23 @@ export default function GameBoard({
                       alignItems: 'center',
                       backgroundColor: '#090909',
                       borderColor: isWrongPhase ? '#ef4444' : isCorrectPhase ? '#10b981' : '#fbbf24',
-                      borderRadius: 36,
+                      borderRadius: 16,
                       borderWidth: 6,
                       height: drawnCardHeight,
                       overflow: 'hidden',
                       width: '100%',
                     }}
                   >
-                    <View style={{ borderColor: 'rgba(251,191,36,0.35)', borderRadius: 28, borderWidth: 2, bottom: 12, left: 12, position: 'absolute', right: 12, top: 12 }} />
+                    <View style={{ borderColor: 'rgba(251,191,36,0.35)', borderRadius: 10, borderWidth: 2, bottom: 12, left: 12, position: 'absolute', right: 12, top: 12 }} />
                     <View className="w-full items-center px-9 pt-9">
                       <Text className="text-center text-2xl font-black uppercase leading-7 tracking-tight text-amber-400">
                         {isBs ? gameState.drawnCard.titleBs : gameState.drawnCard.titleEn}
                       </Text>
+                      {(gameState.drawnCard.descriptionBs || gameState.drawnCard.descriptionEn) && (
+                        <Text className="mt-2 text-center text-xs leading-5 text-neutral-400" numberOfLines={3}>
+                          {isBs ? gameState.drawnCard.descriptionBs : gameState.drawnCard.descriptionEn}
+                        </Text>
+                      )}
                     </View>
                     <View
                       pointerEvents="none"
@@ -581,8 +619,11 @@ export default function GameBoard({
                     )}
                     <View className="absolute bottom-0 left-0 right-0 items-center">
                       <Text
+                        adjustsFontSizeToFit
                         className="mb-1 text-base uppercase tracking-wider text-amber-400"
-                        style={{ fontFamily: 'Outfit_900Black', fontWeight: '900' }}
+                        minimumFontScale={0.65}
+                        numberOfLines={1}
+                        style={{ fontFamily: 'Outfit_900Black', fontWeight: '900', textAlign: 'center', width: 100 }}
                       >
                         {isBs ? 'STOPA BIJEDE' : 'MISERY RATE'}
                       </Text>
@@ -590,12 +631,15 @@ export default function GameBoard({
                         colors={['#fbbf24', '#eab308']}
                         style={{
                           alignItems: 'center',
+                          height: 80,
                           justifyContent: 'center',
+                          padding: 8,
+                          width: 100,
                         }}
                       >
                         <Text
-                          className="font-mono text-5xl font-black leading-[52px] text-neutral-950"
-                          style={{ padding: 12 }}
+                          className="text-neutral-950"
+                          style={{ fontFamily: 'Outfit_900Black', fontSize: 42, fontWeight: '900', lineHeight: 48 }}
                         >
                           {gameState.drawnCard.index.toFixed(1)}
                         </Text>

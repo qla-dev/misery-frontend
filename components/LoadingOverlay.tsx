@@ -87,20 +87,9 @@ export function LoadingOverlay({ isBs = false, mode = 'create', visible }: Loadi
       <View
         accessibilityLiveRegion="polite"
         accessibilityViewIsModal
-        className="flex-1 items-center justify-center bg-black/90 p-5"
+        className="flex-1 items-center justify-center bg-black/95 px-8"
       >
-        <View className="w-full max-w-sm items-center rounded-3xl border border-neutral-800 bg-neutral-900 px-6 py-8 shadow-2xl">
-          <Text className="text-center text-xl font-black uppercase tracking-wider text-amber-400">
-            {copy.title}
-          </Text>
-
-          <LottieView
-            autoPlay
-            loop
-            source={MASCOT_LOTTIE}
-            style={{ height: 132, marginVertical: 12, width: 100 }}
-          />
-
+        <View className="w-full max-w-sm items-center" style={{ transform: [{ translateY: -36 }] }}>
           <Animated.View
             className="min-h-12 items-center justify-center"
             style={{ opacity }}
@@ -109,6 +98,17 @@ export function LoadingOverlay({ isBs = false, mode = 'create', visible }: Loadi
               {message}
             </Text>
           </Animated.View>
+
+          <LottieView
+            autoPlay
+            loop
+            source={MASCOT_LOTTIE}
+            style={{ height: 148, marginVertical: 18, width: 112 }}
+          />
+
+          <Text className="text-center text-xl font-black uppercase tracking-wider text-amber-400">
+            {copy.title}
+          </Text>
         </View>
       </View>
     </Modal>

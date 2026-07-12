@@ -23,7 +23,7 @@ export function SetupTabs({
           {isBs ? 'Kreiraj Sobu' : 'Create Room'}
         </Text>
         <Text modifiers={[tag('JOIN'), foregroundStyle(value === 'JOIN' ? '#fbbf24' : '#a3a3a3')]}>
-          {isBs ? 'Pridruži se' : 'Enter Code'}
+          {isBs ? 'Unesi Kod Sobe' : 'Enter Code'}
         </Text>
       </Picker>
     </Host>

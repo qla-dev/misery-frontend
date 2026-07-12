@@ -21,16 +21,19 @@ import { Card } from './Card';
 import { ConfirmModal } from './ConfirmModal';
 import { LoadingState } from './LoadingState';
 import { LoadingOverlay } from './LoadingOverlay';
+import { LobbyOpeningOverlay } from './LobbyOpeningOverlay';
 import { SetupTabs } from './SetupTabs';
 import { api, ApiGame } from '@/lib/api';
 
 const AVAILABLE_COLORS = [
-  { id: 'yellow', nameEn: 'Amber Gold', nameBs: 'Zlatni Ćilibar', bgClass: 'bg-yellow-400', borderClass: 'border-yellow-400 bg-yellow-400/5 text-yellow-400' },
-  { id: 'blue', nameEn: 'Electric Blue', nameBs: 'Električna Plava', bgClass: 'bg-blue-400', borderClass: 'border-blue-400 bg-blue-400/5 text-blue-400' },
-  { id: 'emerald', nameEn: 'Neon Emerald', nameBs: 'Neon Zelena', bgClass: 'bg-emerald-400', borderClass: 'border-emerald-400 bg-emerald-400/5 text-emerald-400' },
-  { id: 'purple', nameEn: 'Vibrant Purple', nameBs: 'Ljubičasta', bgClass: 'bg-purple-400', borderClass: 'border-purple-400 bg-purple-400/5 text-purple-400' },
-  { id: 'rose', nameEn: 'Radical Rose', nameBs: 'Koralno Crvena', bgClass: 'bg-rose-400', borderClass: 'border-rose-400 bg-rose-400/5 text-rose-400' },
-  { id: 'cyan', nameEn: 'Cyber Cyan', nameBs: 'Sajber Plava', bgClass: 'bg-cyan-400', borderClass: 'border-cyan-400 bg-cyan-400/5 text-cyan-400' },
+  { id: 'yellow', hex: '#facc15', nameEn: 'Amber Gold', nameBs: 'Zlatni Ćilibar', bgClass: 'bg-yellow-400', borderClass: 'border-yellow-400 bg-yellow-400/5 text-yellow-400' },
+  { id: 'blue', hex: '#60a5fa', nameEn: 'Electric Blue', nameBs: 'Električna Plava', bgClass: 'bg-blue-400', borderClass: 'border-blue-400 bg-blue-400/5 text-blue-400' },
+  { id: 'emerald', hex: '#10b981', nameEn: 'Neon Emerald', nameBs: 'Neon Zelena', bgClass: 'bg-emerald-500', borderClass: 'border-emerald-500 bg-emerald-500/5 text-emerald-500' },
+  { id: 'purple', hex: '#c084fc', nameEn: 'Vibrant Purple', nameBs: 'Ljubičasta', bgClass: 'bg-purple-400', borderClass: 'border-purple-400 bg-purple-400/5 text-purple-400' },
+  { id: 'rose', hex: '#ef4444', nameEn: 'Signal Red', nameBs: 'Signalna Crvena', bgClass: 'bg-red-500', borderClass: 'border-red-500 bg-red-500/5 text-red-500' },
+  { id: 'orange', hex: '#f97316', nameEn: 'Solar Orange', nameBs: 'Sunčano Narandžasta', bgClass: 'bg-orange-500', borderClass: 'border-orange-500 bg-orange-500/5 text-orange-500' },
+  { id: 'brown', hex: '#8B5A2B', nameEn: 'Earth Brown', nameBs: 'Zemljano Smeđa', bgClass: 'bg-[#8B5A2B]', borderClass: 'border-[#8B5A2B] bg-[#8B5A2B]/5 text-[#8B5A2B]' },
+  { id: 'silver', hex: '#d4d4d4', nameEn: 'Moon Silver', nameBs: 'Mjesečevo Srebrna', bgClass: 'bg-neutral-300', borderClass: 'border-neutral-300 bg-neutral-300/5 text-neutral-300' },
 ];
 
 const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
@@ -361,10 +364,12 @@ export default function Lobby() {
   const lobbyScrollRef = useRef<ScrollView>(null);
   const codeInputFocusedRef = useRef(false);
   const copyResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lobbyOpeningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [joinCodeErrorOpen, setJoinCodeErrorOpen] = useState(false);
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
   const [isStartingGame, setIsStartingGame] = useState(false);
+  const [lobbyOpening, setLobbyOpening] = useState({ changed: false, color: AVAILABLE_COLORS[0].hex, visible: false });
   const [serverGameId, setServerGameId] = useState<number | null>(null);
   const [serverUserId, setServerUserId] = useState<number | null>(null);
   const [startModal, setStartModal] = useState<{ visible: boolean; title: string; message: string }>({
@@ -387,7 +392,7 @@ export default function Lobby() {
     setRoomPlayers(game.members.map((member, index) => ({
       id: member.id,
       name: member.name,
-      color: AVAILABLE_COLORS[index % AVAILABLE_COLORS.length].borderClass,
+      color: (AVAILABLE_COLORS.find((color) => color.id === member.color) ?? AVAILABLE_COLORS[index % AVAILABLE_COLORS.length]).borderClass,
     })));
   };
 
@@ -412,6 +417,7 @@ export default function Lobby() {
   useEffect(() => {
     return () => {
       if (copyResetTimerRef.current) clearTimeout(copyResetTimerRef.current);
+      if (lobbyOpeningTimerRef.current) clearTimeout(lobbyOpeningTimerRef.current);
     };
   }, []);
 
@@ -431,7 +437,7 @@ export default function Lobby() {
     const finalName = userName.trim() || (isBs ? 'Igrač 1' : 'Player 1');
     try {
       // AsyncStorage.setItem(LAST_USERNAME_KEY, finalName); // Temporarily disabled.
-      const result = await api.createGame(finalName);
+      const result = await api.createGame(finalName, selectedColor);
       setServerGameId(result.game.id);
       setServerUserId(result.user.id);
       applyServerGame(result.game);
@@ -482,12 +488,19 @@ export default function Lobby() {
     try {
       const finalName = userName.trim() || (isBs ? 'Igrač 2' : 'Player 2');
       // AsyncStorage.setItem(LAST_USERNAME_KEY, finalName); // Temporarily disabled.
-      const result = await api.joinGame(cleanCode, finalName);
+      const result = await api.joinGame(cleanCode, finalName, selectedColor);
       setServerGameId(result.game.id);
       setServerUserId(result.user.id);
       applyServerGame(result.game);
       setJoinStatusText(isBs ? 'Soba pronađena!' : 'Room found!');
-      setLobbyView('ROOM_JOINED');
+      const assignedColor = AVAILABLE_COLORS.find((color) => color.id === result.user.color) ?? AVAILABLE_COLORS[0];
+      setSelectedColor(assignedColor.id);
+      setLobbyOpening({ changed: result.color_changed, color: assignedColor.hex, visible: true });
+      if (lobbyOpeningTimerRef.current) clearTimeout(lobbyOpeningTimerRef.current);
+      lobbyOpeningTimerRef.current = setTimeout(() => {
+        setLobbyView('ROOM_JOINED');
+        setLobbyOpening((current) => ({ ...current, visible: false }));
+      }, 1800);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Room not found.';
       setJoinStatusText(message);
@@ -498,6 +511,15 @@ export default function Lobby() {
           visible: true,
           title: isBs ? 'SOBA JE PUNA' : 'ROOM IS FULL',
           message: isBs ? 'Nema više slobodnih mjesta u ovoj sobi.' : message,
+        });
+      } else if (message === 'Game already started.') {
+        playSound('wrong');
+        setStartModal({
+          visible: true,
+          title: isBs ? 'IGRA JE VEĆ POČELA' : 'GAME ALREADY STARTED',
+          message: isBs
+            ? 'Nije moguće ući u sobu nakon početka igre.'
+            : 'You cannot enter this room after the game has started.',
         });
       }
     }
@@ -597,7 +619,11 @@ export default function Lobby() {
           setIsGameCountingDown(true);
           setSession({
             mode: 'MULTIPLAYER',
-            players: game.members.map((member, index) => ({ id: member.id, name: member.name, color: AVAILABLE_COLORS[index % AVAILABLE_COLORS.length].borderClass })),
+            players: game.members.map((member, index) => ({
+              id: member.id,
+              name: member.name,
+              color: (AVAILABLE_COLORS.find((color) => color.id === member.color) ?? AVAILABLE_COLORS[index % AVAILABLE_COLORS.length]).borderClass,
+            })),
             targetScore,
             deckType: selectedDeck,
             gameId: game.id,
@@ -914,7 +940,7 @@ export default function Lobby() {
             </Section>
 
             <Section titleEn="CHOOSE YOUR COLOR" titleBs="ODABERITE SVOJU BOJU">
-              <View className="flex-row flex-wrap gap-3">
+              <View className="w-full flex-row items-center justify-between">
                 {AVAILABLE_COLORS.map((color) => {
                   const isSelected = selectedColor === color.id;
                   return (
@@ -1041,7 +1067,7 @@ export default function Lobby() {
             </Section>
 
             <Section titleEn="CHOOSE YOUR COLOR" titleBs="ODABERITE SVOJU BOJU">
-              <View className="flex-row flex-wrap gap-3">
+              <View className="w-full flex-row items-center justify-between">
                 {AVAILABLE_COLORS.map((color) => {
                   const isSelected = selectedColor === color.id;
                   return (
@@ -1076,6 +1102,9 @@ export default function Lobby() {
                 }}
                 onFocus={() => {
                   codeInputFocusedRef.current = true;
+                  requestAnimationFrame(() => {
+                    lobbyScrollRef.current?.scrollToEnd({ animated: true });
+                  });
                 }}
                 onBlur={() => {
                   codeInputFocusedRef.current = false;
@@ -1123,7 +1152,7 @@ export default function Lobby() {
             category="button"
             type="primary"
             size="100"
-            disabled={roomPlayers.length < 1}
+            disabled={roomPlayers.length < 2}
             onPress={() => {
               console.log('[GameSettings] BEGIN NOW pressed', {
                 gameId: serverGameId,
@@ -1252,6 +1281,12 @@ export default function Lobby() {
       </ConfirmModal>
       <LoadingOverlay isBs={isBs} visible={isCreatingRoom} />
       <LoadingOverlay isBs={isBs} mode="start" visible={isStartingGame} />
+      <LobbyOpeningOverlay
+        changed={lobbyOpening.changed}
+        color={lobbyOpening.color}
+        isBs={isBs}
+        visible={lobbyOpening.visible}
+      />
       <ConfirmModal
         cancelLabel={isBs ? 'IZAĐI I OBRIŠI' : 'LEAVE & DELETE'}
         confirmLabel={isBs ? 'OSTANI' : 'STAY'}

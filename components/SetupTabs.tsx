@@ -25,7 +25,7 @@ export function SetupTabs({
     >
       {([
         ['CREATE', isBs ? 'Kreiraj Sobu' : 'Create Room'],
-        ['JOIN', isBs ? 'Pridruži se' : 'Enter Code'],
+        ['JOIN', isBs ? 'Unesi Kod Sobe' : 'Enter Code'],
       ] as const).map(([tab, label]) => (
         <Pressable
           key={tab}

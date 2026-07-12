@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { router } from 'expo-router';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { router, useFocusEffect } from 'expo-router';
 import { AlertOctagon, Loader2, ShieldAlert, Trophy, X } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -78,7 +78,7 @@ export default function GameBoard({
   gameId,
   userId,
 }: GameBoardProps) {
-  const { language, laneResult, muted, setGameRuntime, setLaneResult } = useGame();
+  const { language, laneResult, muted, setGameRuntime, setLaneResult, setLaneResultPlayerName } = useGame();
   const isBs = language === 'bs';
   const { height } = useWindowDimensions();
   const cardTopOffset = 104 + (mode === 'MULTIPLAYER' ? 52 : 0);
@@ -87,8 +87,10 @@ export default function GameBoard({
   const cardAreaHeight = drawnCardHeight + cardTopPadding;
   const dummyArtworkSize = Math.min(192, drawnCardHeight * 0.34);
   const cardFlip = useRef(new Animated.Value(0)).current;
+  const scoreReveal = useRef(new Animated.Value(0)).current;
   const optimisticLaneCardsRef = useRef<Record<string, Card[]>>({});
   const pendingPlacementRef = useRef<{ actingPlayerId: string; card: Card; slotIdx: number } | null>(null);
+  const lastObservedMoveIdRef = useRef<number | null>(null);
 
   const [gameState, setGameState] = useState<GameState>({
     mode,
@@ -103,6 +105,7 @@ export default function GameBoard({
   });
 
   const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null);
+  const [selectedSlotResult, setSelectedSlotResult] = useState<'success' | 'failure' | null>(null);
   const [shakeCard, setShakeCard] = useState(false);
   const [isLaneSheetOpen, setIsLaneSheetOpen] = useState(false);
   const [isDrawnCardFlipped, setIsDrawnCardFlipped] = useState(false);
@@ -119,12 +122,31 @@ export default function GameBoard({
 
   useEffect(() => {
     cardFlip.setValue(0);
+    scoreReveal.setValue(0);
     setIsDrawnCardFlipped(false);
-  }, [cardFlip, gameState.drawnCard?.id]);
+  }, [cardFlip, gameState.drawnCard?.id, scoreReveal]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const canReveal = laneResult === null && ['CORRECT_REVEAL', 'WRONG_REVEAL'].includes(gameState.phase);
+      if (!canReveal) return;
+      scoreReveal.setValue(0);
+      Animated.sequence([
+        Animated.delay(180),
+        Animated.timing(scoreReveal, {
+          duration: 900,
+          easing: Easing.out(Easing.cubic),
+          toValue: 1,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, [gameState.drawnCard?.id, gameState.phase, laneResult, scoreReveal])
+  );
 
   useEffect(() => {
+    if (laneResult !== null) return;
     const pending = pendingPlacementRef.current;
-    if (laneResult !== null || !pending) return;
+    if (!pending) return;
 
     pendingPlacementRef.current = null;
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -143,6 +165,15 @@ export default function GameBoard({
       }),
     }));
   }, [laneResult]);
+
+  useEffect(() => {
+    if (laneResult !== null || selectedSlotIndex === null || selectedSlotResult === null) return;
+    const timer = setTimeout(() => {
+      setSelectedSlotIndex(null);
+      setSelectedSlotResult(null);
+    }, 2050);
+    return () => clearTimeout(timer);
+  }, [laneResult, selectedSlotIndex, selectedSlotResult]);
 
   const flipDrawnCard = () => {
     if (isDrawnCardFlipped) return;
@@ -233,11 +264,14 @@ export default function GameBoard({
     const actingPlayerIndex = activeStealerIndex !== undefined ? activeStealerIndex : currentPlayerIndex;
     const actingPlayer = players[actingPlayerIndex];
     const isCorrect = verifySlotChoice(actingPlayer.lane, drawnCard, slotIdx);
+    setSelectedSlotIndex(slotIdx);
+    setSelectedSlotResult(isCorrect ? 'success' : 'failure');
     if (gameId && userId) api.submitMove(gameId, userId, isCorrect).catch(() => undefined);
 
     if (isCorrect) {
       pendingPlacementRef.current = { actingPlayerId: actingPlayer.id, card: drawnCard, slotIdx };
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setLaneResultPlayerName(actingPlayer.name);
       setLaneResult('success');
       const historyLog = {
         playerName: actingPlayer.name,
@@ -255,6 +289,7 @@ export default function GameBoard({
         };
       });
     } else {
+      setLaneResultPlayerName(actingPlayer.name);
       setLaneResult('failure');
       triggerSound('wrong');
       setShakeCard(true);
@@ -294,9 +329,24 @@ export default function GameBoard({
 
   useEffect(() => {
     if (!gameId) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const poll = async () => {
+      let nextPollDelay = 3000;
       try {
         const game = await api.getGame(gameId);
+        nextPollDelay = Math.max(250, Number(game.ingame_polling_interval_ms) || 3000);
+        const latestMove = game.moves[0];
+        if (lastObservedMoveIdRef.current === null) {
+          lastObservedMoveIdRef.current = latestMove?.id ?? 0;
+        } else if (latestMove && latestMove.id !== lastObservedMoveIdRef.current) {
+          lastObservedMoveIdRef.current = latestMove.id;
+          if (Number(latestMove.player_id) !== Number(userId)) {
+            if (!muted) playSound(latestMove.correct ? 'correct' : 'wrong');
+            setLaneResultPlayerName(latestMove.player.name);
+            setLaneResult(latestMove.correct ? 'success' : 'failure');
+          }
+        }
         setGameState((prev) => ({
           ...prev,
           drawnCard: game.current_card ? toLocalCard(game.current_card) : prev.drawnCard,
@@ -314,11 +364,14 @@ export default function GameBoard({
           }),
           guessHistory: game.moves.map((move) => ({ playerName: move.player.name, cardTitle: move.card?.title ?? '', guessIndex: -1, correctIndex: -1, success: move.correct })),
         }));
-      } catch { /* Retry after three seconds. */ }
+      } catch { /* Retry using the default interval. */ }
+      if (!cancelled) timer = setTimeout(poll, nextPollDelay);
     };
-    poll();
-    const timer = setInterval(poll, 3000);
-    return () => clearInterval(timer);
+    void poll();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
   }, [gameId]);
 
   const handleStealChoice = (accept: boolean) => {
@@ -450,10 +503,13 @@ export default function GameBoard({
       guessHistory: gameState.guessHistory,
       handleSlotSelect,
       lastInsertedCardId,
+      laneResult,
+      selectedSlotIndex,
+      selectedSlotResult,
       phase: gameState.phase,
       players: gameState.players,
     });
-  }, [currentActingPlayer, gameState, isDrawnCardFlipped, lastInsertedCardId, setGameRuntime]);
+  }, [currentActingPlayer, gameState, isDrawnCardFlipped, laneResult, lastInsertedCardId, selectedSlotIndex, selectedSlotResult, setGameRuntime]);
 
   if (gameState.players.length === 0 || !gameState.drawnCard) {
     return (
@@ -632,18 +688,54 @@ export default function GameBoard({
                         colors={['#fbbf24', '#eab308']}
                         style={{
                           alignItems: 'center',
-                          height: 80,
+                          height: 70,
                           justifyContent: 'center',
                           padding: 8,
                           width: 100,
                         }}
                       >
-                        <Text
+                        <Animated.Text
                           className="text-neutral-950"
-                          style={{ fontFamily: 'Outfit_900Black', fontSize: 42, fontWeight: '900', lineHeight: 48 }}
+                          style={{
+                            fontFamily: 'JetBrainsMono_700Bold',
+                            fontSize: 36,
+                            fontWeight: '700',
+                            height: 70,
+                            lineHeight: 70,
+                            opacity: scoreReveal.interpolate({ inputRange: [0, 0.45, 1], outputRange: [1, 0, 0] }),
+                            position: 'absolute',
+                            textAlign: 'center',
+                            textAlignVertical: 'center',
+                            transform: [
+                              { scale: scoreReveal.interpolate({ inputRange: [0, 0.45, 1], outputRange: [1, 0.82, 0.82] }) },
+                              { translateY: 2 },
+                            ],
+                            width: 100,
+                          }}
+                        >
+                          ??.?
+                        </Animated.Text>
+                        <Animated.Text
+                          className="text-neutral-950"
+                          style={{
+                            fontFamily: 'JetBrainsMono_700Bold',
+                            fontSize: 36,
+                            fontWeight: '700',
+                            height: 70,
+                            lineHeight: 70,
+                            opacity: scoreReveal.interpolate({ inputRange: [0, 0.45, 1], outputRange: [0, 0, 1] }),
+                            position: 'absolute',
+                            textAlign: 'center',
+                            textAlignVertical: 'center',
+                            transform: [
+                              { scale: scoreReveal.interpolate({ inputRange: [0, 0.45, 1], outputRange: [1.18, 1.18, 1] }) },
+                              { translateY: scoreReveal.interpolate({ inputRange: [0, 1], outputRange: [9, 2] }) },
+                            ],
+                            width: 100,
+                          }}
                         >
                           {gameState.drawnCard.index.toFixed(1)}
-                        </Text>
+                        </Animated.Text>
                       </LinearGradient>
                     </View>
                   </View>

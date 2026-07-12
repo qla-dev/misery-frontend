@@ -10,7 +10,7 @@ export const API_BASE_URL = API_URLS[API_TARGET];
 export interface ApiUser { id: number; name: string; email: string | null; color: string | null }
 export interface ApiCard { id: number; title: string; subtitle: string | null; score: number | string; image: string; deck: string }
 export interface ApiMove { id: number; player_id: number; correct: boolean; player: ApiUser; card: ApiCard | null; created_at: string }
-export interface ApiGame { id: number; code: string; owner_id: number; started: boolean; members: ApiUser[]; hands: Record<string, ApiCard[]>; current_card: ApiCard | null; moves: ApiMove[] }
+export interface ApiGame { id: number; code: string; owner_id: number; started: boolean; ingame_polling_interval_ms: number; members: ApiUser[]; hands: Record<string, ApiCard[]>; current_card: ApiCard | null; moves: ApiMove[] }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {

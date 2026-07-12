@@ -1,14 +1,19 @@
-import React, { createContext, useContext, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { Language } from '@/types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GameSession, LobbyView, PlayerInput } from './game-types';
 
 interface GameContextValue {
+  isPremium: boolean;
+  activatePremium: () => Promise<void>;
   gameRuntime: any | null;
   setGameRuntime: (runtime: any | null) => void;
   isGameCountingDown: boolean;
   setIsGameCountingDown: (value: boolean) => void;
   laneResult: 'success' | 'failure' | null;
   setLaneResult: (result: 'success' | 'failure' | null) => void;
+  laneResultPlayerName: string | null;
+  setLaneResultPlayerName: (name: string | null) => void;
   language: Language;
   toggleLanguage: () => void;
   lobbyView: LobbyView;
@@ -54,6 +59,7 @@ interface GameContextValue {
 const GameContext = createContext<GameContextValue | null>(null);
 
 export function GameProvider({ children }: { children: React.ReactNode }) {
+  const [isPremium, setIsPremium] = useState(false);
   const [language, setLanguage] = useState<Language>('en');
   const [lobbyView, setLobbyView] = useState<LobbyView>('WELCOME');
   const [lobbyTransitionTarget, setLobbyTransitionTarget] = useState<LobbyView | null>(null);
@@ -77,9 +83,21 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [gameRuntime, setGameRuntime] = useState<any | null>(null);
   const [isGameCountingDown, setIsGameCountingDown] = useState(false);
   const [laneResult, setLaneResult] = useState<'success' | 'failure' | null>(null);
+  const [laneResultPlayerName, setLaneResultPlayerName] = useState<string | null>(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem('@misery-meter/premium').then((value) => setIsPremium(value === 'active')).catch(() => undefined);
+  }, []);
+
+  const activatePremium = async () => {
+    await AsyncStorage.setItem('@misery-meter/premium', 'active');
+    setIsPremium(true);
+  };
 
   const value = useMemo(
     () => ({
+      isPremium,
+      activatePremium,
       language,
       gameRuntime,
       setGameRuntime,
@@ -87,6 +105,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setIsGameCountingDown,
       laneResult,
       setLaneResult,
+      laneResultPlayerName,
+      setLaneResultPlayerName,
       toggleLanguage: () => setLanguage((prev) => (prev === 'en' ? 'bs' : 'en')),
       lobbyView,
       setLobbyView,
@@ -128,10 +148,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setShowRules,
     }),
     [
+      isPremium,
       language,
       gameRuntime,
       isGameCountingDown,
       laneResult,
+      laneResultPlayerName,
       lobbyView,
       lobbyTransitionTarget,
       setupTab,

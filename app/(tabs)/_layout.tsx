@@ -1,5 +1,5 @@
 import { ImageSourcePropType, Text } from 'react-native';
-import { Stack } from 'expo-router';
+import { router, Stack, usePathname } from 'expo-router';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import ChevronLeftIcon from '@expo/material-symbols/chevron_left.xml';
 import HelpIcon from '@expo/material-symbols/help.xml';
@@ -15,6 +15,8 @@ function toolbarIcon(ios: SFSymbol, android: ImageSourcePropType) {
 export default function TabLayout() {
   const { language, lobbyView, toggleLanguage, setInfoModalOpen, setLobbyView, setLobbyTransitionTarget, setRoomExitWarningOpen } = useGame();
   const isBs = language === 'bs';
+  const pathname = usePathname();
+  const isPlayScreen = pathname === '/';
   const headerTitle =
     lobbyView === 'WELCOME'
       ? null
@@ -52,7 +54,7 @@ export default function TabLayout() {
           headerTintColor: '#ffffff',
         }}
       />
-      {lobbyView !== 'WELCOME' && (
+      {(lobbyView !== 'WELCOME' || !isPlayScreen) && (
         <Stack.Toolbar placement="left">
           <Stack.Toolbar.Button
             accessibilityLabel={lobbyView === 'SETUP' ? 'Back to welcome' : 'Back to settings'}
@@ -64,7 +66,17 @@ export default function TabLayout() {
                 return;
               }
               if (lobbyView === 'SETUP') {
+                if (!isPlayScreen) {
+                  setLobbyTransitionTarget(null);
+                  setLobbyView('WELCOME');
+                  router.navigate('/');
+                  return;
+                }
                 setLobbyTransitionTarget('WELCOME');
+                return;
+              }
+              if (!isPlayScreen) {
+                router.navigate('/');
                 return;
               }
               setLobbyView('SETUP');
@@ -119,6 +131,10 @@ export default function TabLayout() {
         <NativeTabs.Trigger name="about" contentStyle={{ backgroundColor: '#0a0a0a' }} disableTransparentOnScrollEdge>
           <NativeTabs.Trigger.Icon sf={{ default: 'info', selected: 'info.fill' } as any} md="info" />
           <NativeTabs.Trigger.Label>{isBs ? 'O igri' : 'About'}</NativeTabs.Trigger.Label>
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="pro" contentStyle={{ backgroundColor: '#0a0a0a' }} disableTransparentOnScrollEdge>
+          <NativeTabs.Trigger.Icon sf={{ default: 'crown', selected: 'crown.fill' } as any} md="workspace_premium" />
+          <NativeTabs.Trigger.Label>Pro</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
       </NativeTabs>
       <InfoModal />

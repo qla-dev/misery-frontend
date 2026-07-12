@@ -2,6 +2,7 @@ import { LoadingState } from '@/components/LoadingState';
 import { Card } from '@/components/Card';
 import { useGame } from '@/context/GameContext';
 import { ScrollView, Text, View } from 'react-native';
+import { TabFadeView } from '@/components/TabFadeView';
 
 export default function HistoryScreen() {
   const { gameRuntime, language } = useGame();
@@ -10,14 +11,14 @@ export default function HistoryScreen() {
 
   if (history.length === 0) {
     return (
-      <View className="flex-1 bg-neutral-950 px-5 pb-24 pt-[104px]">
+      <TabFadeView><View className="flex-1 bg-neutral-950 px-5 pb-24 pt-[104px]">
         <LoadingState message={isBs ? 'JOŠ NEMA ODIGRANIH POTEZA' : 'NO MOVES PLAYED YET'} />
-      </View>
+      </View></TabFadeView>
     );
   }
 
   return (
-    <ScrollView
+    <TabFadeView><ScrollView
       className="flex-1 bg-neutral-950 px-5"
       contentContainerStyle={{ paddingBottom: 120, paddingTop: 104 }}
       showsVerticalScrollIndicator={false}
@@ -42,6 +43,6 @@ export default function HistoryScreen() {
           </Card>
         ))}
       </View>
-    </ScrollView>
+    </ScrollView></TabFadeView>
   );
 }

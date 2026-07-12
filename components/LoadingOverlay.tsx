@@ -90,6 +90,13 @@ export function LoadingOverlay({ isBs = false, mode = 'create', visible }: Loadi
         className="flex-1 items-center justify-center bg-black/95 px-8"
       >
         <View className="w-full max-w-sm items-center" style={{ transform: [{ translateY: -36 }] }}>
+          <LottieView
+            autoPlay
+            loop
+            source={MASCOT_LOTTIE}
+            style={{ height: 148, marginBottom: 12, width: 112 }}
+          />
+
           <Animated.View
             className="min-h-12 items-center justify-center"
             style={{ opacity }}
@@ -98,13 +105,6 @@ export function LoadingOverlay({ isBs = false, mode = 'create', visible }: Loadi
               {message}
             </Text>
           </Animated.View>
-
-          <LottieView
-            autoPlay
-            loop
-            source={MASCOT_LOTTIE}
-            style={{ height: 148, marginVertical: 18, width: 112 }}
-          />
 
           <Text className="text-center text-xl font-black uppercase tracking-wider text-amber-400">
             {copy.title}

@@ -6,7 +6,7 @@ import { ConfirmModal } from './ConfirmModal';
 
 const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
 
-export function InfoModal() {
+export function InfoModal({ onLeaveGame }: { onLeaveGame?: () => void }) {
   const { language, infoModalOpen, setInfoModalOpen } = useGame();
   const isBs = language === 'bs';
 
@@ -18,6 +18,12 @@ export function InfoModal() {
   return (
     <ConfirmModal
       confirmLabel={isBs ? 'RAZUMIJEM' : 'GOT IT'}
+      cancelLabel={onLeaveGame ? (isBs ? 'NAPUSTI IGRU' : 'LEAVE GAME') : undefined}
+      onCancel={onLeaveGame ? () => {
+        playSound('click');
+        setInfoModalOpen(false);
+        onLeaveGame();
+      } : undefined}
       onConfirm={handleAcknowledge}
       onRequestClose={() => setInfoModalOpen(false)}
       visible={infoModalOpen}

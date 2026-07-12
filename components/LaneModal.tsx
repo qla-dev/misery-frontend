@@ -6,6 +6,7 @@ type LaneModalProps = {
   failureMessage: string;
   failureTitle: string;
   onComplete?: () => void;
+  playerName?: string;
   success: boolean;
   successMessage: string;
   successTitle: string;
@@ -16,6 +17,7 @@ export function LaneModal({
   failureMessage,
   failureTitle,
   onComplete,
+  playerName,
   success,
   successMessage,
   successTitle,
@@ -102,6 +104,11 @@ export function LaneModal({
             )}
           </View>
           <View className="items-center" style={{ gap: 8 }}>
+            {playerName && (
+              <Text className="text-center text-base font-black uppercase tracking-widest text-white/90">
+                {playerName}
+              </Text>
+            )}
             <Text className="text-center text-4xl font-black uppercase tracking-wider text-white">
               {success ? successTitle : failureTitle}
             </Text>

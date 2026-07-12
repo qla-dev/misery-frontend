@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
-// Disabled until older native builds include this module:
-// import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Apple, Check, Copy, Crown, Flame, Loader2, Share2, Sparkles, User } from 'lucide-react-native';
 import LottieView from 'lottie-react-native';
 import { Animated, BackHandler, Easing, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Share, Text, View } from 'react-native';
@@ -39,7 +38,7 @@ const AVAILABLE_COLORS = [
 const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
 const RAIN_LOTTIE = require('../assets/animations/rain.json');
 const ROOM_CODE_REGEX = /^(?=(?:.*[A-Z]){4})(?=(?:.*\d){4})[A-Z\d]{8}$/;
-// const LAST_USERNAME_KEY = '@misery-index/last-username';
+const LAST_USERNAME_KEY = '@misery-index/last-username';
 
 function generateRoomCode() {
   const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -327,6 +326,7 @@ function WelcomeSilhouetteRow({ flip = false }: { flip?: boolean }) {
 export default function Lobby() {
   const insets = useSafeAreaInsets();
   const {
+    isPremium,
     language,
     lobbyView,
     setLobbyView,
@@ -419,13 +419,11 @@ export default function Lobby() {
     setLobbyTransitionTarget(null);
   }, [lobbyTransitionTarget]);
 
-  /* AsyncStorage username restoration is temporarily disabled for old builds.
   useEffect(() => {
     AsyncStorage.getItem(LAST_USERNAME_KEY).then((savedName) => {
       if (savedName) setUserName(savedName);
-    });
+    }).catch(() => undefined);
   }, [setUserName]);
-  */
 
   const applyServerGame = (game: ApiGame) => {
     setRoomCode(game.code);
@@ -476,7 +474,7 @@ export default function Lobby() {
     playSound('click');
     const finalName = userName.trim() || (isBs ? 'Igrač 1' : 'Player 1');
     try {
-      // AsyncStorage.setItem(LAST_USERNAME_KEY, finalName); // Temporarily disabled.
+      await AsyncStorage.setItem(LAST_USERNAME_KEY, finalName);
       const result = await api.createGame(finalName, selectedColor);
       setServerGameId(result.game.id);
       setServerUserId(result.user.id);
@@ -527,7 +525,7 @@ export default function Lobby() {
 
     try {
       const finalName = userName.trim() || (isBs ? 'Igrač 2' : 'Player 2');
-      // AsyncStorage.setItem(LAST_USERNAME_KEY, finalName); // Temporarily disabled.
+      await AsyncStorage.setItem(LAST_USERNAME_KEY, finalName);
       const result = await api.joinGame(cleanCode, finalName, selectedColor);
       setServerGameId(result.game.id);
       setServerUserId(result.user.id);
@@ -1044,11 +1042,18 @@ export default function Lobby() {
                 <Pressable
                   onPress={() => {
                     playSound('click');
+                    if (!isPremium) {
+                      router.navigate('/pro');
+                      return;
+                    }
                     setSelectedDeck('SPICY');
                   }}
                   className={`flex-1 py-3 px-3 rounded-xl border-2 items-center justify-center gap-1 ${selectedDeck === 'SPICY' ? 'border-rose-500 bg-rose-500/5' : 'border-neutral-900 bg-transparent'}`}
                 >
-                  <Flame size={16} color={selectedDeck === 'SPICY' ? '#fb7185' : '#737373'} />
+                  <View className="flex-row items-center gap-1">
+                    <Flame size={16} color={selectedDeck === 'SPICY' ? '#fb7185' : '#737373'} />
+                    {!isPremium && <Crown size={13} color="#c084fc" />}
+                  </View>
                   <Text className={`text-[10px] uppercase tracking-wider font-bold ${selectedDeck === 'SPICY' ? 'text-rose-400' : 'text-neutral-500'}`}>
                     {isBs ? 'Ljuti (Spicy)' : 'Spicy'}
                   </Text>

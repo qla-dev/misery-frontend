@@ -13,6 +13,8 @@ interface GameContextValue {
   toggleLanguage: () => void;
   lobbyView: LobbyView;
   setLobbyView: (view: LobbyView) => void;
+  lobbyTransitionTarget: LobbyView | null;
+  setLobbyTransitionTarget: (view: LobbyView | null) => void;
   setupTab: 'CREATE' | 'JOIN';
   setSetupTab: (tab: 'CREATE' | 'JOIN') => void;
   userName: string;
@@ -54,6 +56,7 @@ const GameContext = createContext<GameContextValue | null>(null);
 export function GameProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguage] = useState<Language>('en');
   const [lobbyView, setLobbyView] = useState<LobbyView>('WELCOME');
+  const [lobbyTransitionTarget, setLobbyTransitionTarget] = useState<LobbyView | null>(null);
   const [setupTab, setSetupTab] = useState<'CREATE' | 'JOIN'>('CREATE');
   const [userName, setUserName] = useState('');
   const [selectedColor, setSelectedColor] = useState('yellow');
@@ -87,6 +90,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       toggleLanguage: () => setLanguage((prev) => (prev === 'en' ? 'bs' : 'en')),
       lobbyView,
       setLobbyView,
+      lobbyTransitionTarget,
+      setLobbyTransitionTarget,
       setupTab,
       setSetupTab,
       userName,
@@ -128,6 +133,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       isGameCountingDown,
       laneResult,
       lobbyView,
+      lobbyTransitionTarget,
       setupTab,
       userName,
       selectedColor,

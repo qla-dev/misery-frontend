@@ -5,7 +5,7 @@ import * as Clipboard from 'expo-clipboard';
 // import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Apple, Check, Copy, Crown, Flame, Loader2, Share2, Sparkles, User } from 'lucide-react-native';
 import LottieView from 'lottie-react-native';
-import { Animated, BackHandler, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Share, Text, View } from 'react-native';
+import { Animated, BackHandler, Easing, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Share, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassView } from 'expo-glass-effect';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Path, Stop } from 'react-native-svg';
@@ -330,6 +330,8 @@ export default function Lobby() {
     language,
     lobbyView,
     setLobbyView,
+    lobbyTransitionTarget,
+    setLobbyTransitionTarget,
     setupTab,
     setSetupTab,
     userName,
@@ -362,6 +364,8 @@ export default function Lobby() {
 
   const isBs = language === 'bs';
   const lobbyScrollRef = useRef<ScrollView>(null);
+  const lobbyContentOpacity = useRef(new Animated.Value(1)).current;
+  const lobbyTransitioningRef = useRef(false);
   const codeInputFocusedRef = useRef(false);
   const copyResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lobbyOpeningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -378,6 +382,42 @@ export default function Lobby() {
     message: '',
   });
   const serverStartedRef = useRef(false);
+
+  useEffect(() => {
+    lobbyContentOpacity.setValue(0);
+    Animated.timing(lobbyContentOpacity, {
+      duration: 220,
+      easing: Easing.out(Easing.quad),
+      toValue: 1,
+      useNativeDriver: true,
+    }).start();
+  }, [lobbyContentOpacity, lobbyView]);
+
+  const transitionLobbyView = (nextView: 'WELCOME' | 'SETUP') => {
+    const shouldFade =
+      (lobbyView === 'WELCOME' && nextView === 'SETUP') ||
+      (lobbyView === 'SETUP' && nextView === 'WELCOME');
+    if (!shouldFade || lobbyTransitioningRef.current) {
+      setLobbyView(nextView);
+      return;
+    }
+    lobbyTransitioningRef.current = true;
+    Animated.timing(lobbyContentOpacity, {
+      duration: 180,
+      easing: Easing.in(Easing.quad),
+      toValue: 0,
+      useNativeDriver: true,
+    }).start(() => {
+      setLobbyView(nextView);
+      lobbyTransitioningRef.current = false;
+    });
+  };
+
+  useEffect(() => {
+    if (lobbyTransitionTarget !== 'WELCOME' && lobbyTransitionTarget !== 'SETUP') return;
+    transitionLobbyView(lobbyTransitionTarget);
+    setLobbyTransitionTarget(null);
+  }, [lobbyTransitionTarget]);
 
   /* AsyncStorage username restoration is temporarily disabled for old builds.
   useEffect(() => {
@@ -464,7 +504,7 @@ export default function Lobby() {
     setServerUserId(null);
     setRoomCode('');
     setRoomPlayers([]);
-    setLobbyView('SETUP');
+    transitionLobbyView('SETUP');
 
     if (!gameId) return;
     void api.getGame(gameId)
@@ -504,7 +544,7 @@ export default function Lobby() {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Room not found.';
       setJoinStatusText(message);
-      setLobbyView('SETUP');
+      transitionLobbyView('SETUP');
       if (message === 'No more available seats in this room.') {
         playSound('wrong');
         setStartModal({
@@ -558,7 +598,7 @@ export default function Lobby() {
     setUserName('Amel Kulasin');
     setIsSocialUser(true);
     setSocialProvider(provider);
-    setLobbyView('SETUP');
+    transitionLobbyView('SETUP');
   };
 
   const startGame = async (
@@ -791,7 +831,7 @@ export default function Lobby() {
                   setIsSocialUser(false);
                   setSocialProvider(null);
                   setUserName('');
-                  setLobbyView('SETUP');
+                  transitionLobbyView('SETUP');
                 }}
               >
                 <SocialButtonContent
@@ -837,7 +877,7 @@ export default function Lobby() {
                   setUserName('Amel Kulašin');
                   setIsSocialUser(true);
                   setSocialProvider('google');
-                  setLobbyView('SETUP');
+                  transitionLobbyView('SETUP');
                 }}
                 className="w-full py-3.5 px-4 bg-white rounded-xl flex-row items-center justify-center gap-3 shadow-md"
               >
@@ -851,7 +891,7 @@ export default function Lobby() {
                   setUserName('Amel Kulašin');
                   setIsSocialUser(true);
                   setSocialProvider('apple');
-                  setLobbyView('SETUP');
+                  transitionLobbyView('SETUP');
                 }}
                 className="w-full py-3.5 px-4 bg-black rounded-xl flex-row items-center justify-center gap-3 shadow-md border border-neutral-800"
               >
@@ -871,7 +911,7 @@ export default function Lobby() {
                 setIsSocialUser(false);
                 setSocialProvider(null);
                 setUserName('');
-                setLobbyView('SETUP');
+                transitionLobbyView('SETUP');
               }}
               className="w-full py-3.5 bg-neutral-900/30 border border-neutral-800 rounded-xl flex-row items-center justify-center gap-2"
             >
@@ -921,7 +961,7 @@ export default function Lobby() {
                       setIsSocialUser(false);
                       setSocialProvider(null);
                       setUserName('');
-                      setLobbyView('WELCOME');
+                      transitionLobbyView('WELCOME');
                     }}
                     className="px-2 py-1 rounded bg-neutral-800"
                   >
@@ -1048,7 +1088,7 @@ export default function Lobby() {
                       setIsSocialUser(false);
                       setSocialProvider(null);
                       setUserName('');
-                      setLobbyView('WELCOME');
+                      transitionLobbyView('WELCOME');
                     }}
                     className="px-2 py-1 rounded bg-neutral-800"
                   >
@@ -1233,7 +1273,7 @@ export default function Lobby() {
         className="flex-1 bg-neutral-950"
         enabled={lobbyView === 'SETUP' && isKeyboardVisible}
       >
-        <View className="flex-1">
+        <Animated.View className="flex-1" style={{ opacity: lobbyContentOpacity }}>
           {lobbyView === 'ROOM_JOINING' ? (
             <LoadingState message={joinStatusText} />
           ) : (
@@ -1254,7 +1294,7 @@ export default function Lobby() {
             </ScrollView>
           )}
           {lobbyView === 'SETUP' && isKeyboardVisible && renderSetupAction(true)}
-        </View>
+        </Animated.View>
       </KeyboardAvoidingView>
       <ConfirmModal
         confirmLabel={isBs ? 'POKUŠAJ PONOVO' : 'TRY AGAIN'}

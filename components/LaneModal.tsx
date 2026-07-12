@@ -65,14 +65,14 @@ export function LaneModal({
     ]).start();
 
     const timer = setTimeout(() => {
+      onCompleteRef.current?.();
       Animated.timing(opacity, {
-        duration: 220,
+        duration: 180,
         easing: Easing.in(Easing.quad),
         toValue: 0,
         useNativeDriver: true,
       }).start(() => {
         setRendered(false);
-        onCompleteRef.current?.();
       });
     }, 1400);
 

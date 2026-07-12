@@ -127,6 +127,7 @@ export default function GameBoard({
     if (laneResult !== null || !pending) return;
 
     pendingPlacementRef.current = null;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     const optimisticCards = optimisticLaneCardsRef.current[pending.actingPlayerId] ?? [];
     if (!optimisticCards.some((card) => card.id === pending.card.id)) {
       optimisticLaneCardsRef.current[pending.actingPlayerId] = [...optimisticCards, pending.card];

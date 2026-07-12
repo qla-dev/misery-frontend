@@ -35,6 +35,8 @@ export default function GameTabsLayout() {
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
   const isBs = language === 'bs';
   const activePlayerName = gameRuntime?.currentActingPlayer?.name ?? session?.players[0]?.name;
+  const laneCardsAdded = Math.max(0, (gameRuntime?.currentActingPlayer?.lane?.length ?? 3) - 3);
+  const laneCardsNeeded = session?.targetScore ?? 0;
   const turnTitle = activePlayerName
     ? isBs
       ? `${activePlayerName} JE NA POTEZU`
@@ -123,7 +125,9 @@ export default function GameTabsLayout() {
         </NativeTabs.Trigger>
         <NativeTabs.Trigger name="lane" contentStyle={{ backgroundColor: '#0a0a0a' }}>
           <NativeTabs.Trigger.Icon sf={{ default: 'rectangle.stack', selected: 'rectangle.stack.fill' } as any} md="view_agenda" />
-          <NativeTabs.Trigger.Label>{isBs ? 'Traka bijede' : 'Misery Lane'}</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Label>
+            {isBs ? `Traka bijede ${laneCardsAdded}/${laneCardsNeeded}` : `Misery Lane ${laneCardsAdded}/${laneCardsNeeded}`}
+          </NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
         <NativeTabs.Trigger name="history" contentStyle={{ backgroundColor: '#0a0a0a' }}>
           <NativeTabs.Trigger.Icon sf={{ default: 'clock.arrow.circlepath', selected: 'clock.arrow.circlepath' } as any} md="history" />

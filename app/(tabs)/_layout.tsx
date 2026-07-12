@@ -13,7 +13,7 @@ function toolbarIcon(ios: SFSymbol, android: ImageSourcePropType) {
 }
 
 export default function TabLayout() {
-  const { language, lobbyView, toggleLanguage, setInfoModalOpen, setLobbyView, setRoomExitWarningOpen } = useGame();
+  const { language, lobbyView, toggleLanguage, setInfoModalOpen, setLobbyView, setLobbyTransitionTarget, setRoomExitWarningOpen } = useGame();
   const isBs = language === 'bs';
   const headerTitle =
     lobbyView === 'WELCOME'
@@ -63,7 +63,11 @@ export default function TabLayout() {
                 setRoomExitWarningOpen(true);
                 return;
               }
-              setLobbyView(lobbyView === 'SETUP' ? 'WELCOME' : 'SETUP');
+              if (lobbyView === 'SETUP') {
+                setLobbyTransitionTarget('WELCOME');
+                return;
+              }
+              setLobbyView('SETUP');
             }}
             tintColor="#ffffff"
           />

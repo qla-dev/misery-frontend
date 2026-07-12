@@ -49,7 +49,7 @@ export function ButtonTab({
         : 'bg-transparent border border-neutral-800';
 
   const stateClass = disabled
-    ? 'bg-neutral-800 border-transparent'
+    ? 'bg-neutral-800 border-neutral-800'
     : typeClass;
 
   const content = typeof children === 'string' ? (

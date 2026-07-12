@@ -368,7 +368,7 @@ export default function Lobby() {
   const lobbyScrollRef = useRef<ScrollView>(null);
   const codeInputFocusedRef = useRef(false);
   const copyResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [isCodeInputFocused, setIsCodeInputFocused] = useState(false);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [joinCodeErrorOpen, setJoinCodeErrorOpen] = useState(false);
   const [serverGameId, setServerGameId] = useState<number | null>(null);
   const [serverUserId, setServerUserId] = useState<number | null>(null);
@@ -390,14 +390,21 @@ export default function Lobby() {
   };
 
   useEffect(() => {
-    const keyboardSubscription = Keyboard.addListener('keyboardDidShow', () => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSubscription = Keyboard.addListener(showEvent, () => {
+      setIsKeyboardVisible(true);
       if (!codeInputFocusedRef.current) return;
       requestAnimationFrame(() => {
         lobbyScrollRef.current?.scrollToEnd({ animated: true });
       });
     });
+    const hideSubscription = Keyboard.addListener(hideEvent, () => setIsKeyboardVisible(false));
 
-    return () => keyboardSubscription.remove();
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
   }, []);
 
   useEffect(() => {
@@ -612,6 +619,38 @@ export default function Lobby() {
         setSetupTab(tab);
       }}
     />
+  );
+
+  const renderSetupAction = (fixed = false) => (
+    <View
+      className="bg-neutral-950"
+      style={{
+        borderTopColor: fixed ? '#262626' : 'transparent',
+        borderTopWidth: fixed ? 1 : 0,
+        marginHorizontal: fixed ? 0 : -20,
+        paddingHorizontal: 20,
+        paddingVertical: 16,
+        width: fixed ? '100%' : undefined,
+      }}
+    >
+      <ButtonTab
+        category="button"
+        type="primary"
+        size="100"
+        disabled={setupTab === 'CREATE' ? !hasPlayerIdentity : !hasPlayerIdentity || !hasValidRoomCode}
+        onPress={setupTab === 'CREATE' ? handleCreateRoom : handleJoinWithCode}
+      >
+        {setupTab === 'CREATE'
+          ? !hasPlayerIdentity
+            ? isBs ? 'UNESI IME' : 'ENTER NAME'
+            : isBs ? 'Započni igru' : 'Start Game'
+          : !hasPlayerIdentity
+            ? isBs ? 'UNESI IME' : 'ENTER NAME'
+            : !hasValidRoomCode
+              ? isBs ? 'UNESI KOD SOBE' : 'ENTER ROOM CODE'
+              : isBs ? 'Započni igru' : 'Start Game'}
+      </ButtonTab>
+    </View>
   );
 
   const renderContent = () => {
@@ -946,15 +985,7 @@ export default function Lobby() {
               </View>
             </Section>
 
-            <ButtonTab
-              category="button"
-              type="primary"
-              size="100"
-              disabled={!hasPlayerIdentity}
-              onPress={handleCreateRoom}
-            >
-              {!hasPlayerIdentity ? (isBs ? 'UNESI IME' : 'ENTER NAME') : isBs ? 'Započni igru' : 'Start Game'}
-            </ButtonTab>
+            {!isKeyboardVisible && renderSetupAction()}
           </View>
         );
       } else {
@@ -1037,11 +1068,9 @@ export default function Lobby() {
                 }}
                 onFocus={() => {
                   codeInputFocusedRef.current = true;
-                  setIsCodeInputFocused(true);
                 }}
                 onBlur={() => {
                   codeInputFocusedRef.current = false;
-                  setIsCodeInputFocused(false);
                 }}
                 placeholder={isBs ? 'NPR. A1B2C3D4' : 'E.G. A1B2C3D4'}
                 className="w-full"
@@ -1049,25 +1078,7 @@ export default function Lobby() {
               />
             </Section>
 
-            <ButtonTab
-              category="button"
-              type="primary"
-              size="100"
-              disabled={!hasPlayerIdentity || !hasValidRoomCode}
-              onPress={handleJoinWithCode}
-            >
-              {!hasPlayerIdentity
-                ? isBs
-                  ? 'UNESI IME'
-                  : 'ENTER NAME'
-                : !hasValidRoomCode
-                  ? isBs
-                    ? 'UNESI KOD SOBE'
-                    : 'ENTER ROOM CODE'
-                  : isBs
-                    ? 'Započni igru'
-                    : 'Start Game'}
-            </ButtonTab>
+            {!isKeyboardVisible && renderSetupAction()}
           </View>
         );
       }
@@ -1183,7 +1194,7 @@ export default function Lobby() {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1 bg-neutral-950"
-        enabled={isCodeInputFocused}
+        enabled={lobbyView === 'SETUP' && isKeyboardVisible}
       >
         <View className="flex-1">
           {lobbyView === 'ROOM_JOINING' ? (
@@ -1205,6 +1216,7 @@ export default function Lobby() {
               {renderContent()}
             </ScrollView>
           )}
+          {lobbyView === 'SETUP' && isKeyboardVisible && renderSetupAction(true)}
         </View>
       </KeyboardAvoidingView>
       <ConfirmModal

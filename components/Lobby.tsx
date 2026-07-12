@@ -421,10 +421,10 @@ export default function Lobby() {
 
   const isBs = language === 'bs';
   const lobbyScrollRef = useRef<ScrollView>(null);
-  const lobbyContentOpacity = useRef(new Animated.Value(1)).current;
+  const welcomeOpacity = useRef(new Animated.Value(lobbyView === 'WELCOME' ? 1 : 0)).current;
+  const setupOpacity = useRef(new Animated.Value(lobbyView === 'SETUP' ? 1 : 0)).current;
+  const lobbyCrossfadeRef = useRef(false);
   const authButtonsOpacity = useRef(new Animated.Value(1)).current;
-  const lobbyTransitioningRef = useRef(false);
-  const pendingLobbyFadeInRef = useRef<'WELCOME' | 'SETUP' | null>(null);
   const authButtonsTransitioningRef = useRef(false);
   const joinPendingRef = useRef(false);
   const codeInputFocusedRef = useRef(false);
@@ -458,34 +458,6 @@ export default function Lobby() {
   });
 
   useEffect(() => {
-    lobbyContentOpacity.setValue(0);
-    logLobbyTransition('view-fade-in-start', { lobbyView });
-    Animated.timing(lobbyContentOpacity, {
-      duration: 220,
-      easing: Easing.out(Easing.quad),
-      toValue: 1,
-      useNativeDriver: true,
-    }).start(({ finished }) => logLobbyTransition('view-fade-in-end', { finished, lobbyView }));
-  }, [lobbyContentOpacity]);
-
-  useEffect(() => {
-    logLobbyTransition('view-rendered', { lobbyView });
-    if (pendingLobbyFadeInRef.current !== lobbyView) return;
-
-    pendingLobbyFadeInRef.current = null;
-    logLobbyTransition('transition-fade-in-start', { nextView: lobbyView });
-    Animated.timing(lobbyContentOpacity, {
-      duration: 220,
-      easing: Easing.out(Easing.quad),
-      toValue: 1,
-      useNativeDriver: true,
-    }).start(({ finished }) => {
-      logLobbyTransition('transition-fade-in-end', { finished, nextView: lobbyView });
-      lobbyTransitioningRef.current = false;
-    });
-  }, [lobbyView]);
-
-  useEffect(() => {
     const canPrefetchAvailableGames = lobbyView === 'WELCOME' || lobbyView === 'SETUP';
     if (!IS_WEB_INTERFACE || !canPrefetchAvailableGames) {
       logLobbyTransition('available-games-disabled', { isWeb: IS_WEB_INTERFACE, lobbyView });
@@ -507,34 +479,36 @@ export default function Lobby() {
     };
   }, [lobbyView]);
 
-  const transitionLobbyView = (nextView: 'WELCOME' | 'SETUP') => {
-    const shouldFade =
-      (lobbyView === 'WELCOME' && nextView === 'SETUP') ||
-      (lobbyView === 'SETUP' && nextView === 'WELCOME');
-    if (lobbyTransitioningRef.current) {
-      logLobbyTransition('transition-ignored', { from: lobbyView, nextView });
-      return;
-    }
-    if (!shouldFade) {
-      logLobbyTransition('transition-immediate', { from: lobbyView, nextView, transitionBusy: lobbyTransitioningRef.current });
+  const transitionLobbyView = (nextView: 'WELCOME' | 'SETUP', beforeSwap?: () => void) => {
+    if (lobbyCrossfadeRef.current || lobbyView === nextView) return;
+    const canCrossfade = lobbyView === 'WELCOME' || lobbyView === 'SETUP';
+    if (!canCrossfade) {
+      beforeSwap?.();
       setLobbyView(nextView);
       return;
     }
-    lobbyTransitioningRef.current = true;
-    logLobbyTransition('transition-fade-out-start', { from: lobbyView, nextView });
-    Animated.timing(lobbyContentOpacity, {
-      duration: 180,
-      easing: Easing.in(Easing.quad),
-      toValue: 0,
-      useNativeDriver: true,
-    }).start(({ finished }) => {
-      if (!finished) {
-        lobbyTransitioningRef.current = false;
-        return;
-      }
-      logLobbyTransition('transition-fade-out-end', { from: lobbyView, nextView });
-      pendingLobbyFadeInRef.current = nextView;
-      setLobbyView(nextView);
+
+    lobbyCrossfadeRef.current = true;
+    logLobbyTransition('transition-crossfade-start', { from: lobbyView, nextView });
+    beforeSwap?.();
+    setLobbyView(nextView);
+
+    Animated.parallel([
+      Animated.timing(welcomeOpacity, {
+        duration: 280,
+        easing: Easing.inOut(Easing.cubic),
+        toValue: nextView === 'WELCOME' ? 1 : 0,
+        useNativeDriver: true,
+      }),
+      Animated.timing(setupOpacity, {
+        duration: 280,
+        easing: Easing.inOut(Easing.cubic),
+        toValue: nextView === 'SETUP' ? 1 : 0,
+        useNativeDriver: true,
+      }),
+    ]).start(({ finished }) => {
+      lobbyCrossfadeRef.current = false;
+      logLobbyTransition('transition-crossfade-end', { finished, nextView });
     });
   };
 
@@ -785,10 +759,11 @@ export default function Lobby() {
         [AUTH_PROVIDER_KEY, provider],
         [LAST_USERNAME_KEY, result.user.name],
       ]);
-      setUserName(result.user.name);
-      setIsSocialUser(true);
-      setSocialProvider(provider);
-      transitionLobbyView('SETUP');
+      transitionLobbyView('SETUP', () => {
+        setUserName(result.user.name);
+        setIsSocialUser(true);
+        setSocialProvider(provider);
+      });
     } catch (error: any) {
       setIsSigningIn(false);
       setSigningInProvider(null);
@@ -843,10 +818,11 @@ export default function Lobby() {
           [AUTH_PROVIDER_KEY, 'google'],
           [LAST_USERNAME_KEY, result.user.name],
         ]);
-        setUserName(result.user.name);
-        setIsSocialUser(true);
-        setSocialProvider('google');
-        transitionLobbyView('SETUP');
+        transitionLobbyView('SETUP', () => {
+          setUserName(result.user.name);
+          setIsSocialUser(true);
+          setSocialProvider('google');
+        });
       })
       .catch((error) => {
         processedGoogleTokenRef.current = null;
@@ -1129,12 +1105,12 @@ export default function Lobby() {
     </View>
   );
 
-  const renderContent = () => {
+  const renderContent = (view = lobbyView) => {
     const hasRememberedSocialSession = Boolean(
       isSocialUser && socialProvider && userName && !isSigningIn
     );
 
-    if (lobbyView === 'WELCOME') {
+    if (view === 'WELCOME') {
       return (
         <View style={{ gap: 24, position: 'relative' }}>
           <View
@@ -1394,7 +1370,7 @@ export default function Lobby() {
       );
     }
 
-    if (lobbyView === 'SETUP') {
+    if (view === 'SETUP') {
       if (setupTab === 'CREATE') {
         return (
           <View style={{ gap: 32 }}>
@@ -1630,7 +1606,7 @@ export default function Lobby() {
       }
     }
 
-    if (lobbyView === 'ROOM_CREATED') {
+    if (view === 'ROOM_CREATED') {
       return (
         <View style={{ gap: 20 }}>
           <View style={{ gap: 16 }}>
@@ -1680,7 +1656,7 @@ export default function Lobby() {
       );
     }
 
-    if (lobbyView === 'ROOM_JOINED') {
+    if (view === 'ROOM_JOINED') {
       return (
         <View style={{ gap: 20 }}>
           <View style={{ gap: 16 }}>
@@ -1742,28 +1718,55 @@ export default function Lobby() {
         className="flex-1 bg-neutral-950"
         enabled={lobbyView === 'SETUP' && isKeyboardVisible}
       >
-        <Animated.View className="flex-1" style={{ opacity: lobbyContentOpacity }}>
+        {lobbyView === 'WELCOME' || lobbyView === 'SETUP' ? (
+          <View className="flex-1">
+            <Animated.View
+              pointerEvents={lobbyView === 'WELCOME' ? 'auto' : 'none'}
+              style={{ bottom: 0, left: 0, opacity: welcomeOpacity, position: 'absolute', right: 0, top: 0 }}
+            >
+              <ScrollView
+                className="flex-1 px-5"
+                contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingVertical: 24 }}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
+                {renderContent('WELCOME')}
+              </ScrollView>
+            </Animated.View>
+
+            <Animated.View
+              pointerEvents={lobbyView === 'SETUP' ? 'auto' : 'none'}
+              style={{ bottom: 0, left: 0, opacity: setupOpacity, position: 'absolute', right: 0, top: 0 }}
+            >
+              <ScrollView
+                ref={lobbyScrollRef}
+                className="flex-1 px-5"
+                contentContainerStyle={{ paddingBottom: 15, paddingTop: 104 }}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
+                {renderContent('SETUP')}
+              </ScrollView>
+              {lobbyView === 'SETUP' && isKeyboardVisible && renderSetupAction(true)}
+            </Animated.View>
+          </View>
+        ) : (
+        <View key={lobbyView} className="flex-1">
           {lobbyView === 'ROOM_JOINING' ? (
             <LoadingState message={joinStatusText} />
           ) : (
             <ScrollView
               ref={lobbyScrollRef}
               className="flex-1 px-5"
-              contentContainerStyle={
-                lobbyView === 'WELCOME'
-                  ? { flexGrow: 1, justifyContent: 'center', paddingVertical: 24 }
-                  : lobbyView === 'SETUP'
-                    ? { paddingBottom: 15, paddingTop: 104 }
-                    : { paddingBottom: 24, paddingTop: 100 }
-              }
+              contentContainerStyle={{ paddingBottom: 24, paddingTop: 100 }}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
               {renderContent()}
             </ScrollView>
           )}
-          {lobbyView === 'SETUP' && isKeyboardVisible && renderSetupAction(true)}
-        </Animated.View>
+        </View>
+        )}
       </KeyboardAvoidingView>
       <ConfirmModal
         cancelLabel={isBs ? 'ODUSTANI' : 'CANCEL'}

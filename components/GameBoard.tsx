@@ -86,7 +86,13 @@ export default function GameBoard({
   const [shakeCard, setShakeCard] = useState(false);
   const [isLaneSheetOpen, setIsLaneSheetOpen] = useState(false);
   const [isDrawnCardFlipped, setIsDrawnCardFlipped] = useState(false);
-  const toLocalCard = (card: ApiCard): Card => ({ id: String(card.id), titleEn: card.title, titleBs: card.title, index: card.score, illustrationType: 'general_misery' });
+  const toLocalCard = (card: ApiCard): Card => ({
+    id: String(card.id),
+    titleEn: card.title,
+    titleBs: card.title,
+    index: Number(card.score),
+    illustrationType: 'general_misery',
+  });
 
   useEffect(() => {
     cardFlip.setValue(0);

@@ -8,7 +8,7 @@ const API_URLS = {
 export const API_BASE_URL = API_URLS[API_TARGET];
 
 export interface ApiUser { id: number; name: string; email: string | null }
-export interface ApiCard { id: number; title: string; score: number; image: string; deck: string }
+export interface ApiCard { id: number; title: string; score: number | string; image: string; deck: string }
 export interface ApiMove { id: number; player_id: number; correct: boolean; player: ApiUser; card: ApiCard | null; created_at: string }
 export interface ApiGame { id: number; code: string; owner_id: number; started: boolean; members: ApiUser[]; hands: Record<string, ApiCard[]>; current_card: ApiCard | null; moves: ApiMove[] }
 

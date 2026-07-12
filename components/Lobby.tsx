@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
-import { Apple, Check, Copy, Crown, Flame, Loader2, LogIn, Plus, Share2, Sparkles, User } from 'lucide-react-native';
+import { Apple, Check, Copy, Crown, Flame, Loader2, Share2, Sparkles, User } from 'lucide-react-native';
 import LottieView from 'lottie-react-native';
 import { Animated, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Share, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,6 +18,7 @@ import { ButtonTab } from './ButtonTab';
 import { Card } from './Card';
 import { ConfirmModal } from './ConfirmModal';
 import { LoadingState } from './LoadingState';
+import { SetupTabs } from './SetupTabs';
 import { api, ApiGame, API_BASE_URL } from '@/lib/api';
 
 const AVAILABLE_COLORS = [
@@ -603,83 +604,14 @@ export default function Lobby() {
   const hasValidRoomCode = ROOM_CODE_REGEX.test(enteredCode.trim().toUpperCase());
 
   const renderSetupTabs = () => (
-    <View style={{ alignSelf: 'center', flexDirection: 'row', gap: 8, height: 48, maxWidth: 420, width: '100%' }}>
-      <GlassView
-        colorScheme="dark"
-        glassEffectStyle={{
-          style: setupTab === 'CREATE' ? 'regular' : 'none',
-          animate: true,
-          animationDuration: 0.6,
-        }}
-        isInteractive
-        style={{ alignItems: 'center', borderRadius: 12, flex: 1, justifyContent: 'center' }}
-        tintColor="rgba(251,191,36,0.16)"
-      >
-        <Pressable
-          accessibilityRole="tab"
-          accessibilityState={{ selected: setupTab === 'CREATE' }}
-          onPress={() => {
-            playSound('click');
-            setSetupTab('CREATE');
-          }}
-          className="w-full h-full rounded-xl items-center justify-center"
-          style={({ pressed }) => [
-            {
-              borderColor: setupTab === 'CREATE' ? 'rgba(251,191,36,0.5)' : 'rgba(38,38,38,1)',
-              borderWidth: 1,
-              opacity: pressed ? 0.72 : 1,
-            },
-          ]}
-        >
-          <View className="flex-row items-center justify-center gap-2 px-2">
-            <View className={`w-6 h-6 rounded-md items-center justify-center ${setupTab === 'CREATE' ? 'bg-amber-400/20' : 'bg-transparent'}`}>
-              <Plus size={14} color={setupTab === 'CREATE' ? '#fbbf24' : '#ffffff'} strokeWidth={3} />
-            </View>
-            <Text className={`text-xs font-black uppercase tracking-wider ${setupTab === 'CREATE' ? 'text-amber-300' : 'text-neutral-200'}`}>
-              {isBs ? 'Kreiraj Sobu' : 'Create Room'}
-            </Text>
-          </View>
-        </Pressable>
-      </GlassView>
-
-      <GlassView
-        colorScheme="dark"
-        glassEffectStyle={{
-          style: setupTab === 'JOIN' ? 'regular' : 'none',
-          animate: true,
-          animationDuration: 0.6,
-        }}
-        isInteractive
-        style={{ alignItems: 'center', borderRadius: 12, flex: 1, justifyContent: 'center' }}
-        tintColor="rgba(251,191,36,0.16)"
-      >
-        <Pressable
-          accessibilityRole="tab"
-          accessibilityState={{ selected: setupTab === 'JOIN' }}
-          onPress={() => {
-            playSound('click');
-            setSetupTab('JOIN');
-          }}
-          className="w-full h-full rounded-xl items-center justify-center"
-          style={({ pressed }) => [
-            {
-              borderColor: setupTab === 'JOIN' ? 'rgba(251,191,36,0.5)' : 'rgba(38,38,38,1)',
-              borderWidth: 1,
-              opacity: pressed ? 0.72 : 1,
-            },
-          ]}
-        >
-          <View className="flex-row items-center justify-center gap-2 px-2">
-            <View className={`w-6 h-6 rounded-md items-center justify-center ${setupTab === 'JOIN' ? 'bg-amber-400/20' : 'bg-transparent'}`}>
-              <LogIn size={14} color={setupTab === 'JOIN' ? '#fbbf24' : '#ffffff'} strokeWidth={3} />
-            </View>
-            <Text className={`text-xs font-black uppercase tracking-wider ${setupTab === 'JOIN' ? 'text-amber-300' : 'text-neutral-200'}`}>
-              {isBs ? 'Pridruži se' : 'Enter Code'}
-            </Text>
-          </View>
-        </Pressable>
-      </GlassView>
-    </View>
+    <SetupTabs
+      isBs={isBs}
+      value={setupTab}
+      onChange={(tab) => {
+        playSound('click');
+        setSetupTab(tab);
+      }}
+    />
   );
 
   const renderContent = () => {

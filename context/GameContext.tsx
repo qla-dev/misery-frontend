@@ -39,6 +39,8 @@ interface GameContextValue {
   setJoinStatusText: (text: string) => void;
   infoModalOpen: boolean;
   setInfoModalOpen: (open: boolean) => void;
+  roomExitWarningOpen: boolean;
+  setRoomExitWarningOpen: (open: boolean) => void;
   session: GameSession | null;
   setSession: (session: GameSession | null) => void;
   muted: boolean;
@@ -65,6 +67,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [isCopied, setIsCopied] = useState(false);
   const [joinStatusText, setJoinStatusText] = useState('');
   const [infoModalOpen, setInfoModalOpen] = useState(false);
+  const [roomExitWarningOpen, setRoomExitWarningOpen] = useState(false);
   const [muted, setMuted] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [session, setSession] = useState<GameSession | null>(null);
@@ -110,6 +113,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setJoinStatusText,
       infoModalOpen,
       setInfoModalOpen,
+      roomExitWarningOpen,
+      setRoomExitWarningOpen,
       session,
       setSession,
       muted,
@@ -136,6 +141,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       isCopied,
       joinStatusText,
       infoModalOpen,
+      roomExitWarningOpen,
       session,
       muted,
       showRules,

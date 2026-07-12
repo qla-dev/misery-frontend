@@ -69,6 +69,7 @@ export default function GameBoard({
   const drawnCardHeight = Math.min(560, Math.max(320, cardAreaHeight - 24));
   const dummyArtworkSize = Math.min(192, drawnCardHeight * 0.34);
   const cardFlip = useRef(new Animated.Value(0)).current;
+  const optimisticLaneCardsRef = useRef<Record<string, Card[]>>({});
 
   const [gameState, setGameState] = useState<GameState>({
     mode,
@@ -86,6 +87,7 @@ export default function GameBoard({
   const [shakeCard, setShakeCard] = useState(false);
   const [isLaneSheetOpen, setIsLaneSheetOpen] = useState(false);
   const [isDrawnCardFlipped, setIsDrawnCardFlipped] = useState(false);
+  const [lastInsertedCardId, setLastInsertedCardId] = useState<string | null>(null);
   const toLocalCard = (card: ApiCard): Card => ({
     id: String(card.id),
     titleEn: card.title,
@@ -191,6 +193,11 @@ export default function GameBoard({
     if (gameId && userId) api.submitMove(gameId, userId, isCorrect).catch(() => undefined);
 
     if (isCorrect) {
+      const optimisticCards = optimisticLaneCardsRef.current[actingPlayer.id] ?? [];
+      if (!optimisticCards.some((card) => card.id === drawnCard.id)) {
+        optimisticLaneCardsRef.current[actingPlayer.id] = [...optimisticCards, drawnCard];
+      }
+      setLastInsertedCardId(drawnCard.id);
       setLaneResult('success');
       triggerSound('correct');
       const updatedPlayers = players.map((p, idx) => {
@@ -265,7 +272,14 @@ export default function GameBoard({
           drawnCard: game.current_card ? toLocalCard(game.current_card) : prev.drawnCard,
           players: prev.players.map((player) => {
             const hand = game.hands[player.id];
-            return hand ? { ...player, lane: hand.map(toLocalCard).sort((a, b) => a.index - b.index), score: hand.length } : player;
+            if (!hand) return player;
+            const serverLane = hand.map(toLocalCard);
+            const serverCardIds = new Set(serverLane.map((card) => card.id));
+            const pendingCards = (optimisticLaneCardsRef.current[player.id] ?? [])
+              .filter((card) => !serverCardIds.has(card.id));
+            optimisticLaneCardsRef.current[player.id] = pendingCards;
+            const lane = [...serverLane, ...pendingCards].sort((a, b) => a.index - b.index);
+            return { ...player, lane, score: lane.length };
           }),
           guessHistory: game.moves.map((move) => ({ playerName: move.player.name, cardTitle: move.card?.title ?? '', guessIndex: -1, correctIndex: -1, success: move.correct })),
         }));
@@ -393,10 +407,6 @@ export default function GameBoard({
   const isVictoryPhase = gameState.phase === 'VICTORY';
   const isGameOverPhase = gameState.phase === 'GAME_OVER';
   const currentActingPlayer = activeStealer || currentPlayer;
-  const dummyCardScore = gameState.drawnCard
-    ? ((Array.from(gameState.drawnCard.id).reduce((total, character) => total + character.charCodeAt(0), 0) * 37) % 1000 / 10).toFixed(1)
-    : '0.0';
-
   useEffect(() => {
     setGameRuntime({
       canPlaceCard:
@@ -408,10 +418,11 @@ export default function GameBoard({
       drawnCard: gameState.drawnCard,
       guessHistory: gameState.guessHistory,
       handleSlotSelect,
+      lastInsertedCardId,
       phase: gameState.phase,
       players: gameState.players,
     });
-  }, [currentActingPlayer, gameState, isDrawnCardFlipped, setGameRuntime]);
+  }, [currentActingPlayer, gameState, isDrawnCardFlipped, lastInsertedCardId, setGameRuntime]);
 
   if (gameState.players.length === 0 || !gameState.drawnCard) {
     return (
@@ -586,7 +597,7 @@ export default function GameBoard({
                           className="font-mono text-5xl font-black leading-[52px] text-neutral-950"
                           style={{ padding: 12 }}
                         >
-                          {isCorrectPhase || isWrongPhase ? gameState.drawnCard.index.toFixed(1) : dummyCardScore}
+                          {gameState.drawnCard.index.toFixed(1)}
                         </Text>
                       </LinearGradient>
                     </View>

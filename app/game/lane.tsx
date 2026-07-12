@@ -1,5 +1,53 @@
 import { useGame } from '@/context/GameContext';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, Pressable, ScrollView, Text, View } from 'react-native';
+
+function LaneCard({ card, isBs, isNew }: { card: any; isBs: boolean; isNew: boolean }) {
+  const entrance = useRef(new Animated.Value(isNew ? 0 : 1)).current;
+
+  useEffect(() => {
+    if (!isNew) {
+      entrance.setValue(1);
+      return;
+    }
+    entrance.setValue(0);
+    Animated.spring(entrance, {
+      damping: 10,
+      mass: 0.7,
+      stiffness: 150,
+      toValue: 1,
+      useNativeDriver: true,
+    }).start();
+  }, [entrance, isNew]);
+
+  return (
+    <Animated.View
+      className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4"
+      style={{
+        opacity: entrance.interpolate({ inputRange: [0, 1], outputRange: [0, 1], extrapolate: 'clamp' }),
+        transform: [
+          { translateY: entrance.interpolate({ inputRange: [0, 1], outputRange: [-52, 0] }) },
+          { scale: entrance.interpolate({ inputRange: [0, 0.72, 1], outputRange: [0.55, 1.08, 1] }) },
+          { rotate: entrance.interpolate({ inputRange: [0, 1], outputRange: ['-4deg', '0deg'] }) },
+        ],
+      }}
+    >
+      <View className="flex-row items-center gap-4">
+        <Text className="font-mono text-xl font-black text-amber-400">{card.index.toFixed(1)}</Text>
+        <View className="flex-1">
+          <Text className="text-base font-black uppercase leading-5 text-neutral-100">
+            {isBs ? card.titleBs : card.titleEn}
+          </Text>
+          {(card.descriptionBs || card.descriptionEn) && (
+            <Text className="mt-1 text-xs leading-5 text-neutral-500">
+              {isBs ? card.descriptionBs : card.descriptionEn}
+            </Text>
+          )}
+        </View>
+      </View>
+    </Animated.View>
+  );
+}
 
 export default function MiseryLaneScreen() {
   const { gameRuntime, language } = useGame();
@@ -42,21 +90,7 @@ export default function MiseryLaneScreen() {
                 </Text>
               </Pressable>
             )}
-            <View className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4">
-              <View className="flex-row items-center gap-4">
-                <Text className="font-mono text-xl font-black text-amber-400">{card.index.toFixed(1)}</Text>
-                <View className="flex-1">
-                  <Text className="text-base font-black uppercase leading-5 text-neutral-100">
-                    {isBs ? card.titleBs : card.titleEn}
-                  </Text>
-                  {(card.descriptionBs || card.descriptionEn) && (
-                    <Text className="mt-1 text-xs leading-5 text-neutral-500">
-                      {isBs ? card.descriptionBs : card.descriptionEn}
-                    </Text>
-                  )}
-                </View>
-              </View>
-            </View>
+            <LaneCard card={card} isBs={isBs} isNew={card.id === gameRuntime.lastInsertedCardId} />
           </View>
         ))}
         {gameRuntime.canPlaceCard && (

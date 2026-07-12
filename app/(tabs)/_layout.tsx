@@ -13,7 +13,7 @@ function toolbarIcon(ios: SFSymbol, android: ImageSourcePropType) {
 }
 
 export default function TabLayout() {
-  const { language, lobbyView, toggleLanguage, setInfoModalOpen, setLobbyView } = useGame();
+  const { language, lobbyView, toggleLanguage, setInfoModalOpen, setLobbyView, setRoomExitWarningOpen } = useGame();
   const isBs = language === 'bs';
   const headerTitle =
     lobbyView === 'WELCOME'
@@ -59,6 +59,10 @@ export default function TabLayout() {
             icon={toolbarIcon('chevron.left', ChevronLeftIcon)}
             onPress={() => {
               playSound('click');
+              if (lobbyView === 'ROOM_CREATED') {
+                setRoomExitWarningOpen(true);
+                return;
+              }
               setLobbyView(lobbyView === 'SETUP' ? 'WELCOME' : 'SETUP');
             }}
             tintColor="#ffffff"

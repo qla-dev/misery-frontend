@@ -8,7 +8,7 @@
     "scheme": "miseryindex",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
-    "owner": "kulasinn",
+    "owner": "kulasinn-2",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "misery.qla.dev",
@@ -70,7 +70,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "43b2501c-9f9a-4ba5-866b-829789ba477b"
+        "projectId": "a88a9dfd-a504-4af4-b0fb-43e1888fee43"
       }
     }
   }

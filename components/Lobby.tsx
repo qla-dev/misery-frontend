@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
+// Disabled until older native builds include this module:
+// import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Apple, Check, Copy, Crown, Flame, Loader2, Share2, Sparkles, User } from 'lucide-react-native';
 import LottieView from 'lottie-react-native';
-import { Animated, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Share, Text, View } from 'react-native';
+import { Animated, BackHandler, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Share, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassView } from 'expo-glass-effect';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Path, Stop } from 'react-native-svg';
@@ -18,8 +20,9 @@ import { ButtonTab } from './ButtonTab';
 import { Card } from './Card';
 import { ConfirmModal } from './ConfirmModal';
 import { LoadingState } from './LoadingState';
+import { LoadingOverlay } from './LoadingOverlay';
 import { SetupTabs } from './SetupTabs';
-import { api, ApiGame, API_BASE_URL } from '@/lib/api';
+import { api, ApiGame } from '@/lib/api';
 
 const AVAILABLE_COLORS = [
   { id: 'yellow', nameEn: 'Amber Gold', nameBs: 'Zlatni Ćilibar', bgClass: 'bg-yellow-400', borderClass: 'border-yellow-400 bg-yellow-400/5 text-yellow-400' },
@@ -30,10 +33,10 @@ const AVAILABLE_COLORS = [
   { id: 'cyan', nameEn: 'Cyber Cyan', nameBs: 'Sajber Plava', bgClass: 'bg-cyan-400', borderClass: 'border-cyan-400 bg-cyan-400/5 text-cyan-400' },
 ];
 
-const BOT_NAMES = ['Sanjin', 'Lejla', 'Aida', 'Kenan', 'Selma', 'Tarik', 'Emina', 'Amar'];
 const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
 const RAIN_LOTTIE = require('../assets/animations/rain.json');
 const ROOM_CODE_REGEX = /^(?=(?:.*[A-Z]){4})(?=(?:.*\d){4})[A-Z\d]{8}$/;
+// const LAST_USERNAME_KEY = '@misery-index/last-username';
 
 function generateRoomCode() {
   const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -91,7 +94,7 @@ function PlayerCard({
 }: {
   index: number;
   isBs: boolean;
-  player: { color: string; isBot?: boolean; name: string };
+  player: { color: string; name: string };
   roomState: 'created' | 'joined';
 }) {
   const playerColor =
@@ -107,25 +110,13 @@ function PlayerCard({
           {index === 0 && <Crown size={18} color="#facc15" fill="#facc15" />}
         </View>
         <View className="flex-row items-center gap-2">
-          {player.isBot ? (
-            roomState === 'joined' && index !== 0 ? (
-              <Text className="rounded-md bg-neutral-800 px-2.5 py-1 font-mono text-[10px] text-neutral-400">
-                BOT
-              </Text>
-            ) : (
-              <Text className="rounded-md border border-amber-400/20 bg-amber-400/10 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase text-amber-300">
-                {roomState === 'joined' ? 'HOST BOT' : 'BOT'}
-              </Text>
-            )
-          ) : (
-            <Text
-              className={`rounded-md bg-yellow-500 px-2.5 py-1 font-mono text-[10px] font-extrabold uppercase text-black ${
-                roomState === 'joined' ? 'animate-pulse' : ''
-              }`}
-            >
-              {roomState === 'created' ? (isBs ? 'TI (HOST)' : 'YOU (HOST)') : isBs ? 'TI' : 'YOU'}
-            </Text>
-          )}
+          <Text
+            className={`rounded-md bg-yellow-500 px-2.5 py-1 font-mono text-[10px] font-extrabold uppercase text-black ${
+              roomState === 'joined' ? 'animate-pulse' : ''
+            }`}
+          >
+            {roomState === 'created' ? (isBs ? 'TI (HOST)' : 'YOU (HOST)') : isBs ? 'TI' : 'YOU'}
+          </Text>
           <Text className="ml-2 font-mono text-sm text-emerald-400">✓</Text>
         </View>
       </View>
@@ -360,6 +351,8 @@ export default function Lobby() {
     setIsCopied,
     joinStatusText,
     setJoinStatusText,
+    roomExitWarningOpen,
+    setRoomExitWarningOpen,
     setIsGameCountingDown,
     setSession,
   } = useGame();
@@ -370,6 +363,8 @@ export default function Lobby() {
   const copyResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [joinCodeErrorOpen, setJoinCodeErrorOpen] = useState(false);
+  const [isCreatingRoom, setIsCreatingRoom] = useState(false);
+  const [isStartingGame, setIsStartingGame] = useState(false);
   const [serverGameId, setServerGameId] = useState<number | null>(null);
   const [serverUserId, setServerUserId] = useState<number | null>(null);
   const [startModal, setStartModal] = useState<{ visible: boolean; title: string; message: string }>({
@@ -379,13 +374,20 @@ export default function Lobby() {
   });
   const serverStartedRef = useRef(false);
 
+  /* AsyncStorage username restoration is temporarily disabled for old builds.
+  useEffect(() => {
+    AsyncStorage.getItem(LAST_USERNAME_KEY).then((savedName) => {
+      if (savedName) setUserName(savedName);
+    });
+  }, [setUserName]);
+  */
+
   const applyServerGame = (game: ApiGame) => {
     setRoomCode(game.code);
     setRoomPlayers(game.members.map((member, index) => ({
       id: member.id,
       name: member.name,
       color: AVAILABLE_COLORS[index % AVAILABLE_COLORS.length].borderClass,
-      isBot: false,
     })));
   };
 
@@ -413,38 +415,55 @@ export default function Lobby() {
     };
   }, []);
 
-  const handleCreateRoom = async () => {
-    setStartModal({
-      visible: true,
-      title: 'START GAME PRESSED',
-      message: `Creating room at ${API_BASE_URL}...`,
+  useEffect(() => {
+    if (lobbyView !== 'ROOM_CREATED') return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      setRoomExitWarningOpen(true);
+      return true;
     });
+    return () => subscription.remove();
+  }, [lobbyView, setRoomExitWarningOpen]);
+
+  const handleCreateRoom = async () => {
+    if (isCreatingRoom) return;
+    setIsCreatingRoom(true);
     playSound('click');
     const finalName = userName.trim() || (isBs ? 'Igrač 1' : 'Player 1');
     try {
+      // AsyncStorage.setItem(LAST_USERNAME_KEY, finalName); // Temporarily disabled.
       const result = await api.createGame(finalName);
-      setStartModal({
-        visible: true,
-        title: 'ROOM CREATED',
-        message: `Room ${result.game.code} created. Opening lobby...`,
-      });
       setServerGameId(result.game.id);
       setServerUserId(result.user.id);
       applyServerGame(result.game);
       setIsCopied(false);
-      setTimeout(() => {
-        setStartModal((current) => ({ ...current, visible: false }));
-        setLobbyView('ROOM_CREATED');
-      }, 700);
+      setLobbyView('ROOM_CREATED');
+      requestAnimationFrame(() => setIsCreatingRoom(false));
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setJoinStatusText(message);
+      setIsCreatingRoom(false);
       setStartModal({
         visible: true,
         title: 'CREATE ROOM FAILED',
-        message: `${message}\n\nAPI: ${API_BASE_URL}`,
+        message,
       });
     }
+  };
+
+  const handleLeaveRoom = () => {
+    const gameId = serverGameId;
+
+    setRoomExitWarningOpen(false);
+    setServerGameId(null);
+    setServerUserId(null);
+    setRoomCode('');
+    setRoomPlayers([]);
+    setLobbyView('SETUP');
+
+    if (!gameId) return;
+    void api.getGame(gameId)
+      .then((game) => game.started ? undefined : api.deleteGame(gameId))
+      .catch((error) => console.warn('[LeaveRoom] Background room deletion failed', error));
   };
 
   const handleJoinWithCode = async () => {
@@ -462,6 +481,7 @@ export default function Lobby() {
 
     try {
       const finalName = userName.trim() || (isBs ? 'Igrač 2' : 'Player 2');
+      // AsyncStorage.setItem(LAST_USERNAME_KEY, finalName); // Temporarily disabled.
       const result = await api.joinGame(cleanCode, finalName);
       setServerGameId(result.game.id);
       setServerUserId(result.user.id);
@@ -469,8 +489,17 @@ export default function Lobby() {
       setJoinStatusText(isBs ? 'Soba pronađena!' : 'Room found!');
       setLobbyView('ROOM_JOINED');
     } catch (error) {
-      setJoinStatusText(error instanceof Error ? error.message : 'Room not found.');
+      const message = error instanceof Error ? error.message : 'Room not found.';
+      setJoinStatusText(message);
       setLobbyView('SETUP');
+      if (message === 'No more available seats in this room.') {
+        playSound('wrong');
+        setStartModal({
+          visible: true,
+          title: isBs ? 'SOBA JE PUNA' : 'ROOM IS FULL',
+          message: isBs ? 'Nema više slobodnih mjesta u ovoj sobi.' : message,
+        });
+      }
     }
   };
 
@@ -510,33 +539,14 @@ export default function Lobby() {
     setLobbyView('SETUP');
   };
 
-  useEffect(() => {
-    if (serverGameId) return;
-    if (lobbyView !== 'ROOM_CREATED') return;
-    if (roomPlayers.length >= 4) return;
-    const timer = setTimeout(() => {
-      const usedNames = roomPlayers.map((p) => p.name);
-      const availableNames = BOT_NAMES.filter((name) => !usedNames.includes(name) && name !== userName.trim());
-      const botName = availableNames[Math.floor(Math.random() * availableNames.length)] || 'Simulirani Igrač';
-      const usedColors = roomPlayers.map((p) => p.color);
-      const availableColorConfigs = AVAILABLE_COLORS.filter((c) => !usedColors.includes(c.borderClass));
-      const botColorConfig = availableColorConfigs[Math.floor(Math.random() * availableColorConfigs.length)] || AVAILABLE_COLORS[2];
-      setRoomPlayers((prev) => [...prev, { name: botName, color: botColorConfig.borderClass, isBot: true }]);
-    }, 1200 + Math.random() * 800);
-    return () => clearTimeout(timer);
-  }, [lobbyView, roomPlayers, userName, setRoomPlayers, serverGameId]);
-
   const startGame = async (
     mode: 'SOLO' | 'MULTIPLAYER',
-    players: { name: string; color: string; isBot?: boolean }[],
+    players: { name: string; color: string }[],
     tScore: number,
     deck: 'NORMAL' | 'SPICY'
   ) => {
-    setStartModal({
-      visible: true,
-      title: 'STARTING GAME',
-      message: `Sending request to ${API_BASE_URL}\nGame: ${serverGameId ?? 'missing'} | User: ${serverUserId ?? 'missing'}`,
-    });
+    if (isStartingGame) return;
+    setIsStartingGame(true);
     console.log('[StartGame] clicked', {
       gameId: serverGameId,
       userId: serverUserId,
@@ -553,20 +563,16 @@ export default function Lobby() {
           started: game.started,
           memberCount: game.members.length,
         });
-        setStartModal({
-          visible: true,
-          title: 'GAME STARTED',
-          message: `Server started game ${game.id}. Opening the game screen...`,
-        });
         applyServerGame(game);
       } catch (error) {
         console.error('[StartGame] API failed', error);
         const message = error instanceof Error ? error.message : String(error);
         setJoinStatusText(message);
+        setIsStartingGame(false);
         setStartModal({
           visible: true,
           title: 'START FAILED',
-          message: `${message}\n\nAPI: ${API_BASE_URL}\nGame: ${serverGameId} | User: ${serverUserId}`,
+          message,
         });
         return;
       }
@@ -575,8 +581,8 @@ export default function Lobby() {
     setSession({ mode, players, targetScore: tScore, deckType: deck, gameId: serverGameId ?? undefined, userId: serverUserId ?? undefined });
     console.log('[StartGame] navigating to game screen');
     setTimeout(() => {
-      setStartModal((current) => ({ ...current, visible: false }));
       router.push('./game');
+      requestAnimationFrame(() => setIsStartingGame(false));
     }, 700);
   };
 
@@ -853,7 +859,9 @@ export default function Lobby() {
           <View className="pt-4 pb-2 items-center" style={{ gap: 4 }}>
             <Text className="text-[10px] text-neutral-600 font-mono">© 2026 Misery Meter</Text>
             <Text className="text-[10px] text-neutral-600 font-mono opacity-80">
-              {isBs ? 'Serveri aktivni • Multiplayer mode' : 'Servers active • Multiplayer mode'}
+              {isBs
+                ? 'Serveri aktivni • Multiplayer mode • Do 8 igrača'
+                : 'Servers active • Multiplayer mode • Up to 8 players'}
             </Text>
           </View>
         </View>
@@ -900,7 +908,7 @@ export default function Lobby() {
                   maxLength={15}
                   value={userName}
                   onChangeText={setUserName}
-                  placeholder={isBs ? 'Npr. Damir' : 'E.g. Damir'}
+                  placeholder={isBs ? 'Npr. Hana' : 'E.g. Ashley'}
                 />
               )}
             </Section>
@@ -1027,7 +1035,7 @@ export default function Lobby() {
                   maxLength={15}
                   value={userName}
                   onChangeText={setUserName}
-                  placeholder={isBs ? 'Npr. Damir' : 'E.g. Damir'}
+                  placeholder={isBs ? 'Npr. Hana' : 'E.g. Ashley'}
                 />
               )}
             </Section>
@@ -1090,11 +1098,11 @@ export default function Lobby() {
           <View style={{ gap: 16 }}>
             <View className="flex-row items-center justify-between">
               <Text className="text-[10px] font-mono tracking-widest uppercase text-neutral-500 font-bold">
-                {isBs ? `IGRAČI U SOBI (${roomPlayers.length}/4)` : `PLAYERS IN LOBBY (${roomPlayers.length}/4)`}
+                {isBs ? `IGRAČI U SOBI (${roomPlayers.length}/8)` : `PLAYERS IN LOBBY (${roomPlayers.length}/8)`}
               </Text>
-              {roomPlayers.length < 4 && (
+              {roomPlayers.length < 8 && (
                 <Text className="text-[8px] font-mono text-amber-500/80 uppercase animate-pulse">
-                  {isBs ? 'Čekanje igrača...' : 'Waiting for bots...'}
+                  {isBs ? 'Čekanje igrača...' : 'Waiting for players...'}
                 </Text>
               )}
             </View>
@@ -1239,6 +1247,27 @@ export default function Lobby() {
           </Text>
           <Text className="font-mono text-xs font-bold tracking-[2px] text-neutral-500">
             A1B2C3D4
+          </Text>
+        </View>
+      </ConfirmModal>
+      <LoadingOverlay isBs={isBs} visible={isCreatingRoom} />
+      <LoadingOverlay isBs={isBs} mode="start" visible={isStartingGame} />
+      <ConfirmModal
+        cancelLabel={isBs ? 'IZAĐI I OBRIŠI' : 'LEAVE & DELETE'}
+        confirmLabel={isBs ? 'OSTANI' : 'STAY'}
+        onCancel={handleLeaveRoom}
+        onConfirm={() => setRoomExitWarningOpen(false)}
+        onRequestClose={() => setRoomExitWarningOpen(false)}
+        visible={roomExitWarningOpen}
+      >
+        <View className="items-center" style={{ gap: 12 }}>
+          <Text className="text-center text-lg font-black uppercase tracking-wider text-amber-400">
+            {isBs ? 'NAPUSTITI SOBU?' : 'LEAVE THIS ROOM?'}
+          </Text>
+          <Text className="text-center text-sm leading-6 text-neutral-300">
+            {isBs
+              ? 'Igra još nije počela. Ako izađeš, ova soba će biti trajno obrisana.'
+              : 'The game has not started. If you leave, this room will be permanently deleted.'}
           </Text>
         </View>
       </ConfirmModal>

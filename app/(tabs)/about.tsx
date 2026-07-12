@@ -75,7 +75,9 @@ export default function AboutScreen() {
         <View className="items-center" style={{ gap: 4 }}>
           <Text className="text-[10px] text-neutral-600 font-mono">© 2026 Misery Meter</Text>
           <Text className="text-[10px] text-neutral-600 font-mono opacity-80">
-            {isBs ? 'Serveri aktivni • Multiplayer mode' : 'Servers active • Multiplayer mode'}
+            {isBs
+              ? 'Serveri aktivni • Multiplayer mode • Do 8 igrača'
+              : 'Servers active • Multiplayer mode • Up to 8 players'}
           </Text>
         </View>
 

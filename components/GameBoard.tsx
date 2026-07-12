@@ -91,6 +91,7 @@ export default function GameBoard({
   const optimisticLaneCardsRef = useRef<Record<string, Card[]>>({});
   const pendingPlacementRef = useRef<{ actingPlayerId: string; card: Card; slotIdx: number } | null>(null);
   const lastObservedMoveIdRef = useRef<number | null>(null);
+  const acceptedStealCardIdRef = useRef<string | null>(null);
 
   const [gameState, setGameState] = useState<GameState>({
     mode,
@@ -110,6 +111,9 @@ export default function GameBoard({
   const [isLaneSheetOpen, setIsLaneSheetOpen] = useState(false);
   const [isDrawnCardFlipped, setIsDrawnCardFlipped] = useState(false);
   const [lastInsertedCardId, setLastInsertedCardId] = useState<string | null>(null);
+  const [isServerTurnReady, setIsServerTurnReady] = useState(!gameId);
+  const [isAwaitingTurnFinish, setIsAwaitingTurnFinish] = useState(false);
+  const [serverCurrentPlayerId, setServerCurrentPlayerId] = useState<number | null>(null);
   const toLocalCard = (card: ApiCard): Card => ({
     id: String(card.id),
     titleEn: card.title,
@@ -260,13 +264,17 @@ export default function GameBoard({
   const handleSlotSelect = (slotIdx: number) => {
     const { players, currentPlayerIndex, drawnCard, phase, activeStealerIndex } = gameState;
     if (!drawnCard || phase !== 'PLAYING') return;
+    if (gameId && (!isServerTurnReady || isAwaitingTurnFinish || Number(serverCurrentPlayerId) !== Number(userId))) return;
     triggerSound('click');
     const actingPlayerIndex = activeStealerIndex !== undefined ? activeStealerIndex : currentPlayerIndex;
     const actingPlayer = players[actingPlayerIndex];
     const isCorrect = verifySlotChoice(actingPlayer.lane, drawnCard, slotIdx);
     setSelectedSlotIndex(slotIdx);
     setSelectedSlotResult(isCorrect ? 'success' : 'failure');
-    if (gameId && userId) api.submitMove(gameId, userId, isCorrect).catch(() => undefined);
+    if (gameId && userId) {
+      setIsAwaitingTurnFinish(true);
+      api.submitMove(gameId, userId, isCorrect).catch(() => setIsAwaitingTurnFinish(false));
+    }
 
     if (isCorrect) {
       pendingPlacementRef.current = { actingPlayerId: actingPlayer.id, card: drawnCard, slotIdx };
@@ -316,13 +324,15 @@ export default function GameBoard({
           phase: isDead ? 'GAME_OVER' : 'WRONG_REVEAL',
           guessHistory: [historyLog, ...prev.guessHistory],
         }));
-      } else {
+      } else if (!gameId) {
         const nextStealerIdx = (actingPlayerIndex + 1) % players.length;
         if (nextStealerIdx === currentPlayerIndex) {
           setGameState((prev) => ({ ...prev, phase: 'WRONG_REVEAL', guessHistory: [historyLog, ...prev.guessHistory] }));
         } else {
           setGameState((prev) => ({ ...prev, phase: 'STEAL_DECISION', activeStealerIndex: nextStealerIdx, guessHistory: [historyLog, ...prev.guessHistory] }));
         }
+      } else {
+        setGameState((prev) => ({ ...prev, phase: 'WRONG_REVEAL', guessHistory: [historyLog, ...prev.guessHistory] }));
       }
     }
   };
@@ -332,9 +342,17 @@ export default function GameBoard({
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const poll = async () => {
+      const pollStartedAt = Date.now();
       let nextPollDelay = 3000;
       try {
         const game = await api.getGame(gameId);
+        const serverPlayerIndex = game.current_player_id === null
+          ? 0
+          : game.members.findIndex((player) => Number(player.id) === Number(game.current_player_id));
+        const safeServerPlayerIndex = serverPlayerIndex >= 0 ? serverPlayerIndex : 0;
+        setIsServerTurnReady(true);
+        setIsAwaitingTurnFinish(game.awaiting_finish);
+        setServerCurrentPlayerId(game.current_player_id);
         nextPollDelay = Math.max(250, Number(game.ingame_polling_interval_ms) || 3000);
         const latestMove = game.moves[0];
         if (lastObservedMoveIdRef.current === null) {
@@ -349,6 +367,11 @@ export default function GameBoard({
         }
         setGameState((prev) => ({
           ...prev,
+          currentPlayerIndex: safeServerPlayerIndex,
+          activeStealerIndex: game.is_steal_turn ? safeServerPlayerIndex : undefined,
+          phase: game.is_steal_turn && !game.awaiting_finish
+            ? acceptedStealCardIdRef.current === String(game.current_card?.id) ? 'PLAYING' : 'STEAL_DECISION'
+            : game.awaiting_finish ? prev.phase : 'PLAYING',
           drawnCard: game.current_card ? toLocalCard(game.current_card) : prev.drawnCard,
           players: prev.players.map((player) => {
             const hand = game.hands[player.id];
@@ -365,7 +388,8 @@ export default function GameBoard({
           guessHistory: game.moves.map((move) => ({ playerName: move.player.name, cardTitle: move.card?.title ?? '', guessIndex: -1, correctIndex: -1, success: move.correct })),
         }));
       } catch { /* Retry using the default interval. */ }
-      if (!cancelled) timer = setTimeout(poll, nextPollDelay);
+      const requestDuration = Date.now() - pollStartedAt;
+      if (!cancelled) timer = setTimeout(poll, Math.max(0, nextPollDelay - requestDuration));
     };
     void poll();
     return () => {
@@ -379,9 +403,15 @@ export default function GameBoard({
     if (activeStealerIndex === undefined || !drawnCard) return;
     if (accept) {
       triggerSound('steal');
+      if (gameId) acceptedStealCardIdRef.current = String(drawnCard.id);
       setGameState((prev) => ({ ...prev, phase: 'PLAYING' }));
     } else {
       triggerSound('click');
+      if (gameId && userId) {
+        api.passSteal(gameId, userId).catch(() => undefined);
+        acceptedStealCardIdRef.current = null;
+        return;
+      }
       const nextStealerIdx = (activeStealerIndex + 1) % players.length;
       if (nextStealerIdx === currentPlayerIndex) {
         setGameState((prev) => ({ ...prev, phase: 'WRONG_REVEAL', activeStealerIndex: undefined }));
@@ -391,7 +421,25 @@ export default function GameBoard({
     }
   };
 
-  const handleProceedNextRound = () => {
+  const handleProceedNextRound = async () => {
+    if (gameId && userId) {
+      triggerSound('click');
+      try {
+        const response = await api.finishTurn(gameId, userId);
+        const game = response.game;
+        acceptedStealCardIdRef.current = null;
+        setIsAwaitingTurnFinish(game.awaiting_finish);
+        const nextIndex = gameState.players.findIndex((player) => Number(player.id) === Number(game.current_player_id));
+        setGameState((prev) => ({
+          ...prev,
+          currentPlayerIndex: nextIndex >= 0 ? nextIndex : prev.currentPlayerIndex,
+          activeStealerIndex: game.is_steal_turn && nextIndex >= 0 ? nextIndex : undefined,
+          drawnCard: game.current_card ? toLocalCard(game.current_card) : prev.drawnCard,
+          phase: game.is_steal_turn ? 'STEAL_DECISION' : 'PLAYING',
+        }));
+      } catch { /* Polling will restore authoritative turn state. */ }
+      return;
+    }
     const { deck, discardPile, players, currentPlayerIndex, drawnCard } = gameState;
     triggerSound('click');
     const newDiscard = [...discardPile];
@@ -497,7 +545,8 @@ export default function GameBoard({
         gameState.phase === 'PLAYING' &&
         isDrawnCardFlipped &&
         Boolean(currentActingPlayer) &&
-        !currentActingPlayer?.isBot,
+        !currentActingPlayer?.isBot &&
+        (!gameId || (isServerTurnReady && !isAwaitingTurnFinish && Number(serverCurrentPlayerId) === Number(userId))),
       currentActingPlayer,
       drawnCard: gameState.drawnCard,
       guessHistory: gameState.guessHistory,
@@ -509,7 +558,7 @@ export default function GameBoard({
       phase: gameState.phase,
       players: gameState.players,
     });
-  }, [currentActingPlayer, gameState, isDrawnCardFlipped, laneResult, lastInsertedCardId, selectedSlotIndex, selectedSlotResult, setGameRuntime]);
+  }, [currentActingPlayer, gameId, gameState, isAwaitingTurnFinish, isDrawnCardFlipped, isServerTurnReady, laneResult, lastInsertedCardId, selectedSlotIndex, selectedSlotResult, serverCurrentPlayerId, setGameRuntime, userId]);
 
   if (gameState.players.length === 0 || !gameState.drawnCard) {
     return (
@@ -572,7 +621,7 @@ export default function GameBoard({
           {!isVictoryPhase && !isGameOverPhase && (
             <View className="items-center justify-start w-full" style={{ minHeight: cardAreaHeight, paddingTop: cardTopPadding }}>
               <Pressable
-                accessibilityLabel={isBs ? 'Okreni kartu' : 'Flip card'}
+                accessibilityLabel={isCorrectPhase || isWrongPhase ? (isBs ? 'Završi potez' : 'Finish turn') : (isBs ? 'Okreni kartu' : 'Flip card')}
                 disabled={isDrawnCardFlipped && !isCorrectPhase && !isWrongPhase}
                 onPress={isCorrectPhase || isWrongPhase ? handleProceedNextRound : flipDrawnCard}
                 style={{ alignSelf: 'stretch', height: drawnCardHeight, transform: [{ scale: shakeCard ? 0.95 : 1 }] }}
@@ -671,7 +720,9 @@ export default function GameBoard({
                     </View>
                     {(isCorrectPhase || isWrongPhase) && !currentActingPlayer.isBot && (
                       <Text className="absolute bottom-[106px] font-mono text-[10px] font-black uppercase tracking-[2px] text-white">
-                        {isBs ? 'DODIRNI KARTU ZA NASTAVAK' : 'TAP CARD TO CONTINUE'}
+                        {gameId
+                          ? isBs ? 'DODIRNI ZA ZAVRŠETAK POTEZA' : 'TAP TO FINISH TURN'
+                          : isBs ? 'DODIRNI KARTU ZA NASTAVAK' : 'TAP CARD TO CONTINUE'}
                       </Text>
                     )}
                     <View className="absolute bottom-0 left-0 right-0 items-center">
@@ -898,10 +949,12 @@ export default function GameBoard({
       </Modal>
 
       <ConfirmModal
+        cancelLabel={isBs ? 'PRESKOČI' : 'PASS'}
         confirmLabel={isBs ? 'POKUŠAJ KRAĐU' : 'TRY TO STEAL'}
+        onCancel={() => handleStealChoice(false)}
         onConfirm={() => handleStealChoice(true)}
         onRequestClose={() => handleStealChoice(false)}
-        visible={Boolean(isStealPhase && activeStealer && !activeStealer.isBot)}
+        visible={Boolean(isStealPhase && activeStealer && !activeStealer.isBot && (!gameId || Number(activeStealer.id) === Number(userId)))}
       >
         <View className="items-center" style={{ gap: 10 }}>
           <ShieldAlert size={38} color="#fbbf24" />

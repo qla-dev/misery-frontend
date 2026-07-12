@@ -71,7 +71,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [isSocialUser, setIsSocialUser] = useState(false);
   const [socialProvider, setSocialProvider] = useState<'google' | 'apple' | null>(null);
   const [roomCode, setRoomCode] = useState('');
-  const [enteredCode, setEnteredCode] = useState('A1B2C3D4');
+  const [enteredCode, setEnteredCode] = useState('');
   const [roomPlayers, setRoomPlayers] = useState<PlayerInput[]>([]);
   const [isCopied, setIsCopied] = useState(false);
   const [joinStatusText, setJoinStatusText] = useState('');

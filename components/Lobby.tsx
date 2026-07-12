@@ -39,6 +39,17 @@ const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
 const RAIN_LOTTIE = require('../assets/animations/rain.json');
 const ROOM_CODE_REGEX = /^(?=(?:.*[A-Z]){4})(?=(?:.*\d){4})[A-Z\d]{8}$/;
 const LAST_USERNAME_KEY = '@misery-index/last-username';
+const IS_WEB_INTERFACE = process.env.EXPO_OS
+  ? process.env.EXPO_OS === 'web'
+  : Platform.OS === 'web';
+
+function logLobbyTransition(event: string, details: Record<string, unknown> = {}) {
+  console.info('[LobbyTransition]', new Date().toISOString(), event, {
+    platform: Platform.OS,
+    expoOs: process.env.EXPO_OS,
+    ...details,
+  });
+}
 
 function generateRoomCode() {
   const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -376,6 +387,7 @@ export default function Lobby() {
   const [lobbyOpening, setLobbyOpening] = useState({ changed: false, color: AVAILABLE_COLORS[0].hex, visible: false });
   const [serverGameId, setServerGameId] = useState<number | null>(null);
   const [serverUserId, setServerUserId] = useState<number | null>(null);
+  const [availableGames, setAvailableGames] = useState<ApiGame[]>([]);
   const [startModal, setStartModal] = useState<{ visible: boolean; title: string; message: string }>({
     visible: false,
     title: '',
@@ -384,30 +396,57 @@ export default function Lobby() {
   const serverStartedRef = useRef(false);
 
   useEffect(() => {
+    logLobbyTransition('view-rendered', { lobbyView });
     lobbyContentOpacity.setValue(0);
+    logLobbyTransition('view-fade-in-start', { lobbyView });
     Animated.timing(lobbyContentOpacity, {
       duration: 220,
       easing: Easing.out(Easing.quad),
       toValue: 1,
       useNativeDriver: true,
-    }).start();
+    }).start(({ finished }) => logLobbyTransition('view-fade-in-end', { finished, lobbyView }));
   }, [lobbyContentOpacity, lobbyView]);
+
+  useEffect(() => {
+    const canPrefetchAvailableGames = lobbyView === 'WELCOME' || lobbyView === 'SETUP';
+    if (!IS_WEB_INTERFACE || !canPrefetchAvailableGames) {
+      logLobbyTransition('available-games-disabled', { isWeb: IS_WEB_INTERFACE, lobbyView });
+      return;
+    }
+    let cancelled = false;
+    const pollAvailableGames = async () => {
+      try {
+        const games = await api.listAvailableGames();
+        logLobbyTransition('available-games-received', { count: games.length, lobbyView });
+        if (!cancelled) setAvailableGames(games.filter((game) => !game.started && game.members.length < 8));
+      } catch { /* Retry on the next fixed lobby poll. */ }
+    };
+    void pollAvailableGames();
+    const timer = setInterval(pollAvailableGames, 3000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [lobbyView]);
 
   const transitionLobbyView = (nextView: 'WELCOME' | 'SETUP') => {
     const shouldFade =
       (lobbyView === 'WELCOME' && nextView === 'SETUP') ||
       (lobbyView === 'SETUP' && nextView === 'WELCOME');
     if (!shouldFade || lobbyTransitioningRef.current) {
+      logLobbyTransition('transition-immediate', { from: lobbyView, nextView, transitionBusy: lobbyTransitioningRef.current });
       setLobbyView(nextView);
       return;
     }
     lobbyTransitioningRef.current = true;
+    logLobbyTransition('transition-fade-out-start', { from: lobbyView, nextView });
     Animated.timing(lobbyContentOpacity, {
       duration: 180,
       easing: Easing.in(Easing.quad),
       toValue: 0,
       useNativeDriver: true,
     }).start(() => {
+      logLobbyTransition('transition-fade-out-end', { from: lobbyView, nextView });
       setLobbyView(nextView);
       lobbyTransitioningRef.current = false;
     });
@@ -420,7 +459,9 @@ export default function Lobby() {
   }, [lobbyTransitionTarget]);
 
   useEffect(() => {
+    logLobbyTransition('username-restore-start');
     AsyncStorage.getItem(LAST_USERNAME_KEY).then((savedName) => {
+      logLobbyTransition('username-restore-end', { hasSavedName: Boolean(savedName) });
       if (savedName) setUserName(savedName);
     }).catch(() => undefined);
   }, [setUserName]);
@@ -474,7 +515,7 @@ export default function Lobby() {
     playSound('click');
     const finalName = userName.trim() || (isBs ? 'Igrač 1' : 'Player 1');
     try {
-      await AsyncStorage.setItem(LAST_USERNAME_KEY, finalName);
+      void AsyncStorage.setItem(LAST_USERNAME_KEY, finalName).catch(() => undefined);
       const result = await api.createGame(finalName, selectedColor);
       setServerGameId(result.game.id);
       setServerUserId(result.user.id);
@@ -510,8 +551,8 @@ export default function Lobby() {
       .catch((error) => console.warn('[LeaveRoom] Background room deletion failed', error));
   };
 
-  const handleJoinWithCode = async () => {
-    const cleanCode = enteredCode.trim().toUpperCase();
+  const handleJoinWithCode = async (codeOverride?: string) => {
+    const cleanCode = (codeOverride ?? enteredCode).trim().toUpperCase();
     if (!ROOM_CODE_REGEX.test(cleanCode)) {
       Keyboard.dismiss();
       playSound('wrong');
@@ -525,7 +566,7 @@ export default function Lobby() {
 
     try {
       const finalName = userName.trim() || (isBs ? 'Igrač 2' : 'Player 2');
-      await AsyncStorage.setItem(LAST_USERNAME_KEY, finalName);
+      void AsyncStorage.setItem(LAST_USERNAME_KEY, finalName).catch(() => undefined);
       const result = await api.joinGame(cleanCode, finalName, selectedColor);
       setServerGameId(result.game.id);
       setServerUserId(result.user.id);
@@ -533,12 +574,17 @@ export default function Lobby() {
       setJoinStatusText(isBs ? 'Soba pronađena!' : 'Room found!');
       const assignedColor = AVAILABLE_COLORS.find((color) => color.id === result.user.color) ?? AVAILABLE_COLORS[0];
       setSelectedColor(assignedColor.id);
-      setLobbyOpening({ changed: result.color_changed, color: assignedColor.hex, visible: true });
-      if (lobbyOpeningTimerRef.current) clearTimeout(lobbyOpeningTimerRef.current);
-      lobbyOpeningTimerRef.current = setTimeout(() => {
+      if (Platform.OS === 'web') {
         setLobbyView('ROOM_JOINED');
-        setLobbyOpening((current) => ({ ...current, visible: false }));
-      }, 1800);
+        setLobbyOpening({ changed: result.color_changed, color: assignedColor.hex, visible: false });
+      } else {
+        setLobbyOpening({ changed: result.color_changed, color: assignedColor.hex, visible: true });
+        if (lobbyOpeningTimerRef.current) clearTimeout(lobbyOpeningTimerRef.current);
+        lobbyOpeningTimerRef.current = setTimeout(() => {
+          setLobbyView('ROOM_JOINED');
+          setLobbyOpening((current) => ({ ...current, visible: false }));
+        }, 1800);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Room not found.';
       setJoinStatusText(message);
@@ -691,6 +737,33 @@ export default function Lobby() {
     />
   );
 
+  const renderAvailableGames = () => {
+    if (!IS_WEB_INTERFACE || availableGames.length === 0) return null;
+    return (
+      <Section titleEn="AVAILABLE GAMES" titleBs="DOSTUPNE IGRE">
+        <View style={{ gap: 10 }}>
+          {availableGames.slice(0, 5).map((game) => (
+            <Card key={game.id}>
+              <View className="flex-row items-center justify-between" style={{ gap: 12 }}>
+                <View className="flex-1">
+                  <Text className="text-sm font-black uppercase text-neutral-100">
+                    {game.members[0]?.name ?? (isBs ? 'Soba za igru' : 'Game room')}
+                  </Text>
+                  <Text className="mt-1 font-mono text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+                    {game.code} • {game.members.length}/8 {isBs ? 'igrača' : 'players'}
+                  </Text>
+                </View>
+                <ButtonTab category="button" type="primary" size="auto" onPress={() => void handleJoinWithCode(game.code)}>
+                  {isBs ? 'BRZI ULAZ' : 'QUICK JOIN'}
+                </ButtonTab>
+              </View>
+            </Card>
+          ))}
+        </View>
+      </Section>
+    );
+  };
+
   const renderSetupAction = (fixed = false) => (
     <View
       className="bg-neutral-950"
@@ -708,7 +781,7 @@ export default function Lobby() {
         type="primary"
         size="100"
         disabled={setupTab === 'CREATE' ? !hasPlayerIdentity : !hasPlayerIdentity || !hasValidRoomCode}
-        onPress={setupTab === 'CREATE' ? handleCreateRoom : handleJoinWithCode}
+        onPress={setupTab === 'CREATE' ? handleCreateRoom : () => void handleJoinWithCode()}
       >
         {setupTab === 'CREATE'
           ? !hasPlayerIdentity
@@ -825,6 +898,7 @@ export default function Lobby() {
                 type="secondary"
                 size="100"
                 onPress={() => {
+                  logLobbyTransition('guest-pressed', { lobbyView });
                   playSound('click');
                   setIsSocialUser(false);
                   setSocialProvider(null);
@@ -937,6 +1011,7 @@ export default function Lobby() {
         return (
           <View style={{ gap: 32 }}>
             {renderSetupTabs()}
+            {renderAvailableGames()}
 
             <Section titleEn="PLAYER PROFILE" titleBs="PROFIL IGRAČA">
               {isSocialUser ? (
@@ -1071,6 +1146,7 @@ export default function Lobby() {
         return (
           <View style={{ gap: 32 }}>
             {renderSetupTabs()}
+            {renderAvailableGames()}
 
             <Section titleEn="PLAYER PROFILE" titleBs="PROFIL IGRAČA">
               {isSocialUser ? (

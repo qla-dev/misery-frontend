@@ -4,6 +4,18 @@ import { useGame } from '@/context/GameContext';
 import { ScrollView, Text, View } from 'react-native';
 import { TabFadeView } from '@/components/TabFadeView';
 
+const PLAYER_COLORS: Record<string, string> = {
+  yellow: '#facc15', blue: '#60a5fa', emerald: '#10b981', purple: '#c084fc',
+  rose: '#ef4444', red: '#ef4444', orange: '#f97316', brown: '#8B5A2B',
+  silver: '#d4d4d4', neutral: '#d4d4d4',
+};
+
+function playerColor(value?: string) {
+  if (!value) return '#facc15';
+  const key = Object.keys(PLAYER_COLORS).find((candidate) => value.toLowerCase().includes(candidate.toLowerCase()));
+  return key ? PLAYER_COLORS[key] : value.startsWith('#') ? value : '#facc15';
+}
+
 export default function HistoryScreen() {
   const { gameRuntime, language } = useGame();
   const isBs = language === 'bs';
@@ -24,10 +36,15 @@ export default function HistoryScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={{ gap: 12 }}>
-        {history.map((entry: any, index: number) => (
+        {history.map((entry: any, index: number) => {
+          const player = gameRuntime?.players?.find((candidate: any) => candidate.name === entry.playerName);
+          return (
           <Card key={`${entry.playerName}-${index}`}>
-            <View className="flex-row gap-3">
-              <View className={`mt-1 h-3 w-3 rounded-full ${entry.success ? 'bg-emerald-500' : 'bg-red-500'}`} />
+            <View className="flex-row items-center gap-3">
+              <View
+                className="h-3 w-3 rounded-full border border-white/20"
+                style={{ backgroundColor: playerColor(player?.color) }}
+              />
               <Text className="flex-1 text-sm leading-6 text-neutral-300">
                 <Text className="font-black text-white">{entry.playerName}</Text>{' '}
                 {isBs ? 'je odigrao/la' : 'played'}{' '}
@@ -38,7 +55,8 @@ export default function HistoryScreen() {
               </Text>
             </View>
           </Card>
-        ))}
+          );
+        })}
       </View>
     </ScrollView></TabFadeView>
   );

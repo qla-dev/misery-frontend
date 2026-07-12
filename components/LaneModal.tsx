@@ -96,7 +96,7 @@ export function LaneModal({
       >
         <Animated.View
           className="items-center"
-          style={{ gap: 22, transform: [{ scale }, { rotate }] }}
+          style={{ gap: 22, transform: [{ translateY: -36 }, { scale }, { rotate }] }}
         >
           <View className="h-40 w-40 items-center justify-center rounded-full border-[6px] border-white bg-white/15">
             {warning ? (

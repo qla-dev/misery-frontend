@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { router, useFocusEffect } from 'expo-router';
-import { AlertOctagon, Loader2, ShieldAlert, Trophy, X } from 'lucide-react-native';
+import { AlertOctagon, Crown, Loader2, ShieldAlert, Trophy, X } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { Animated, Easing, Modal, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
@@ -559,6 +559,18 @@ export default function GameBoard({
   const isVictoryPhase = gameState.phase === 'VICTORY';
   const isGameOverPhase = gameState.phase === 'GAME_OVER';
   const currentActingPlayer = activeStealer || currentPlayer;
+  const localPlayer = gameId && userId
+    ? gameState.players.find((player) => Number(player.id) === Number(userId)) ?? gameState.players[0]
+    : gameState.players.find((player) => !player.isBot) ?? gameState.players[0];
+  const leaderboard = [...gameState.players].sort((a, b) => {
+    const scoreDifference = b.lane.length - a.lane.length;
+    if (scoreDifference !== 0) return scoreDifference;
+    if (a.id === currentActingPlayer?.id) return -1;
+    if (b.id === currentActingPlayer?.id) return 1;
+    return a.name.localeCompare(b.name);
+  });
+  const podiumPlayers = leaderboard.slice(0, 3);
+  const podiumOrder = podiumPlayers.length === 3 ? [1, 0, 2] : podiumPlayers.map((_, index) => index).reverse();
   useEffect(() => {
     setGameRuntime({
       canPlaceCard:
@@ -574,6 +586,7 @@ export default function GameBoard({
         Number(serverCurrentPlayerId) === Number(userId)
       ),
       currentActingPlayer,
+      localPlayer,
       drawnCard: gameState.drawnCard,
       isDrawnCardFlipped,
       guessHistory: gameState.guessHistory,
@@ -586,7 +599,7 @@ export default function GameBoard({
       phase: gameState.phase,
       players: gameState.players,
     });
-  }, [currentActingPlayer, gameId, gameState, isAwaitingTurnFinish, isDrawnCardFlipped, isServerTurnReady, laneResult, lastInsertedCardId, selectedSlotIndex, selectedSlotResult, serverCurrentPlayerId, setGameRuntime, userId]);
+  }, [currentActingPlayer, gameId, gameState, isAwaitingTurnFinish, isDrawnCardFlipped, isServerTurnReady, laneResult, lastInsertedCardId, localPlayer, selectedSlotIndex, selectedSlotResult, serverCurrentPlayerId, setGameRuntime, userId]);
 
   if (gameState.players.length === 0 || !gameState.drawnCard) {
     return (
@@ -848,33 +861,85 @@ export default function GameBoard({
           )}
 
           {isVictoryPhase && (
-            <View className="bg-neutral-900/50 border-2 border-amber-400/80 rounded-2xl p-6 items-center space-y-5">
-              <LinearGradient colors={['#fcd34d', '#facc15']} className="w-16 h-16 rounded-full items-center justify-center">
-                <Trophy size={36} color="#0a0a0a" strokeWidth={2.5} />
+            <View className="overflow-hidden rounded-3xl border border-amber-400/40 bg-neutral-900/70">
+              <LinearGradient colors={['rgba(250,204,21,0.24)', 'rgba(23,23,23,0.15)', 'rgba(10,10,10,0)']} className="items-center px-5 pb-5 pt-7">
+                <View className="mb-3 h-16 w-16 items-center justify-center rounded-full border border-amber-200/50 bg-amber-400 shadow-lg">
+                  <Trophy size={34} color="#0a0a0a" strokeWidth={2.7} />
+                </View>
+                <Text className="font-mono text-[10px] font-black uppercase tracking-[4px] text-amber-300">
+                  {isBs ? 'KONAČNI POREDAK' : 'FINAL STANDINGS'}
+                </Text>
+                <Text className="mt-1 text-center text-3xl font-black uppercase tracking-tight text-white">
+                  {isBs ? 'IMAMO POBJEDNIKA!' : 'WE HAVE A CHAMPION!'}
+                </Text>
+                <Text className="mt-2 text-center text-xs leading-5 text-neutral-400">
+                  {isBs ? 'Traka bijede je završena. Pogledajte konačni poredak.' : 'The Misery Lane is complete. Here are the final rankings.'}
+                </Text>
               </LinearGradient>
-              <Text className="text-xl font-black text-amber-400 uppercase tracking-tight">{isBs ? 'IMAMO POBJEDNIKA!' : 'VICTORY / WE HAVE A CHAMPION!'}</Text>
-              <View className="flex-row items-center justify-center gap-1.5">
-                <Text className="text-lg font-black uppercase text-white tracking-wider">👑 {currentActingPlayer.name}</Text>
-              </View>
-              <Text className="text-xs text-neutral-400 leading-relaxed text-center">{isBs ? `Čestitamo! Uspješno ste poredali ${currentActingPlayer.lane.length} kartica u vašoj Traci Bijede i dokazali da najbolje procjenjujete tuđu nesreću!` : `Congratulations! You successfully placed ${currentActingPlayer.lane.length} cards in your Misery Lane and proved you know exactly how miserable life can be!`}</Text>
-              <View className="p-4 bg-neutral-950/80 rounded-xl border border-neutral-900 w-full">
-                <Text className="text-[9px] text-amber-400/60 font-mono uppercase tracking-widest font-bold mb-2">{isBs ? 'POBJEDNIČKA TRAKA' : 'WINNING LANE'}</Text>
-                <ScrollView className="max-h-36" nestedScrollEnabled>
-                  {currentActingPlayer.lane.map((card) => (
-                    <View key={card.id} className="flex-row items-center justify-between py-1 border-b border-neutral-900">
-                      <Text className="font-mono text-amber-400 font-extrabold text-[11px] bg-neutral-950 px-1.5 py-0.5 rounded border border-neutral-900">{card.index.toFixed(1)}</Text>
-                      <Text className="flex-1 truncate pl-3 text-[11px] font-semibold text-neutral-300">{isBs ? card.titleBs : card.titleEn}</Text>
-                    </View>
-                  ))}
-                </ScrollView>
-              </View>
-              <View className="flex-col gap-3 pt-2 w-full">
+
+              <View className="px-4 pb-5">
+                <View className="mb-5 flex-row items-end justify-center" style={{ gap: 8 }}>
+                  {podiumOrder.map((playerIndex) => {
+                    const player = podiumPlayers[playerIndex];
+                    const rank = playerIndex + 1;
+                    const isWinner = rank === 1;
+                    const podiumHeight = rank === 1 ? 118 : rank === 2 ? 90 : 76;
+                    const medalColor = rank === 1 ? '#facc15' : rank === 2 ? '#d4d4d4' : '#d97706';
+                    return (
+                      <View key={player.id} className="flex-1 items-center">
+                        {isWinner ? <Crown size={24} color="#facc15" fill="#facc15" style={{ marginBottom: 5 }} /> : <View style={{ height: 29 }} />}
+                        <View
+                          className="mb-2 h-12 w-12 items-center justify-center rounded-full border-2 bg-neutral-950"
+                          style={{ borderColor: medalColor }}
+                        >
+                          <View className="h-5 w-5 rounded-full border border-white/20" style={{ backgroundColor: getPlayerColorHex(player.color) }} />
+                        </View>
+                        <Text className="mb-2 max-w-full text-center text-xs font-black text-white" numberOfLines={1}>{player.name}</Text>
+                        <LinearGradient
+                          colors={isWinner ? ['#facc15', '#ca8a04'] : ['#303030', '#171717']}
+                          className="w-full items-center rounded-t-xl border border-white/10 pt-3"
+                          style={{ height: podiumHeight }}
+                        >
+                          <Text className="text-2xl font-black" style={{ color: isWinner ? '#0a0a0a' : medalColor }}>{rank}</Text>
+                          <Text className={`mt-1 font-mono text-[10px] font-black uppercase ${isWinner ? 'text-neutral-950/70' : 'text-neutral-400'}`}>
+                            {player.lane.length} {isBs ? 'KAR.' : 'CARDS'}
+                          </Text>
+                        </LinearGradient>
+                      </View>
+                    );
+                  })}
+                </View>
+
+                <View className="rounded-2xl border border-neutral-800 bg-neutral-950/80 p-2" style={{ gap: 6 }}>
+                  {leaderboard.map((player, index) => {
+                    const isWinner = index === 0;
+                    const isLocal = player.id === localPlayer?.id;
+                    return (
+                      <View
+                        key={player.id}
+                        className={`flex-row items-center rounded-xl border px-3 py-3 ${isWinner ? 'border-amber-400/40 bg-amber-400/10' : 'border-neutral-900 bg-neutral-900/60'}`}
+                      >
+                        <Text className={`w-7 font-mono text-sm font-black ${isWinner ? 'text-amber-400' : 'text-neutral-500'}`}>#{index + 1}</Text>
+                        <View className="mr-3 h-3 w-3 rounded-full border border-white/20" style={{ backgroundColor: getPlayerColorHex(player.color) }} />
+                        <Text className="flex-1 text-sm font-black text-neutral-100" numberOfLines={1}>
+                          {player.name}{isLocal ? (isBs ? ' (TI)' : ' (YOU)') : ''}
+                        </Text>
+                        <View className={`rounded-lg px-2.5 py-1 ${isWinner ? 'bg-amber-400' : 'bg-neutral-800'}`}>
+                          <Text className={`font-mono text-[10px] font-black ${isWinner ? 'text-neutral-950' : 'text-neutral-300'}`}>{player.lane.length} PTS</Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+
+                <View className="mt-5 w-full gap-3">
                 <Pressable onPress={handleBack} className="w-full py-3 bg-neutral-900 rounded-xl items-center justify-center border border-neutral-800">
                   <Text className="text-neutral-400 font-bold uppercase text-[10px] tracking-wider">{isBs ? 'GLAVNI MENI' : 'MAIN MENU'}</Text>
                 </Pressable>
                 <GradientButton onPress={handleRestartGame} className="w-full">
                   <Text className="text-black font-black uppercase text-[10px] tracking-wider">{isBs ? 'IGRAJ PONOVO' : 'PLAY AGAIN'}</Text>
                 </GradientButton>
+              </View>
               </View>
             </View>
           )}

@@ -49,7 +49,7 @@ export default function GameTabsLayout() {
   const isBs = language === 'bs';
   const activePlayerName = gameRuntime?.currentActingPlayer?.name ?? session?.players[0]?.name;
   const activePlayerColor = playerColor(gameRuntime?.currentActingPlayer?.color ?? session?.players[0]?.color);
-  const laneCardsAdded = Math.max(0, (gameRuntime?.currentActingPlayer?.lane?.length ?? 3) - 3);
+  const laneCardsAdded = Math.max(0, (gameRuntime?.localPlayer?.lane?.length ?? 3) - 3);
   const laneCardsNeeded = session?.targetScore ?? 0;
   const turnTitle = activePlayerName
     ? isBs

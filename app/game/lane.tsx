@@ -93,7 +93,9 @@ function LaneCard({ card, hiddenScore = false, isBs, isNew }: { card: any; hidde
 export default function MiseryLaneScreen() {
   const { gameRuntime, language } = useGame();
   const isBs = language === 'bs';
-  const player = gameRuntime?.currentActingPlayer;
+  // The lane tab belongs to this device's player. Turn ownership may move to
+  // another player or stealer, but it must never change the lane being shown.
+  const player = gameRuntime?.localPlayer;
 
   if (!player) {
     return <TabFadeView><View className="flex-1 bg-neutral-950" /></TabFadeView>;

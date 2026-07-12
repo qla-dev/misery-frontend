@@ -17,6 +17,7 @@ export function AppInput({
 }) {
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
+  const hasValue = String(props.value ?? props.defaultValue ?? '').length > 0;
 
   return (
     <Pressable
@@ -43,9 +44,11 @@ export function AppInput({
           {
             height: 28,
             includeFontPadding: false,
+            lineHeight: 18,
             paddingBottom: 0,
             paddingTop: 0,
             textAlignVertical: 'center',
+            transform: [{ translateY: hasValue ? -2 : 0 }],
           },
           style,
         ]}

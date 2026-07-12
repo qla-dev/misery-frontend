@@ -14,18 +14,41 @@ export interface ApiUser { id: number; name: string; email: string | null; color
 export interface ApiCard { id: number; title: string; subtitle: string | null; score: number | string; image: string; deck: string }
 export interface ApiMove { id: number; player_id: number; correct: boolean; player: ApiUser; card: ApiCard | null; created_at: string }
 export interface ApiGame { id: number; code: string; owner_id: number; started: boolean; current_player_id: number | null; turn_owner_id: number | null; awaiting_finish: boolean; is_steal_turn: boolean; ingame_polling_interval_ms: number; members: ApiUser[]; hands: Record<string, ApiCard[]>; current_card: ApiCard | null; moves: ApiMove[] }
+export interface SocialAuthResponse { token: string; user: ApiUser; is_new_user: boolean }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const url = `${API_BASE_URL}${path}`;
+  const response = await fetch(url, {
     ...init,
     headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...init?.headers },
   });
-  const body = response.status === 204 ? null : await response.json();
-  if (!response.ok) throw new Error(body.message || 'API request failed');
+  const responseText = response.status === 204 ? '' : await response.text();
+  let body: any = null;
+
+  if (responseText) {
+    try {
+      body = JSON.parse(responseText);
+    } catch {
+      body = { message: responseText };
+    }
+  }
+
+  if (!response.ok) {
+    console.error('[API] request failed', {
+      method: init?.method ?? 'GET',
+      url,
+      status: response.status,
+      body,
+    });
+    throw new Error(body?.message || `API request failed (${response.status})`);
+  }
+
   return (body?.data ?? body) as T;
 }
 
 export const api = {
+  signInWithGoogle: (idToken: string) => request<SocialAuthResponse>('/auth/google', { method: 'POST', body: JSON.stringify({ id_token: idToken }) }),
+  signInWithApple: (identityToken: string, fullName?: string) => request<SocialAuthResponse>('/auth/apple', { method: 'POST', body: JSON.stringify({ identity_token: identityToken, full_name: fullName || undefined }) }),
   listAvailableGames: () => request<ApiGame[]>('/games'),
   createGame: (name: string, color: string) => request<{ game: ApiGame; user: ApiUser }>('/games', { method: 'POST', body: JSON.stringify({ name, color }) }),
   joinGame: (code: string, name: string, color: string) => {

@@ -58,7 +58,9 @@
             "usesCleartextTraffic": true
           }
         }
-      ]
+      ],
+      "expo-web-browser",
+      "expo-apple-authentication"
     ],
     "androidStatusBar": {
       "barStyle": "light-content",

@@ -1,6 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Apple, Check, Copy, Crown, Flame, Loader2, Share2, Sparkles, User } from 'lucide-react-native';
 import LottieView from 'lottie-react-native';
@@ -39,9 +42,25 @@ const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
 const RAIN_LOTTIE = require('../assets/animations/rain.json');
 const ROOM_CODE_REGEX = /^(?=(?:.*[A-Z]){4})(?=(?:.*\d){4})[A-Z\d]{8}$/;
 const LAST_USERNAME_KEY = '@misery-index/last-username';
+const AUTH_TOKEN_KEY = '@misery-index/auth-token';
+const AUTH_USER_KEY = '@misery-index/auth-user';
+const AUTH_PROVIDER_KEY = '@misery-index/auth-provider';
+const GOOGLE_AUTH_CONFIG = {
+  webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+  iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+  androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+};
+const GOOGLE_IOS_REVERSED_CLIENT_ID = GOOGLE_AUTH_CONFIG.iosClientId
+  ? `com.googleusercontent.apps.${GOOGLE_AUTH_CONFIG.iosClientId.replace('.apps.googleusercontent.com', '')}`
+  : null;
+const GOOGLE_REDIRECT_URI = GOOGLE_IOS_REVERSED_CLIENT_ID
+  ? `${GOOGLE_IOS_REVERSED_CLIENT_ID}:/oauthredirect`
+  : undefined;
 const IS_WEB_INTERFACE = process.env.EXPO_OS
   ? process.env.EXPO_OS === 'web'
   : Platform.OS === 'web';
+
+WebBrowser.maybeCompleteAuthSession();
 
 function logLobbyTransition(event: string, details: Record<string, unknown> = {}) {
   console.info('[LobbyTransition]', new Date().toISOString(), event, {
@@ -385,6 +404,7 @@ export default function Lobby() {
   const [joinCodeErrorOpen, setJoinCodeErrorOpen] = useState(false);
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
   const [isStartingGame, setIsStartingGame] = useState(false);
+  const [isSigningIn, setIsSigningIn] = useState(false);
   const [lobbyOpening, setLobbyOpening] = useState({ changed: false, color: AVAILABLE_COLORS[0].hex, visible: false });
   const [serverGameId, setServerGameId] = useState<number | null>(null);
   const [serverUserId, setServerUserId] = useState<number | null>(null);
@@ -395,6 +415,11 @@ export default function Lobby() {
     message: '',
   });
   const serverStartedRef = useRef(false);
+  const [, , promptGoogleSignIn] = Google.useIdTokenAuthRequest({
+    ...GOOGLE_AUTH_CONFIG,
+    redirectUri: GOOGLE_REDIRECT_URI,
+    selectAccount: true,
+  });
 
   useEffect(() => {
     logLobbyTransition('view-rendered', { lobbyView });
@@ -461,11 +486,22 @@ export default function Lobby() {
 
   useEffect(() => {
     logLobbyTransition('username-restore-start');
-    AsyncStorage.getItem(LAST_USERNAME_KEY).then((savedName) => {
-      logLobbyTransition('username-restore-end', { hasSavedName: Boolean(savedName) });
-      if (savedName) setUserName(savedName);
-    }).catch(() => undefined);
-  }, [setUserName]);
+    AsyncStorage.multiGet([LAST_USERNAME_KEY, AUTH_TOKEN_KEY, AUTH_PROVIDER_KEY])
+      .then((entries) => {
+        const saved = Object.fromEntries(entries);
+        const savedName = saved[LAST_USERNAME_KEY];
+        const savedProvider = saved[AUTH_PROVIDER_KEY];
+        const hasSocialSession = Boolean(saved[AUTH_TOKEN_KEY]) &&
+          (savedProvider === 'google' || savedProvider === 'apple');
+        logLobbyTransition('username-restore-end', { hasSavedName: Boolean(savedName), hasSocialSession });
+        if (savedName) setUserName(savedName);
+        if (hasSocialSession) {
+          setIsSocialUser(true);
+          setSocialProvider(savedProvider as 'google' | 'apple');
+        }
+      })
+      .catch(() => undefined);
+  }, [setIsSocialUser, setSocialProvider, setUserName]);
 
   const applyServerGame = (game: ApiGame) => {
     setRoomCode(game.code);
@@ -642,12 +678,69 @@ export default function Lobby() {
     }
   };
 
-  const handleSocialSignIn = (provider: 'google' | 'apple') => {
+  const handleSocialSignIn = async (provider: 'google' | 'apple') => {
+    if (isSigningIn) return;
     playSound('click');
-    setUserName('Amel Kulasin');
-    setIsSocialUser(true);
-    setSocialProvider(provider);
-    transitionLobbyView('SETUP');
+    setIsSigningIn(true);
+
+    try {
+      let result;
+
+      if (provider === 'google') {
+        const hasGoogleConfig = Boolean(
+          GOOGLE_AUTH_CONFIG.webClientId ||
+          GOOGLE_AUTH_CONFIG.iosClientId ||
+          GOOGLE_AUTH_CONFIG.androidClientId
+        );
+        if (!hasGoogleConfig) {
+          throw new Error('Google sign-in is not configured yet. Add the Google client IDs first.');
+        }
+
+        const googleResult = await promptGoogleSignIn();
+        if (googleResult.type !== 'success') return;
+        const idToken = googleResult.params?.id_token || googleResult.authentication?.idToken;
+        if (!idToken) throw new Error('Google did not return an ID token.');
+        result = await api.signInWithGoogle(idToken);
+      } else {
+        if (Platform.OS !== 'ios' || !(await AppleAuthentication.isAvailableAsync())) {
+          throw new Error('Sign in with Apple is only available on supported Apple devices.');
+        }
+
+        const credential = await AppleAuthentication.signInAsync({
+          requestedScopes: [
+            AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+            AppleAuthentication.AppleAuthenticationScope.EMAIL,
+          ],
+        });
+        if (!credential.identityToken) throw new Error('Apple did not return an identity token.');
+        const fullName = [credential.fullName?.givenName, credential.fullName?.familyName]
+          .filter(Boolean)
+          .join(' ');
+        result = await api.signInWithApple(credential.identityToken, fullName);
+      }
+
+      await AsyncStorage.multiSet([
+        [AUTH_TOKEN_KEY, result.token],
+        [AUTH_USER_KEY, JSON.stringify(result.user)],
+        [AUTH_PROVIDER_KEY, provider],
+        [LAST_USERNAME_KEY, result.user.name],
+      ]);
+      setUserName(result.user.name);
+      setIsSocialUser(true);
+      setSocialProvider(provider);
+      transitionLobbyView('SETUP');
+    } catch (error: any) {
+      if (error?.code === 'ERR_REQUEST_CANCELED') return;
+      const message = error instanceof Error ? error.message : 'Social sign-in failed.';
+      console.error('[SocialAuth] sign-in failed', { provider, message });
+      setStartModal({
+        visible: true,
+        title: isBs ? 'PRIJAVA NIJE USPJELA' : 'SIGN-IN FAILED',
+        message,
+      });
+    } finally {
+      setIsSigningIn(false);
+    }
   };
 
   const startGame = async (

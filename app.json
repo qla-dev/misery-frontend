@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "miseryindex",
     "userInterfaceStyle": "dark",
-    "owner": "kulasinn-2",
+    "owner": "kulasin94",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "misery.qla.dev",
@@ -74,10 +74,13 @@
       "revenueCat": {
         "entitlementIdentifier": "misery-pro",
         "offeringIdentifier": "misery-pro",
-        "offeringRestId": "ofrng75a5f44275"
+        "offeringRestId": "ofrng75a5f44275",
+        "androidApiKey": "",
+        "iosApiKey": "",
+        "testStoreApiKey": ""
       },
       "eas": {
-        "projectId": "a88a9dfd-a504-4af4-b0fb-43e1888fee43"
+        "projectId": "a81f5dc4-e8ec-4326-886d-37bc4cf9718e"
       }
     }
   }

@@ -56,6 +56,16 @@ export default function GameTabsLayout() {
   const activePlayerColor = playerColor(gameRuntime?.currentActingPlayer?.color ?? session?.players[0]?.color);
   const laneCardsAdded = Math.max(0, (gameRuntime?.localPlayer?.lane?.length ?? 3) - 3);
   const laneCardsNeeded = session?.targetScore ?? 0;
+  const isLocalLaneResult = Boolean(
+    laneResultPlayerName && laneResultPlayerName === gameRuntime?.localPlayer?.name
+  );
+  const laneSuccessMessage = isLocalLaneResult
+    ? isBs ? 'DOGAĐAJ JE DODAN U TVOJU TRAKU' : 'EVENT ADDED TO YOUR LANE'
+    : laneResultPlayerName
+      ? isBs
+        ? `DOGAĐAJ JE DODAN U TRAKU IGRAČA ${laneResultPlayerName}`
+        : `EVENT ADDED TO ${laneResultPlayerName.toUpperCase()}'S LANE`
+      : isBs ? 'DOGAĐAJ JE DODAN U TRAKU IGRAČA' : "EVENT ADDED TO THE PLAYER'S LANE";
   const isGameFinished = gameRuntime?.phase === 'VICTORY' || gameRuntime?.phase === 'GAME_OVER';
   const turnTitle = isGameFinished
     ? isBs ? 'KONAČNI POREDAK' : 'FINAL STANDINGS'
@@ -260,7 +270,7 @@ export default function GameTabsLayout() {
         success={laneResult !== 'failure'}
         successMessage={laneResult === 'steal'
           ? isBs ? 'IGRAČ JE USPJEŠNO UKRAO KARTU' : 'PLAYER SUCCESSFULLY STOLE THE CARD'
-          : isBs ? 'DOGAĐAJ JE USPJEŠNO DODAN' : 'EVENT ADDED TO YOUR LANE'}
+          : laneSuccessMessage}
         successTitle={laneResult === 'steal'
           ? isBs ? 'KARTA UKRADENA' : 'CARD STOLEN'
           : isBs ? 'TAČNO' : 'CORRECT'}

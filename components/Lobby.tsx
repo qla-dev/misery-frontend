@@ -383,6 +383,7 @@ export default function Lobby() {
   const lobbyScrollRef = useRef<ScrollView>(null);
   const welcomeOpacity = useRef(new Animated.Value(lobbyView === 'WELCOME' ? 1 : 0)).current;
   const setupOpacity = useRef(new Animated.Value(lobbyView === 'SETUP' ? 1 : 0)).current;
+  const roomOpacity = useRef(new Animated.Value(1)).current;
   const lobbyCrossfadeRef = useRef(false);
   const authButtonsOpacity = useRef(new Animated.Value(1)).current;
   const authButtonsTransitioningRef = useRef(false);
@@ -455,7 +456,7 @@ export default function Lobby() {
 
   const transitionLobbyView = (nextView: 'WELCOME' | 'SETUP', beforeSwap?: () => void) => {
     if (lobbyCrossfadeRef.current || lobbyView === nextView) return;
-    const canCrossfade = lobbyView === 'WELCOME' || lobbyView === 'SETUP';
+    const canCrossfade = lobbyView === 'WELCOME' || lobbyView === 'SETUP' || lobbyView === 'ROOM_CREATED' || lobbyView === 'ROOM_JOINED';
     if (!canCrossfade) {
       beforeSwap?.();
       setLobbyView(nextView);
@@ -464,7 +465,11 @@ export default function Lobby() {
 
     lobbyCrossfadeRef.current = true;
     logLobbyTransition('transition-crossfade-start', { from: lobbyView, nextView });
-    const outgoingOpacity = lobbyView === 'WELCOME' ? welcomeOpacity : setupOpacity;
+    const outgoingOpacity = lobbyView === 'WELCOME'
+      ? welcomeOpacity
+      : lobbyView === 'SETUP'
+        ? setupOpacity
+        : roomOpacity;
     const incomingOpacity = nextView === 'WELCOME' ? welcomeOpacity : setupOpacity;
     incomingOpacity.setValue(0);
 
@@ -494,6 +499,10 @@ export default function Lobby() {
       });
     });
   };
+
+  useEffect(() => {
+    if (lobbyView !== 'WELCOME' && lobbyView !== 'SETUP') roomOpacity.setValue(1);
+  }, [lobbyView, roomOpacity]);
 
   useEffect(() => {
     if (!lobbyEntryFade || (lobbyView !== 'WELCOME' && lobbyView !== 'SETUP')) return;
@@ -620,11 +629,12 @@ export default function Lobby() {
 
     joinPendingRef.current = false;
     setRoomExitWarningOpen(false);
-    setServerGameId(null);
-    setServerUserId(null);
-    setRoomCode('');
-    setRoomPlayers([]);
-    transitionLobbyView('SETUP');
+    transitionLobbyView('SETUP', () => {
+      setServerGameId(null);
+      setServerUserId(null);
+      setRoomCode('');
+      setRoomPlayers([]);
+    });
 
     if (!gameId) return;
     void api.getGame(gameId)
@@ -1696,28 +1706,14 @@ export default function Lobby() {
           </View>
           <ButtonTab
             category="button"
-            type="primary"
+            type="secondary"
             size="100"
-            onPress={() => {
-              console.log('[GameSettings] BEGIN GAME pressed', {
-                gameId: serverGameId,
-                userId: serverUserId,
-                playerCount: roomPlayers.length,
-                targetScore,
-                selectedDeck,
-              });
-              startGame('MULTIPLAYER', roomPlayers, targetScore, selectedDeck);
-            }}
+            disabled
           >
-            <View className="items-center justify-center">
-              <View className="flex-row items-center" style={{ gap: 6 }}>
-                <Loader2 size={15} color="#0a0a0a" className="animate-spin" />
-                <Text className="font-black uppercase tracking-wider text-neutral-950">
-                  {isBs ? 'POKRENI IGRU' : 'BEGIN GAME'}
-                </Text>
-              </View>
-              <Text className="font-mono text-[8px] font-bold uppercase tracking-widest text-neutral-950/60">
-                {isBs ? 'ČEKA SE DOMAĆIN • TEST' : 'WAITING FOR HOST • TEST'}
+            <View className="flex-row items-center justify-center" style={{ gap: 8 }}>
+              <ActivityIndicator color="#737373" size="small" />
+              <Text className="font-black uppercase tracking-wider text-neutral-500">
+                {isBs ? 'ČEKA SE DOMAĆIN' : 'WAITING FOR HOST'}
               </Text>
             </View>
           </ButtonTab>
@@ -1768,7 +1764,7 @@ export default function Lobby() {
             </Animated.View>
           </View>
         ) : (
-        <View key={lobbyView} className="flex-1">
+        <Animated.View key={lobbyView} className="flex-1" style={{ opacity: roomOpacity }}>
           {lobbyView === 'ROOM_JOINING' ? (
             <LoadingState message={joinStatusText} />
           ) : (
@@ -1782,7 +1778,7 @@ export default function Lobby() {
               {renderContent()}
             </ScrollView>
           )}
-        </View>
+        </Animated.View>
         )}
       </KeyboardAvoidingView>
       <ConfirmModal

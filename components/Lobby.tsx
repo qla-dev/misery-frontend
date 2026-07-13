@@ -51,6 +51,14 @@ const GOOGLE_AUTH_CONFIG = {
   iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
   androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
 };
+// The Google provider throws during render when the platform client ID is
+// absent. Keep startup safe for misconfigured builds; sign-in itself remains
+// disabled by the real-config guard in handleSocialSignIn.
+const GOOGLE_AUTH_REQUEST_CONFIG = {
+  webClientId: GOOGLE_AUTH_CONFIG.webClientId || 'unconfigured.apps.googleusercontent.com',
+  iosClientId: GOOGLE_AUTH_CONFIG.iosClientId || 'unconfigured.apps.googleusercontent.com',
+  androidClientId: GOOGLE_AUTH_CONFIG.androidClientId || 'unconfigured.apps.googleusercontent.com',
+};
 const GOOGLE_IOS_REVERSED_CLIENT_ID = GOOGLE_AUTH_CONFIG.iosClientId
   ? `com.googleusercontent.apps.${GOOGLE_AUTH_CONFIG.iosClientId.replace('.apps.googleusercontent.com', '')}`
   : null;
@@ -452,7 +460,7 @@ export default function Lobby() {
   const serverStartedRef = useRef(false);
   const processedGoogleTokenRef = useRef<string | null>(null);
   const [, googleAuthResponse, promptGoogleSignIn] = Google.useIdTokenAuthRequest({
-    ...GOOGLE_AUTH_CONFIG,
+    ...GOOGLE_AUTH_REQUEST_CONFIG,
     redirectUri: GOOGLE_REDIRECT_URI,
     selectAccount: true,
   });

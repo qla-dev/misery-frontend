@@ -125,7 +125,9 @@ export default function GameBoard({
     image: card.image && card.image !== '0'
       ? card.image.startsWith('http://') || card.image.startsWith('https://')
         ? card.image
-        : `${API_BASE_URL.replace(/\/api\/?$/, '')}/storage/${card.image.replace(/^\/?(?:storage\/)?/, '')}`
+        : card.image.startsWith('/')
+          ? `${API_BASE_URL.replace(/\/api\/?$/, '')}${card.image}`
+          : `${API_BASE_URL.replace(/\/api\/?$/, '')}/storage/${card.image.replace(/^\/?(?:storage\/)?/, '')}`
       : undefined,
     illustrationType: 'general_misery',
   });

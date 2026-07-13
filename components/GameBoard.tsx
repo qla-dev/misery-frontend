@@ -33,6 +33,10 @@ function getPlayerColorHex(colorClasses: string) {
   return colorKey ? PLAYER_COLOR_HEX[colorKey] : '#facc15';
 }
 
+function pointsFromLane(lane: Card[]) {
+  return Math.max(0, lane.length - 3);
+}
+
 interface GameBoardProps {
   mode: GameMode;
   initialPlayers: { id?: number; name: string; color: string; isBot?: boolean }[];
@@ -182,7 +186,7 @@ export default function GameBoard({
         if (player.id !== pending.actingPlayerId || player.lane.some((card) => card.id === pending.card.id)) return player;
         const lane = [...player.lane];
         lane.splice(pending.slotIdx, 0, pending.card);
-        return { ...player, lane, score: lane.length };
+        return { ...player, lane, score: pointsFromLane(lane) };
       }),
     }));
   }, [laneResult]);
@@ -249,7 +253,7 @@ export default function GameBoard({
         lane: startingLane,
         color: colors[0],
         lives: 3,
-        score: 3,
+        score: 0,
       });
     } else {
       initialPlayers.forEach((p, idx) => {
@@ -260,7 +264,7 @@ export default function GameBoard({
           lane: startingLane,
           color: p.color,
           isBot: p.isBot,
-          score: 3,
+          score: 0,
         });
       });
     }
@@ -317,7 +321,9 @@ export default function GameBoard({
             currentPlayerIndex: nextIndex >= 0 ? nextIndex : prev.currentPlayerIndex,
             activeStealerIndex: game.is_steal_turn && nextIndex >= 0 ? nextIndex : undefined,
             drawnCard: game.current_card ? toLocalCard(game.current_card) : prev.drawnCard,
-            phase: isCorrect
+            phase: game.winner_id
+              ? 'VICTORY'
+              : isCorrect
               ? prev.phase
               : game.is_steal_turn
                 ? 'STEAL_DECISION'
@@ -341,7 +347,7 @@ export default function GameBoard({
         success: true,
       };
       setGameState((prev) => {
-        const checkVictory = actingPlayer.lane.length + 1 >= targetScore;
+        const checkVictory = pointsFromLane([...actingPlayer.lane, drawnCard]) >= targetScore;
         return {
           ...prev,
           phase: checkVictory ? 'VICTORY' : 'CORRECT_REVEAL',
@@ -424,7 +430,9 @@ export default function GameBoard({
           ...prev,
           currentPlayerIndex: safeServerPlayerIndex,
           activeStealerIndex: game.is_steal_turn ? safeServerPlayerIndex : undefined,
-          phase: game.is_steal_turn && !game.awaiting_finish
+          phase: game.winner_id
+            ? 'VICTORY'
+            : game.is_steal_turn && !game.awaiting_finish
             ? acceptedStealCardIdRef.current === String(game.current_card?.id) ? 'PLAYING' : 'STEAL_DECISION'
             : game.awaiting_finish ? prev.phase : 'PLAYING',
           drawnCard: game.current_card ? toLocalCard(game.current_card) : prev.drawnCard,
@@ -438,7 +446,7 @@ export default function GameBoard({
               .filter((card) => !serverCardIds.has(card.id));
             optimisticLaneCardsRef.current[player.id] = pendingCards;
             const lane = [...serverLane, ...pendingCards].sort((a, b) => a.index - b.index);
-            return { ...player, lane, score: lane.length };
+            return { ...player, lane, score: pointsFromLane(lane) };
           }),
           guessHistory: game.moves.map((move) => ({ playerName: move.player.name, cardTitle: move.card?.title ?? '', guessIndex: -1, correctIndex: -1, success: move.correct })),
         }));
@@ -533,7 +541,7 @@ export default function GameBoard({
     const shuffledDeck = [...CARD_DECK].sort(() => Math.random() - 0.5);
     const refreshedPlayers = gameState.players.map((p) => {
       const startingLane = shuffledDeck.splice(0, 3).sort((a, b) => a.index - b.index);
-      return { ...p, lane: startingLane, lives: mode === 'SOLO' ? 3 : undefined, score: 3 };
+      return { ...p, lane: startingLane, lives: mode === 'SOLO' ? 3 : undefined, score: 0 };
     });
     const firstDraw = shuffledDeck.pop() || null;
     setGameState({
@@ -606,7 +614,7 @@ export default function GameBoard({
     ? gameState.players.find((player) => Number(player.id) === Number(userId)) ?? gameState.players[0]
     : gameState.players.find((player) => !player.isBot) ?? gameState.players[0];
   const leaderboard = [...gameState.players].sort((a, b) => {
-    const scoreDifference = b.lane.length - a.lane.length;
+    const scoreDifference = pointsFromLane(b.lane) - pointsFromLane(a.lane);
     if (scoreDifference !== 0) return scoreDifference;
     if (a.id === currentActingPlayer?.id) return -1;
     if (b.id === currentActingPlayer?.id) return 1;
@@ -782,7 +790,7 @@ export default function GameBoard({
                         />
                         <Text className="text-xs font-bold text-white">{p.name}</Text>
                         <View className="bg-black/10 px-1.5 py-0.5 rounded">
-                          <Text className="text-[10px] font-mono text-white">{p.lane.length} pts</Text>
+                          <Text className="text-[10px] font-mono text-white">{pointsFromLane(p.lane)} pts</Text>
                         </View>
                       </View>
                     </ButtonTab>
@@ -1042,7 +1050,7 @@ export default function GameBoard({
                         >
                           <Text className="text-2xl font-black" style={{ color: isWinner ? '#0a0a0a' : medalColor }}>{rank}</Text>
                           <Text className={`mt-1 font-mono text-[10px] font-black uppercase ${isWinner ? 'text-neutral-950/70' : 'text-neutral-400'}`}>
-                            {player.lane.length} {isBs ? 'KAR.' : 'CARDS'}
+                            {pointsFromLane(player.lane)} PTS
                           </Text>
                         </LinearGradient>
                       </View>
@@ -1065,7 +1073,7 @@ export default function GameBoard({
                           {player.name}{isLocal ? (isBs ? ' (TI)' : ' (YOU)') : ''}
                         </Text>
                         <View className={`rounded-lg px-2.5 py-1 ${isWinner ? 'bg-amber-400' : 'bg-neutral-800'}`}>
-                          <Text className={`font-mono text-[10px] font-black ${isWinner ? 'text-neutral-950' : 'text-neutral-300'}`}>{player.lane.length} PTS</Text>
+                          <Text className={`font-mono text-[10px] font-black ${isWinner ? 'text-neutral-950' : 'text-neutral-300'}`}>{pointsFromLane(player.lane)} PTS</Text>
                         </View>
                       </View>
                     );
@@ -1093,7 +1101,7 @@ export default function GameBoard({
               <Text className="text-xs text-neutral-400 leading-relaxed text-center">{isBs ? `Izgubili ste sve živote! Uspjeli ste dodati ${currentPlayer.lane.length - 3} novih kartica u vašu Traku Bijede.` : `You ran out of lives! You managed to add ${currentPlayer.lane.length - 3} new cards to your Misery Lane.`}</Text>
               <View className="p-4 bg-neutral-950/80 rounded-xl w-full items-center">
                 <Text className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold">{isBs ? 'KONAČNI REZULTAT' : 'FINAL SCORE'}</Text>
-                <Text className="text-2xl font-black text-amber-400 uppercase tracking-tight mt-1">{currentPlayer.lane.length} CARDS</Text>
+                <Text className="text-2xl font-black text-amber-400 uppercase tracking-tight mt-1">{pointsFromLane(currentPlayer.lane)} PTS</Text>
               </View>
               <View className="flex-col gap-3 pt-2 w-full">
                 <Pressable onPress={handleBack} className="w-full py-3 bg-neutral-900 rounded-xl items-center justify-center border border-neutral-800">
@@ -1198,7 +1206,13 @@ export default function GameBoard({
         onCancel={() => handleStealChoice(false)}
         onConfirm={() => handleStealChoice(true)}
         onRequestClose={() => handleStealChoice(false)}
-        visible={Boolean(isStealPhase && activeStealer && !activeStealer.isBot && (!gameId || Number(activeStealer.id) === Number(userId)))}
+        visible={Boolean(
+          laneResult === null &&
+          isStealPhase &&
+          activeStealer &&
+          !activeStealer.isBot &&
+          (!gameId || Number(activeStealer.id) === Number(userId))
+        )}
       >
         <View className="items-center" style={{ gap: 10 }}>
           <ShieldAlert size={38} color="#fbbf24" />

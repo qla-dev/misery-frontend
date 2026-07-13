@@ -963,7 +963,7 @@ export default function Lobby() {
     if (serverGameId && serverUserId) {
       try {
         const stack = deck === 'SPICY' ? 'spicy' : 'normal';
-        const game = await api.startGame(serverGameId, serverUserId, stack);
+        const game = await api.startGame(serverGameId, serverUserId, stack, tScore);
         console.log('[StartGame] API success', {
           gameId: game.id,
           started: game.started,
@@ -1009,7 +1009,7 @@ export default function Lobby() {
               name: member.name,
               color: (AVAILABLE_COLORS.find((color) => color.id === member.color) ?? AVAILABLE_COLORS[index % AVAILABLE_COLORS.length]).borderClass,
             })),
-            targetScore,
+            targetScore: game.target_score,
             deckType: selectedDeck,
             gameId: game.id,
             userId: serverUserId ?? undefined,

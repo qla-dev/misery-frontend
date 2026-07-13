@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Modal, Text, View } from 'react-native';
-import { Ban, Check, Play, ShieldAlert, Square } from 'lucide-react-native';
+import { Animated, Easing, Modal, Pressable, Text, View } from 'react-native';
+import { Ban, Check, Play, ShieldAlert, Square, X } from 'lucide-react-native';
+import { playHaptic } from '@/lib/sound';
 
 type LaneModalProps = {
   failureMessage: string;
@@ -34,6 +35,8 @@ export function LaneModal({
   const scale = useRef(new Animated.Value(0.25)).current;
   const rotation = useRef(new Animated.Value(0)).current;
   const onCompleteRef = useRef(onComplete);
+  const closingRef = useRef(false);
+  const dismissRef = useRef<() => void>(() => undefined);
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
@@ -41,6 +44,7 @@ export function LaneModal({
 
   useEffect(() => {
     if (!visible) {
+      closingRef.current = false;
       setRendered(false);
       return;
     }
@@ -72,7 +76,9 @@ export function LaneModal({
       }),
     ]).start();
 
-    const timer = setTimeout(() => {
+    const dismiss = () => {
+      if (closingRef.current) return;
+      closingRef.current = true;
       Animated.timing(opacity, {
         duration: 180,
         easing: Easing.in(Easing.quad),
@@ -82,7 +88,9 @@ export function LaneModal({
         setRendered(false);
         onCompleteRef.current?.();
       });
-    }, 1400);
+    };
+    dismissRef.current = dismiss;
+    const timer = setTimeout(dismiss, 2400);
 
     return () => clearTimeout(timer);
   }, [opacity, rotation, scale, success, visible]);
@@ -93,7 +101,16 @@ export function LaneModal({
   });
 
   return (
-    <Modal animationType="none" statusBarTranslucent transparent visible={rendered && visible}>
+    <Modal
+      animationType="none"
+      onRequestClose={() => {
+        playHaptic();
+        dismissRef.current();
+      }}
+      statusBarTranslucent
+      transparent
+      visible={rendered && visible}
+    >
       <Animated.View
         className={`flex-1 items-center justify-center px-8 ${neutral ? 'bg-white' : warning ? 'bg-amber-400' : success ? 'bg-emerald-500' : 'bg-red-500'}`}
         style={{ opacity }}
@@ -129,6 +146,36 @@ export function LaneModal({
             </Text>
           </View>
         </Animated.View>
+        <View
+          pointerEvents="box-none"
+          style={{
+            alignItems: 'center',
+            bottom: 20,
+            left: 0,
+            position: 'absolute',
+            right: 0,
+          }}
+        >
+          <Pressable
+            accessibilityLabel="Close"
+            accessibilityRole="button"
+            hitSlop={10}
+            onPress={() => {
+              playHaptic();
+              dismissRef.current();
+            }}
+            style={{
+              alignItems: 'center',
+              backgroundColor: 'rgba(64,64,64,0.3)',
+              borderRadius: 22,
+              height: 44,
+              justifyContent: 'center',
+              width: 44,
+            }}
+          >
+            <X color={neutral ? '#171717' : '#ffffff'} size={22} strokeWidth={2.6} />
+          </Pressable>
+        </View>
       </Animated.View>
     </Modal>
   );

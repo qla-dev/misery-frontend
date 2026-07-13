@@ -1,5 +1,5 @@
-import { Host, Picker, Text } from '@expo/ui/swift-ui';
-import { controlSize, foregroundStyle, frame, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
+import { Host, Label, Picker } from '@expo/ui/swift-ui';
+import { controlSize, foregroundStyle, frame, labelStyle, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
 
 type SetupTab = 'CREATE' | 'JOIN';
 
@@ -19,12 +19,24 @@ export function SetupTabs({
         onSelectionChange={onChange}
         modifiers={[pickerStyle('segmented'), controlSize('large'), frame({ height: 44 })]}
       >
-        <Text modifiers={[tag('CREATE'), foregroundStyle(value === 'CREATE' ? '#fbbf24' : '#a3a3a3')]}>
-          {isBs ? 'Kreiraj Sobu' : 'Create Room'}
-        </Text>
-        <Text modifiers={[tag('JOIN'), foregroundStyle(value === 'JOIN' ? '#fbbf24' : '#a3a3a3')]}>
-          {isBs ? 'Unesi Code Sobe' : 'Enter Room Code'}
-        </Text>
+        <Label
+          modifiers={[
+            tag('CREATE'),
+            labelStyle('titleAndIcon'),
+            foregroundStyle(value === 'CREATE' ? '#fbbf24' : '#a3a3a3'),
+          ]}
+          systemImage="plus.circle.fill"
+          title={isBs ? 'Kreiraj Sobu' : 'Create Room'}
+        />
+        <Label
+          modifiers={[
+            tag('JOIN'),
+            labelStyle('titleAndIcon'),
+            foregroundStyle(value === 'JOIN' ? '#fbbf24' : '#a3a3a3'),
+          ]}
+          systemImage="rectangle.portrait.and.arrow.right"
+          title={isBs ? 'Unesi Code Sobe' : 'Enter Room Code'}
+        />
       </Picker>
     </Host>
   );

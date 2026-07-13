@@ -18,7 +18,6 @@ import { playSound } from '@/lib/sound';
 import { AppButton, Section, Surface } from './AppPrimitives';
 import { AppInput } from './AppInput';
 import { GradientButton } from './GradientButton';
-import ManSilhouette from './ManSilhouette';
 import { ButtonTab } from './ButtonTab';
 import { Card } from './Card';
 import { ConfirmModal } from './ConfirmModal';
@@ -26,6 +25,7 @@ import { LoadingState } from './LoadingState';
 import { LoadingOverlay } from './LoadingOverlay';
 import { LobbyOpeningOverlay } from './LobbyOpeningOverlay';
 import { SetupTabs } from './SetupTabs';
+import { WelcomeSilhouetteRow } from './WelcomeSilhouetteRow';
 import { api, ApiGame } from '@/lib/api';
 
 const AVAILABLE_COLORS = [
@@ -40,7 +40,6 @@ const AVAILABLE_COLORS = [
 ];
 
 const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
-const RAIN_LOTTIE = require('../assets/animations/rain.json');
 const ROOM_CODE_REGEX = /^(?=(?:.*[A-Z]){4})(?=(?:.*\d){4})[A-Z\d]{8}$/;
 const LAST_USERNAME_KEY = '@misery-index/last-username';
 const AUTH_TOKEN_KEY = '@misery-index/auth-token';
@@ -332,56 +331,6 @@ function AnimatedILetter({ style }: { style?: any }) {
           <Path d={WARNING_PATH} fill="#fff176" />
         </Svg>
       </Animated.View>
-    </View>
-  );
-}
-
-function WelcomeSilhouetteRow({ flip = false }: { flip?: boolean }) {
-  const count = 7;
-  const stormIndex = 3;
-
-  return (
-    <View className="flex-row items-end justify-center pt-5">
-      {Array.from({ length: count }).map((_, idx) => (
-        <View
-          key={idx}
-          className="items-center"
-          style={{
-            marginHorizontal: -4,
-            opacity: idx === stormIndex ? 1 : 0.92,
-            transform: [
-              { scaleX: idx % 2 === 0 ? -1 : 1 },
-              { translateY: flip ? 2 : 0 },
-            ],
-          }}
-        >
-          {idx === stormIndex ? (
-            <View
-              pointerEvents="none"
-              style={{
-                height: 58,
-                position: 'absolute',
-                left: 6,
-                top: -28,
-                width: 58,
-                zIndex: 10,
-              }}
-            >
-              <LottieView
-                autoPlay
-                loop
-                source={RAIN_LOTTIE}
-                style={{ height: 58, width: 58 }}
-              />
-            </View>
-          ) : null}
-          <ManSilhouette
-            width={72}
-            height={96}
-            color={idx === stormIndex ? '#ffffff' : '#facc15'}
-          />
-        </View>
-      ))}
     </View>
   );
 }

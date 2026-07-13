@@ -287,7 +287,7 @@ export default function GameTabsLayout() {
         failureMessage=""
         failureTitle=""
         holding={turnNotice?.type === 'hold'}
-        neutral
+        neutral={turnNotice?.type !== 'hold'}
         onComplete={() => setTurnNotices((current) => current.slice(1))}
         success
         successMessage={turnNotice?.type === 'finish'
@@ -315,6 +315,7 @@ export default function GameTabsLayout() {
             ? isBs ? 'POKUŠAJ KRAĐE' : 'YOUR STEAL ATTEMPT'
             : isBs ? 'TVOJ POTEZ JE POČEO' : 'YOUR TURN STARTED'}
         visible={laneResult === null && turnNoticeReady && !gameRuntime?.hasPendingLaneAnimation && Boolean(turnNotice)}
+        warning={turnNotice?.type === 'hold'}
       />
       <ConfirmModal
         cancelLabel={isBs ? 'NAPUSTI IGRU' : 'LEAVE GAME'}

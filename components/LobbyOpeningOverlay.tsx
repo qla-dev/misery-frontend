@@ -18,11 +18,13 @@ export function LobbyOpeningOverlay({ changed, color, isBs = false, visible }: L
           <Text className="text-center text-xl font-black uppercase tracking-wider text-amber-400">
             {isBs ? 'OTVARAMO LOBI' : 'OPENING LOBBY'}
           </Text>
-          <LottieView autoPlay loop source={MASCOT_LOTTIE} style={{ height: 132, marginVertical: 14, width: 100 }} />
-          <View
-            className="mb-4 h-14 w-14 rounded-full border-2 border-white/20"
-            style={{ backgroundColor: color }}
-          />
+          <View className="flex-row items-center justify-center" style={{ gap: 16, marginVertical: 14 }}>
+            <LottieView autoPlay loop source={MASCOT_LOTTIE} style={{ height: 132, width: 100 }} />
+            <View
+              className="h-14 w-14 rounded-full border-2 border-white/20"
+              style={{ backgroundColor: color }}
+            />
+          </View>
           <Text className="text-center text-sm font-bold leading-6 text-neutral-300">
             {changed
               ? isBs

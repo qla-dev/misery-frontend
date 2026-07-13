@@ -18,6 +18,7 @@ type LaneModalProps = {
   score?: number;
   scoreLabel?: string;
   holding?: boolean;
+  persistent?: boolean;
 };
 
 export function LaneModal({
@@ -35,6 +36,7 @@ export function LaneModal({
   score,
   scoreLabel = 'MISERY VALUE',
   holding = false,
+  persistent = false,
 }: LaneModalProps) {
   const [rendered, setRendered] = useState(false);
   const opacity = useRef(new Animated.Value(0)).current;
@@ -56,7 +58,7 @@ export function LaneModal({
     }
 
     setRendered(true);
-    playHaptic(neutral ? 'click' : warning ? 'steal' : success ? 'correct' : 'wrong');
+    playHaptic(holding || neutral ? 'click' : warning ? 'steal' : success ? 'correct' : 'wrong');
     opacity.setValue(0);
     scale.setValue(0.25);
     rotation.setValue(success ? -0.18 : -0.1);
@@ -97,10 +99,12 @@ export function LaneModal({
       });
     };
     dismissRef.current = dismiss;
-    const timer = setTimeout(dismiss, 2400);
+    const timer = persistent ? null : setTimeout(dismiss, 2400);
 
-    return () => clearTimeout(timer);
-  }, [neutral, opacity, rotation, scale, success, visible, warning]);
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [holding, neutral, opacity, persistent, rotation, scale, success, visible, warning]);
 
   const rotate = rotation.interpolate({
     inputRange: [-1, 1],
@@ -127,10 +131,15 @@ export function LaneModal({
           style={{ gap: 22, transform: [{ translateY: -31 }, { scale }, { rotate }] }}
         >
           <View className={`h-40 w-40 items-center justify-center rounded-full border-[6px] ${neutral ? 'border-neutral-950 bg-neutral-950/5' : 'border-white bg-white/15'}`}>
-            {neutral ? (
-              holding
-                ? <Pause color="#0a0a0a" fill="#0a0a0a" size={76} strokeWidth={2.5} />
-                : ending
+            {holding ? (
+              <Pause
+                color={neutral ? '#0a0a0a' : '#ffffff'}
+                fill={neutral ? '#0a0a0a' : '#ffffff'}
+                size={76}
+                strokeWidth={2.5}
+              />
+            ) : neutral ? (
+              ending
                 ? <Square color="#0a0a0a" fill="#0a0a0a" size={72} strokeWidth={2.5} />
                 : <Play color="#0a0a0a" fill="#0a0a0a" size={82} strokeWidth={2.5} />
             ) : warning ? (

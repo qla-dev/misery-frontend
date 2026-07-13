@@ -71,6 +71,11 @@
     },
     "extra": {
       "router": {},
+      "revenueCat": {
+        "entitlementIdentifier": "misery-pro",
+        "offeringIdentifier": "misery-pro",
+        "offeringRestId": "ofrng75a5f44275"
+      },
       "eas": {
         "projectId": "a88a9dfd-a504-4af4-b0fb-43e1888fee43"
       }

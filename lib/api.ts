@@ -10,10 +10,20 @@ const API_URLS = {
 
 export const API_BASE_URL = API_URLS[API_TARGET];
 
-export interface ApiUser { id: number; name: string; email: string | null; color: string | null }
+export interface ApiUser {
+  id: number;
+  name: string;
+  email: string | null;
+  color: string | null;
+  pro_status?: 'inactive' | 'monthly' | 'yearly';
+  pro_started_at?: string | null;
+  pro_ends_at?: string | null;
+  revenuecat_product_id?: string | null;
+  revenuecat_entitlement_id?: string | null;
+}
 export interface ApiCard { id: number; title: string; subtitle: string | null; score: number | string; image: string | null; deck: string }
 export interface ApiMove { id: number; player_id: number; correct: boolean; player: ApiUser; card: ApiCard | null; created_at: string }
-export interface ApiGame { id: number; code: string; owner_id: number; started: boolean; stack_id: number | null; stack: 'normal' | 'spicy' | string | null; target_score: number; winner_id: number | null; current_player_id: number | null; turn_owner_id: number | null; awaiting_finish: boolean; is_steal_turn: boolean; ingame_polling_interval_ms: number; members: ApiUser[]; hands: Record<string, ApiCard[]>; current_card: ApiCard | null; moves: ApiMove[] }
+export interface ApiGame { id: number; code: string; owner_id: number; started: boolean; host_in_lobby: boolean; stack_id: number | null; stack: 'normal' | 'spicy' | string | null; target_score: number; winner_id: number | null; current_player_id: number | null; turn_owner_id: number | null; awaiting_finish: boolean; is_steal_turn: boolean; ingame_polling_interval_ms: number; members: ApiUser[]; hands: Record<string, ApiCard[]>; current_card: ApiCard | null; moves: ApiMove[] }
 export interface SocialAuthResponse { token: string; user: ApiUser; is_new_user: boolean }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -66,6 +76,7 @@ export const api = {
     return request<{ game: ApiGame; user: ApiUser; color_changed: boolean }>(`/games/code/${encodeURIComponent(normalizedCode)}/join`, { method: 'POST', body: JSON.stringify({ name, color }) });
   },
   getGame: (id: number) => request<ApiGame>(`/games/${id}`),
+  setHostLobbyPresence: (id: number, userId: number, present: boolean) => request<ApiGame>(`/games/${id}/host-lobby-presence`, { method: 'POST', body: JSON.stringify({ user_id: userId, present }) }),
   deleteGame: (id: number) => request<void>(`/games/${id}`, { method: 'DELETE' }),
   startGame: (id: number, userId: number, stack: 'normal' | 'spicy', targetScore: number) => request<ApiGame>(`/games/${id}/start`, { method: 'POST', body: JSON.stringify({ user_id: userId, stack, target_score: targetScore }) }),
   submitMove: (id: number, playerId: number, correct: boolean) => request<{ game: ApiGame }>(`/games/${id}/moves`, { method: 'POST', body: JSON.stringify({ player_id: playerId, correct }) }),

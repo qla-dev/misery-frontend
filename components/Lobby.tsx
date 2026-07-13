@@ -26,7 +26,7 @@ import { LoadingOverlay } from './LoadingOverlay';
 import { LobbyOpeningOverlay } from './LobbyOpeningOverlay';
 import { SetupTabs } from './SetupTabs';
 import { WelcomeSilhouetteRow } from './WelcomeSilhouetteRow';
-import { api, ApiGame } from '@/lib/api';
+import { api, ApiGame, ApiUser } from '@/lib/api';
 
 const AVAILABLE_COLORS = [
   { id: 'yellow', hex: '#facc15', nameEn: 'Amber Gold', nameBs: 'Zlatni Ćilibar', bgClass: 'bg-yellow-400', borderClass: 'border-yellow-400 bg-yellow-400/5 text-yellow-400' },
@@ -377,6 +377,7 @@ export default function Lobby() {
     setIsGameCountingDown,
     session,
     setSession,
+    setPremiumIdentity,
   } = useGame();
 
   const isBs = language === 'bs';
@@ -402,8 +403,10 @@ export default function Lobby() {
   const [usernameError, setUsernameError] = useState('');
   const [isSavingUsername, setIsSavingUsername] = useState(false);
   const [lobbyOpening, setLobbyOpening] = useState({ changed: false, color: AVAILABLE_COLORS[0].hex, visible: false });
-  const [serverGameId, setServerGameId] = useState<number | null>(null);
-  const [serverUserId, setServerUserId] = useState<number | null>(null);
+  const [serverGameId, setServerGameId] = useState<number | null>(session?.gameId ?? null);
+  const [serverUserId, setServerUserId] = useState<number | null>(session?.userId ?? null);
+  const [serverOwnerId, setServerOwnerId] = useState<number | null>(session?.ownerId ?? null);
+  const [hostInLobby, setHostInLobby] = useState(true);
   const [availableGames, setAvailableGames] = useState<ApiGame[]>([]);
   const [startModal, setStartModal] = useState<{ visible: boolean; title: string; message: string }>({
     visible: false,
@@ -527,24 +530,34 @@ export default function Lobby() {
 
   useEffect(() => {
     logLobbyTransition('username-restore-start');
-    AsyncStorage.multiGet([LAST_USERNAME_KEY, LAST_GUEST_USERNAME_KEY, AUTH_TOKEN_KEY, AUTH_PROVIDER_KEY])
+    AsyncStorage.multiGet([LAST_USERNAME_KEY, LAST_GUEST_USERNAME_KEY, AUTH_TOKEN_KEY, AUTH_USER_KEY, AUTH_PROVIDER_KEY])
       .then((entries) => {
         const saved = Object.fromEntries(entries);
         const savedSocialName = saved[LAST_USERNAME_KEY];
         const savedGuestName = saved[LAST_GUEST_USERNAME_KEY];
         const savedProvider = saved[AUTH_PROVIDER_KEY];
+        const savedToken = saved[AUTH_TOKEN_KEY];
+        let savedUser: ApiUser | null = null;
+        try {
+          savedUser = saved[AUTH_USER_KEY] ? JSON.parse(saved[AUTH_USER_KEY] as string) : null;
+        } catch {
+          savedUser = null;
+        }
         const hasSocialSession = Boolean(saved[AUTH_TOKEN_KEY]) &&
-          (savedProvider === 'google' || savedProvider === 'apple');
+          Boolean(savedUser?.id) && (savedProvider === 'google' || savedProvider === 'apple');
         const restoredName = hasSocialSession ? savedSocialName : savedGuestName;
         logLobbyTransition('username-restore-end', { hasSavedName: Boolean(restoredName), hasSocialSession });
         if (restoredName) setUserName(restoredName);
         if (hasSocialSession) {
+          void setPremiumIdentity(savedUser, savedToken ?? null);
           setIsSocialUser(true);
           setSocialProvider(savedProvider as 'google' | 'apple');
+        } else {
+          void setPremiumIdentity(null, null);
         }
       })
       .catch(() => undefined);
-  }, [setIsSocialUser, setSocialProvider, setUserName]);
+  }, [setIsSocialUser, setPremiumIdentity, setSocialProvider, setUserName]);
 
   const handleGuestNameChange = (name: string) => {
     setUserName(name);
@@ -558,6 +571,8 @@ export default function Lobby() {
 
   const applyServerGame = (game: ApiGame) => {
     setRoomCode(game.code);
+    setServerOwnerId(game.owner_id);
+    setHostInLobby(game.host_in_lobby ?? true);
     setRoomPlayers(game.members.map((member, index) => ({
       id: member.id,
       name: member.name,
@@ -632,11 +647,15 @@ export default function Lobby() {
     transitionLobbyView('SETUP', () => {
       setServerGameId(null);
       setServerUserId(null);
+      setServerOwnerId(null);
       setRoomCode('');
       setRoomPlayers([]);
     });
 
     if (!gameId) return;
+    if (serverUserId && Number(serverUserId) === Number(serverOwnerId)) {
+      void api.setHostLobbyPresence(gameId, serverUserId, false).catch(() => undefined);
+    }
     void api.getGame(gameId)
       .then((game) => game.started ? undefined : api.deleteGame(gameId))
       .catch((error) => console.warn('[LeaveRoom] Background room deletion failed', error));
@@ -776,6 +795,7 @@ export default function Lobby() {
         [AUTH_PROVIDER_KEY, provider],
         [LAST_USERNAME_KEY, result.user.name],
       ]);
+      await setPremiumIdentity(result.user, result.token);
       transitionLobbyView('SETUP', () => {
         setUserName(result.user.name);
         setIsSocialUser(true);
@@ -835,6 +855,7 @@ export default function Lobby() {
           [AUTH_PROVIDER_KEY, 'google'],
           [LAST_USERNAME_KEY, result.user.name],
         ]);
+        await setPremiumIdentity(result.user, result.token);
         transitionLobbyView('SETUP', () => {
           setUserName(result.user.name);
           setIsSocialUser(true);
@@ -902,6 +923,7 @@ export default function Lobby() {
     const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
     if (token) void api.logout(token).catch(() => undefined);
     await AsyncStorage.multiRemove([AUTH_TOKEN_KEY, AUTH_USER_KEY, AUTH_PROVIDER_KEY, LAST_USERNAME_KEY]);
+    await setPremiumIdentity(null, null);
     setIsSocialUser(false);
     setSocialProvider(null);
     setUserName('');
@@ -929,6 +951,7 @@ export default function Lobby() {
           const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
           if (token) void api.logout(token).catch(() => undefined);
           await AsyncStorage.multiRemove([AUTH_TOKEN_KEY, AUTH_USER_KEY, AUTH_PROVIDER_KEY, LAST_USERNAME_KEY]);
+          await setPremiumIdentity(null, null);
         } else {
           await AsyncStorage.removeItem(LAST_GUEST_USERNAME_KEY);
         }
@@ -976,10 +999,12 @@ export default function Lobby() {
       targetScore: tScore,
       deck,
     });
+    let ownerId: number | undefined;
     if (serverGameId && serverUserId) {
       try {
         const stack = deck === 'SPICY' ? 'spicy' : 'normal';
         const game = await api.startGame(serverGameId, serverUserId, stack, tScore);
+        ownerId = game.owner_id;
         console.log('[StartGame] API success', {
           gameId: game.id,
           started: game.started,
@@ -1001,7 +1026,7 @@ export default function Lobby() {
     }
     if (serverGameId) serverStartedRef.current = true;
     setIsGameCountingDown(true);
-    setSession({ mode, players, targetScore: tScore, deckType: deck, gameId: serverGameId ?? undefined, userId: serverUserId ?? undefined });
+    setSession({ mode, players, targetScore: tScore, deckType: deck, gameId: serverGameId ?? undefined, userId: serverUserId ?? undefined, ownerId });
     console.log('[StartGame] navigating to game screen');
     setTimeout(() => {
       router.push('./game');
@@ -1015,7 +1040,7 @@ export default function Lobby() {
       try {
         const game = await api.getGame(serverGameId);
         applyServerGame(game);
-        if (game.started && !serverStartedRef.current) {
+        if (game.started && game.winner_id === null && !serverStartedRef.current) {
           serverStartedRef.current = true;
           setIsGameCountingDown(true);
           setSession({
@@ -1029,6 +1054,7 @@ export default function Lobby() {
             deckType: selectedDeck,
             gameId: game.id,
             userId: serverUserId ?? undefined,
+            ownerId: game.owner_id,
           });
           router.push('./game');
         }
@@ -1038,6 +1064,13 @@ export default function Lobby() {
     const timer = setInterval(poll, 3000);
     return () => clearInterval(timer);
   }, [serverGameId, serverUserId, targetScore, selectedDeck, setIsGameCountingDown, setSession]);
+
+  useEffect(() => {
+    if ((lobbyView !== 'ROOM_CREATED' && lobbyView !== 'ROOM_JOINED') || !session?.gameId) return;
+    setServerGameId(session.gameId);
+    setServerUserId(session.userId ?? null);
+    serverStartedRef.current = false;
+  }, [lobbyView, session?.gameId, session?.userId]);
 
   useEffect(() => {
     if (lobbyView !== 'SETUP' || session !== null || isGameCountingDown) return;
@@ -1616,9 +1649,6 @@ export default function Lobby() {
                 }}
                 onFocus={() => {
                   codeInputFocusedRef.current = true;
-                  requestAnimationFrame(() => {
-                    lobbyScrollRef.current?.scrollToEnd({ animated: true });
-                  });
                 }}
                 onBlur={() => {
                   codeInputFocusedRef.current = false;
@@ -1713,7 +1743,9 @@ export default function Lobby() {
             <View className="flex-row items-center justify-center" style={{ gap: 8 }}>
               <ActivityIndicator color="#737373" size="small" />
               <Text className="font-black uppercase tracking-wider text-neutral-500">
-                {isBs ? 'ČEKA SE DOMAĆIN' : 'WAITING FOR HOST'}
+                {hostInLobby
+                  ? isBs ? 'ČEKA SE DOMAĆIN' : 'WAITING FOR HOST'
+                  : isBs ? 'DOMAĆIN NIJE U SOBI — ČEKANJE' : 'NO HOST IN ROOM — WAITING'}
               </Text>
             </View>
           </ButtonTab>
@@ -1729,7 +1761,7 @@ export default function Lobby() {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1 bg-neutral-950"
-        enabled={lobbyView === 'SETUP' && isKeyboardVisible}
+        enabled={lobbyView === 'SETUP'}
       >
         {lobbyView === 'WELCOME' || lobbyView === 'SETUP' ? (
           <View className="flex-1">

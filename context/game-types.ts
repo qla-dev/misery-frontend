@@ -14,4 +14,5 @@ export interface GameSession {
   deckType: 'NORMAL' | 'SPICY';
   gameId?: number;
   userId?: number;
+  ownerId?: number;
 }

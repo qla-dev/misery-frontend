@@ -1,14 +1,35 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Language } from '@/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GameSession, LobbyView, PlayerInput } from './game-types';
+import { AppState } from 'react-native';
+import {
+  addRevenueCatStatusListener,
+  configureRevenueCat,
+  hasRevenueCatConfig,
+  identifyRevenueCatUser,
+  openRevenueCatCustomerCenter,
+  PremiumPlan,
+  PremiumStatus,
+  purchaseRevenueCatPlan,
+  restoreRevenueCatPurchases,
+  syncRevenueCatStatus,
+} from '@/lib/revenueCat';
+import { ApiUser } from '@/lib/api';
 
 const LANGUAGE_KEY = '@misery-index/language';
 const MUSIC_MUTED_KEY = '@misery-index/music-muted';
 
 interface GameContextValue {
   isPremium: boolean;
-  activatePremium: () => Promise<void>;
+  premiumExpirationDate: string | null;
+  premiumPlan: PremiumPlan | null;
+  premiumReady: boolean;
+  purchasePremium: (plan: PremiumPlan) => Promise<PremiumStatus>;
+  restorePremium: () => Promise<PremiumStatus>;
+  managePremium: () => Promise<PremiumStatus>;
+  refreshPremium: () => Promise<PremiumStatus>;
+  setPremiumIdentity: (user: ApiUser | null, token: string | null) => Promise<PremiumStatus>;
   gameRuntime: any | null;
   setGameRuntime: (runtime: any | null) => void;
   isGameCountingDown: boolean;
@@ -74,6 +95,9 @@ const GameContext = createContext<GameContextValue | null>(null);
 
 export function GameProvider({ children }: { children: React.ReactNode }) {
   const [isPremium, setIsPremium] = useState(false);
+  const [premiumExpirationDate, setPremiumExpirationDate] = useState<string | null>(null);
+  const [premiumPlan, setPremiumPlan] = useState<PremiumPlan | null>(null);
+  const [premiumReady, setPremiumReady] = useState(false);
   const [language, setLanguage] = useState<Language>('en');
   const [lobbyView, setLobbyView] = useState<LobbyView>('WELCOME');
   const [lobbyTransitionTarget, setLobbyTransitionTarget] = useState<LobbyView | null>(null);
@@ -103,7 +127,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [settingsRestored, setSettingsRestored] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem('@misery-meter/premium').then((value) => setIsPremium(value === 'active')).catch(() => undefined);
     AsyncStorage.multiGet([LANGUAGE_KEY, MUSIC_MUTED_KEY])
       .then((entries) => {
         const saved = Object.fromEntries(entries);
@@ -126,15 +149,116 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     void AsyncStorage.setItem(MUSIC_MUTED_KEY, String(musicMuted)).catch(() => undefined);
   }, [musicMuted, settingsRestored]);
 
-  const activatePremium = async () => {
-    await AsyncStorage.setItem('@misery-meter/premium', 'active');
-    setIsPremium(true);
-  };
+  const applyPremiumStatus = useCallback((status: PremiumStatus) => {
+    setIsPremium(status.active);
+    setPremiumExpirationDate(status.expirationDate);
+    setPremiumPlan(status.plan);
+    return status;
+  }, []);
+
+  const premiumStatusFromBackendUser = useCallback((user: ApiUser): PremiumStatus => {
+    const plan = user.pro_status === 'monthly' || user.pro_status === 'yearly' ? user.pro_status : null;
+    const expirationDate = user.pro_ends_at ?? null;
+    const active = Boolean(plan) && (!expirationDate || new Date(expirationDate).getTime() > Date.now());
+    return {
+      active,
+      expirationDate: active ? expirationDate : null,
+      managementURL: null,
+      plan: active ? plan : null,
+      productIdentifier: active ? (user.revenuecat_product_id ?? null) : null,
+    };
+  }, []);
+
+  const refreshPremium = useCallback(async () => {
+    const status = await syncRevenueCatStatus();
+    return applyPremiumStatus(status);
+  }, [applyPremiumStatus]);
+
+  const purchasePremium = useCallback(async (plan: PremiumPlan) => {
+    const status = await purchaseRevenueCatPlan(plan);
+    return applyPremiumStatus(status);
+  }, [applyPremiumStatus]);
+
+  const restorePremium = useCallback(async () => {
+    const status = await restoreRevenueCatPurchases();
+    return applyPremiumStatus(status);
+  }, [applyPremiumStatus]);
+
+  const managePremium = useCallback(async () => {
+    const status = await openRevenueCatCustomerCenter();
+    return applyPremiumStatus(status);
+  }, [applyPremiumStatus]);
+
+  const setPremiumIdentity = useCallback(async (user: ApiUser | null, _token: string | null) => {
+    setPremiumReady(false);
+    const fallbackStatus = user ? premiumStatusFromBackendUser(user) : {
+      active: false,
+      expirationDate: null,
+      managementURL: null,
+      plan: null,
+      productIdentifier: null,
+    } satisfies PremiumStatus;
+    applyPremiumStatus(fallbackStatus);
+    try {
+      const revenueCatStatus = await identifyRevenueCatUser(user?.id ?? null);
+      applyPremiumStatus(revenueCatStatus);
+      return revenueCatStatus;
+    } catch (error) {
+      console.warn('[RevenueCat] account linking failed', error);
+      return fallbackStatus;
+    } finally {
+      setPremiumReady(true);
+    }
+  }, [applyPremiumStatus, premiumStatusFromBackendUser]);
+
+  useEffect(() => {
+    let active = true;
+    let unsubscribe: (() => void) | undefined;
+    const initialize = async () => {
+      if (!hasRevenueCatConfig()) {
+        if (active) setPremiumReady(true);
+        return;
+      }
+      try {
+        await configureRevenueCat();
+        const status = await syncRevenueCatStatus();
+        if (active) applyPremiumStatus(status);
+        unsubscribe = await addRevenueCatStatusListener((nextStatus) => {
+          if (!active) return;
+          applyPremiumStatus(nextStatus);
+        });
+      } catch (error) {
+        console.warn('[RevenueCat] initialization failed', error);
+      } finally {
+        if (active) setPremiumReady(true);
+      }
+    };
+    void initialize();
+    return () => {
+      active = false;
+      unsubscribe?.();
+    };
+  }, [applyPremiumStatus]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active' || !hasRevenueCatConfig()) return;
+      refreshPremium().catch((error) => console.warn('[RevenueCat] resume sync failed', error));
+    });
+    return () => subscription.remove();
+  }, [refreshPremium]);
 
   const value = useMemo(
     () => ({
       isPremium,
-      activatePremium,
+      premiumExpirationDate,
+      premiumPlan,
+      premiumReady,
+      purchasePremium,
+      restorePremium,
+      managePremium,
+      refreshPremium,
+      setPremiumIdentity,
       language,
       gameRuntime,
       setGameRuntime,
@@ -190,6 +314,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       isPremium,
+      premiumExpirationDate,
+      premiumPlan,
+      premiumReady,
+      purchasePremium,
+      restorePremium,
+      managePremium,
+      refreshPremium,
+      setPremiumIdentity,
       language,
       gameRuntime,
       isGameCountingDown,

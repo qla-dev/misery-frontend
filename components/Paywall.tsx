@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Check, Crown, Flame, Sparkles, Trophy, Zap } from 'lucide-react-native';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import LottieView from 'lottie-react-native';
 import { useGame } from '@/context/GameContext';
 import { playSound } from '@/lib/sound';
 import { Card } from './Card';
+import { getPremiumPackages, hasRevenueCatConfig, PremiumPackages } from '@/lib/revenueCat';
 
 type Plan = 'monthly' | 'yearly';
 const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
@@ -18,10 +19,24 @@ const FEATURES = [
 ];
 
 export function Paywall() {
-  const { activatePremium, isPremium, language } = useGame();
+  const { isPremium, language, managePremium, premiumPlan, premiumReady, purchasePremium, restorePremium } = useGame();
   const [activating, setActivating] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const [packages, setPackages] = useState<PremiumPackages>({ monthly: null, yearly: null });
   const [plan, setPlan] = useState<Plan>('yearly');
   const isBs = language === 'bs';
+
+  useEffect(() => {
+    if (!hasRevenueCatConfig()) return;
+    getPremiumPackages().then(setPackages).catch((error) => console.warn('[RevenueCat] paywall offerings failed', error));
+  }, []);
+
+  const yearlySavings = useMemo(() => {
+    const monthlyPrice = packages.monthly?.product.price;
+    const yearlyPrice = packages.yearly?.product.price;
+    if (!monthlyPrice || !yearlyPrice) return null;
+    return Math.max(0, Math.round((1 - yearlyPrice / (monthlyPrice * 12)) * 100));
+  }, [packages.monthly, packages.yearly]);
 
   const choosePlan = (next: Plan) => {
     if (next !== plan) playSound('click');
@@ -29,10 +44,38 @@ export function Paywall() {
   };
 
   const activate = async () => {
-    if (isPremium || activating) return;
+    if (activating) return;
     playSound('click');
     setActivating(true);
-    try { await activatePremium(); } finally { setActivating(false); }
+    try {
+      if (isPremium) await managePremium();
+      else await purchasePremium(plan);
+    } catch (error) {
+      if (!(error as any)?.userCancelled) {
+        Alert.alert(isBs ? 'Kupovina nije uspjela' : 'Purchase failed', error instanceof Error ? error.message : String(error));
+      }
+    } finally {
+      setActivating(false);
+    }
+  };
+
+  const restore = async () => {
+    if (restoring) return;
+    playSound('click');
+    setRestoring(true);
+    try {
+      const status = await restorePremium();
+      Alert.alert(
+        status.active ? (isBs ? 'PRO vraćen' : 'PRO restored') : (isBs ? 'Nema kupovine' : 'No purchase found'),
+        status.active
+          ? (isBs ? 'Misery PRO je ponovo aktivan.' : 'Misery PRO is active again.')
+          : (isBs ? 'Nije pronađena aktivna kupovina.' : 'No active Misery PRO purchase was found.'),
+      );
+    } catch (error) {
+      Alert.alert(isBs ? 'Vraćanje nije uspjelo' : 'Restore failed', error instanceof Error ? error.message : String(error));
+    } finally {
+      setRestoring(false);
+    }
   };
 
   return (
@@ -100,7 +143,7 @@ export function Paywall() {
               {plan === 'monthly' && <View className="h-2 w-2 rounded-full bg-amber-400" />}
             </View>
             <Text className="text-xs font-black uppercase tracking-wider text-white">{isBs ? 'MJESEČNO' : 'MONTHLY'}</Text>
-            <Text className="mt-3 text-2xl font-black text-amber-400">€3.99</Text>
+            <Text className="mt-3 text-2xl font-black text-amber-400">{packages.monthly?.product.priceString ?? '—'}</Text>
             <Text className="mt-1 text-[10px] font-bold text-neutral-500">{isBs ? 'svaki mjesec' : 'per month'}</Text>
             <Text className="mt-4 text-[10px] leading-4 text-neutral-400">{isBs ? 'Fleksibilno. Otkaži bilo kada.' : 'Flexible. Cancel anytime.'}</Text>
             </Card>
@@ -112,14 +155,16 @@ export function Paywall() {
           >
             <Card transparent>
             <View className="absolute right-2 top-2 rounded-full bg-amber-400 px-2 py-1">
-              <Text className="text-[8px] font-black uppercase text-black">{isBs ? 'UŠTEDI 27%' : 'SAVE 27%'}</Text>
+              <Text className="text-[8px] font-black uppercase text-black">
+                {yearlySavings !== null ? (isBs ? `UŠTEDI ${yearlySavings}%` : `SAVE ${yearlySavings}%`) : (isBs ? 'NAJBOLJA PONUDA' : 'BEST VALUE')}
+              </Text>
             </View>
             <View className={`mb-4 h-5 w-5 items-center justify-center rounded-full border-2 ${plan === 'yearly' ? 'border-amber-400' : 'border-neutral-600'}`}>
               {plan === 'yearly' && <View className="h-2 w-2 rounded-full bg-amber-400" />}
             </View>
             <Text className="text-xs font-black uppercase tracking-wider text-white">{isBs ? 'GODIŠNJE' : 'YEARLY'}</Text>
-            <Text className="mt-3 text-2xl font-black text-amber-400">€34.99</Text>
-            <Text className="mt-1 text-[10px] font-bold text-neutral-500 line-through">€47.88</Text>
+            <Text className="mt-3 text-2xl font-black text-amber-400">{packages.yearly?.product.priceString ?? '—'}</Text>
+            <Text className="mt-1 text-[10px] font-bold text-neutral-500">{isBs ? 'naplata godišnje' : 'billed yearly'}</Text>
             <Text className="mt-4 text-[10px] leading-4 text-neutral-400">{isBs ? 'Najbolja vrijednost.' : 'Best value. One payment.'}</Text>
             </Card>
           </Pressable>
@@ -127,12 +172,12 @@ export function Paywall() {
 
         <Pressable
           className="mt-4 w-full overflow-hidden rounded-2xl"
-          disabled={isPremium || activating}
+          disabled={activating || !premiumReady}
           onPress={activate}
           style={{ alignSelf: 'stretch', width: '100%' }}
         >
           <LinearGradient
-            colors={isPremium ? ['#262626', '#262626'] : ['#fcd34d', '#f59e0b']}
+            colors={['#fcd34d', '#f59e0b']}
             style={{
               alignItems: 'center',
               flexDirection: 'row',
@@ -143,15 +188,15 @@ export function Paywall() {
               width: '100%',
             }}
           >
-            {activating ? <ActivityIndicator color="#0a0a0a" /> : (
+            {activating || !premiumReady ? <ActivityIndicator color="#0a0a0a" /> : (
               <>
-                <Crown color={isPremium ? '#a3a3a3' : '#0a0a0a'} size={20} />
+                <Crown color="#0a0a0a" size={20} />
                 <Text
-                  className={`text-sm font-black uppercase tracking-wider ${isPremium ? 'text-neutral-400' : 'text-black'}`}
+                  className="text-sm font-black uppercase tracking-wider text-black"
                   style={{ flexShrink: 1, textAlign: 'center' }}
                 >
                   {isPremium
-                    ? (isBs ? 'PRO JE AKTIVAN' : 'PRO IS ACTIVE')
+                    ? (isBs ? 'UPRAVLJAJ PRETPLATOM' : 'MANAGE SUBSCRIPTION')
                     : plan === 'yearly'
                       ? (isBs ? 'AKTIVIRAJ GODIŠNJI MISERY PRO' : 'ACTIVATE YEARLY MISERY PRO')
                       : (isBs ? 'AKTIVIRAJ MJESEČNI MISERY PRO' : 'ACTIVATE MONTHLY MISERY PRO')}
@@ -160,6 +205,25 @@ export function Paywall() {
             )}
           </LinearGradient>
         </Pressable>
+        <Pressable className="items-center py-4" disabled={restoring || activating} onPress={restore}>
+          {restoring ? (
+            <ActivityIndicator color="#fbbf24" size="small" />
+          ) : (
+            <Text className="text-xs font-black uppercase tracking-wider text-neutral-400">
+              {isBs ? 'VRATI KUPOVINU' : 'RESTORE PURCHASES'}
+            </Text>
+          )}
+        </Pressable>
+        {!hasRevenueCatConfig() ? (
+          <Text className="text-center text-[10px] leading-4 text-red-400">
+            {isBs ? 'RevenueCat javni SDK ključ nije konfigurisan.' : 'RevenueCat public SDK key is not configured.'}
+          </Text>
+        ) : null}
+        {isPremium && premiumPlan ? (
+          <Text className="text-center text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+            {isBs ? `AKTIVAN ${premiumPlan === 'yearly' ? 'GODIŠNJI' : 'MJESEČNI'} PLAN` : `ACTIVE ${premiumPlan.toUpperCase()} PLAN`}
+          </Text>
+        ) : null}
         <Text className="mb-3 mt-8 text-base font-black uppercase tracking-[2px] text-amber-400">
           {isBs ? 'SVE ŠTO DOBIJAŠ' : 'EVERYTHING YOU GET'}
         </Text>

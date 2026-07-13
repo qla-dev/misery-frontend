@@ -90,6 +90,7 @@ export default function GameBoard({
     setLaneResultPlayerName,
     setLobbyEntryFade,
     setLobbyView,
+    session,
     setSession,
     setTurnNotices,
   } = useGame();
@@ -577,7 +578,7 @@ export default function GameBoard({
     }));
   };
 
-  const leaveFinishedGame = (destination: 'WELCOME' | 'SETUP') => {
+  const leaveFinishedGame = (destination: 'WELCOME' | 'SETUP' | 'ROOM_CREATED' | 'ROOM_JOINED') => {
     if (finishedExitInProgressRef.current) return;
     finishedExitInProgressRef.current = true;
     Animated.timing(finishedScreenOpacity, {
@@ -596,7 +597,7 @@ export default function GameBoard({
       setLaneResultPlayerName(null);
       setGameRuntime(null);
       setIsGameCountingDown(false);
-      setSession(null);
+      if (destination === 'WELCOME' || destination === 'SETUP') setSession(null);
       setLobbyView(destination);
       router.replace('/');
     });
@@ -621,7 +622,17 @@ export default function GameBoard({
     setSelectedSlotResult(null);
   };
 
-  const handleRestartGame = () => leaveFinishedGame('WELCOME');
+  const handleRestartGame = () => {
+    if (mode !== 'MULTIPLAYER' || !gameId || !userId) {
+      leaveFinishedGame('WELCOME');
+      return;
+    }
+    const roomOwnerId = session?.ownerId ?? initialPlayers[0]?.id;
+    if (Number(roomOwnerId) === Number(userId)) {
+      void api.setHostLobbyPresence(gameId, userId, true).catch(() => undefined);
+    }
+    leaveFinishedGame(Number(roomOwnerId) === Number(userId) ? 'ROOM_CREATED' : 'ROOM_JOINED');
+  };
   const handleBack = () => leaveFinishedGame('SETUP');
 
   useEffect(() => {

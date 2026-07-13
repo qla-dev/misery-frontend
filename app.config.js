@@ -4,9 +4,22 @@ module.exports = ({ config }) => {
     ? `com.googleusercontent.apps.${iosClientId.replace('.apps.googleusercontent.com', '')}`
     : null;
   const schemes = Array.isArray(config.scheme) ? config.scheme : [config.scheme];
+  const revenueCat = config.extra?.revenueCat || {};
 
   return {
     ...config,
     scheme: [...new Set([...schemes.filter(Boolean), reversedGoogleClientId].filter(Boolean))],
+    extra: {
+      ...config.extra,
+      revenueCat: {
+        ...revenueCat,
+        androidApiKey: process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY || revenueCat.androidApiKey || '',
+        entitlementIdentifier: process.env.EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID || revenueCat.entitlementIdentifier || 'misery-pro',
+        iosApiKey: process.env.EXPO_PUBLIC_REVENUECAT_APPLE_API_KEY || revenueCat.iosApiKey || '',
+        offeringIdentifier: 'misery-pro',
+        offeringRestId: 'ofrng75a5f44275',
+        testStoreApiKey: process.env.EXPO_PUBLIC_REVENUECAT_TEST_STORE_API_KEY || revenueCat.testStoreApiKey || '',
+      },
+    },
   };
 };

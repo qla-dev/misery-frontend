@@ -13,6 +13,9 @@ import { ButtonTab } from './ButtonTab';
 import LottieView from 'lottie-react-native';
 import { api, ApiCard, API_BASE_URL } from '@/lib/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { VictoryConfetti } from './VictoryConfetti';
+import { endGameLiveActivity, syncGameLiveActivity } from '@/lib/gameLiveActivity';
+import { DrawnCardFace } from './DrawnCardFace';
 
 const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
 
@@ -34,6 +37,19 @@ function getPlayerColorHex(colorClasses: string) {
 
 function pointsFromLane(lane: Card[]) {
   return Math.max(0, lane.length - 3);
+}
+
+function cardsForDeck(deckType: 'NORMAL' | 'SPICY') {
+  return CARD_DECK.filter((card) => deckType === 'SPICY' ? card.isSpicy === true : card.isSpicy !== true);
+}
+
+function shuffleCards(cards: Card[]) {
+  const shuffled = [...cards];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
+  }
+  return shuffled;
 }
 
 interface GameBoardProps {
@@ -115,6 +131,7 @@ export default function GameBoard({
   const observedTurnOwnerIdRef = useRef<number | null>(null);
   const turnNoticeIdRef = useRef(0);
   const gameFinishedAnnouncedRef = useRef(false);
+  const winnerCelebratedRef = useRef(false);
   const finishedExitInProgressRef = useRef(false);
 
   const [gameState, setGameState] = useState<GameState>({
@@ -144,6 +161,10 @@ export default function GameBoard({
   const laneNavigationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [serverCurrentPlayerId, setServerCurrentPlayerId] = useState<number | null>(null);
   const [serverTurnOwnerId, setServerTurnOwnerId] = useState<number | null>(null);
+  const [serverWinnerId, setServerWinnerId] = useState<number | null>(null);
+  const [lastStealWasFromLocalPlayer, setLastStealWasFromLocalPlayer] = useState(false);
+  const [isTurnInactive, setIsTurnInactive] = useState(false);
+  const [inactivityWarningVisible, setInactivityWarningVisible] = useState(false);
   const toLocalCard = (card: ApiCard): Card => ({
     id: String(card.id),
     titleEn: card.title,
@@ -255,11 +276,7 @@ export default function GameBoard({
   }, []);
 
   useEffect(() => {
-    const deckPool = CARD_DECK.filter((card) => {
-      if (deckType === 'SPICY') return card.isSpicy || card.index >= 30;
-      return !card.isSpicy;
-    });
-    const shuffledDeck = [...deckPool].sort(() => Math.random() - 0.5);
+    const shuffledDeck = shuffleCards(cardsForDeck(deckType));
 
     const colors = [
       'border-yellow-400 bg-yellow-400/5 text-yellow-400',
@@ -342,6 +359,7 @@ export default function GameBoard({
           const nextIndex = players.findIndex((player) => Number(player.id) === Number(game.current_player_id));
           setServerCurrentPlayerId(game.current_player_id);
           setServerTurnOwnerId(game.turn_owner_id);
+          setServerWinnerId(game.winner_id);
           setIsAwaitingTurnFinish(game.awaiting_finish);
           if (!isCorrect) acceptedStealCardIdRef.current = null;
           setGameState((prev) => ({
@@ -365,7 +383,9 @@ export default function GameBoard({
     if (isCorrect) {
       pendingPlacementRef.current = { actingPlayerId: actingPlayer.id, card: drawnCard, slotIdx };
       setLaneResultPlayerName(actingPlayer.name);
-      setLaneResult('success');
+      const wasStealAttempt = activeStealerIndex !== undefined;
+      setLastStealWasFromLocalPlayer(false);
+      setLaneResult(wasStealAttempt ? 'steal' : 'success');
       const historyLog = {
         playerName: actingPlayer.name,
         cardTitle: isBs ? drawnCard.titleBs : drawnCard.titleEn,
@@ -440,6 +460,7 @@ export default function GameBoard({
         setIsAwaitingTurnFinish(game.awaiting_finish);
         setServerCurrentPlayerId(game.current_player_id);
         setServerTurnOwnerId(game.turn_owner_id);
+        setServerWinnerId(game.winner_id);
         nextPollDelay = Math.max(250, Number(game.ingame_polling_interval_ms) || 3000);
         const latestMove = game.moves[0];
         if (lastObservedMoveIdRef.current === null) {
@@ -453,6 +474,9 @@ export default function GameBoard({
             const wasStolen = latestMove.correct &&
               game.turn_owner_id !== null &&
               Number(latestMove.player_id) !== Number(game.turn_owner_id);
+            setLastStealWasFromLocalPlayer(
+              Boolean(wasStolen && Number(game.turn_owner_id) === Number(userId)),
+            );
             setLaneResult(wasStolen ? 'steal' : latestMove.correct ? 'success' : 'failure');
           }
         }
@@ -559,11 +583,7 @@ export default function GameBoard({
     if (drawnCard) newDiscard.push(drawnCard);
     let newDeck = [...deck];
     if (newDeck.length === 0) {
-      const deckPool = CARD_DECK.filter((card) => {
-        if (deckType === 'SPICY') return card.isSpicy || card.index >= 30;
-        return !card.isSpicy;
-      });
-      newDeck = [...deckPool].sort(() => Math.random() - 0.5);
+      newDeck = shuffleCards(cardsForDeck(deckType));
     }
     const nextCard = newDeck.pop() || null;
     const nextPlayerIndex = mode === 'SOLO' ? 0 : (currentPlayerIndex + 1) % players.length;
@@ -698,6 +718,9 @@ export default function GameBoard({
   const isLocalServerTurn = Boolean(
     gameId && userId && Number(serverCurrentPlayerId) === Number(userId)
   );
+  const didLocalWin = Boolean(
+    isVictoryPhase && (!gameId || (userId && Number(serverWinnerId) === Number(userId)))
+  );
   const canFlipCard = Boolean(
     !isDrawnCardFlipped &&
     gameState.phase === 'PLAYING' &&
@@ -723,6 +746,79 @@ export default function GameBoard({
     !isAwaitingTurnFinish &&
     gameState.phase !== 'VICTORY'
   );
+  const shouldWatchLocalInactivity = Boolean(
+    gameId &&
+    userId &&
+    isServerTurnReady &&
+    isLocalServerTurn &&
+    !isAwaitingTurnFinish &&
+    !isSubmittingMove &&
+    gameState.phase === 'PLAYING'
+  );
+
+  useEffect(() => {
+    setIsTurnInactive(false);
+    setInactivityWarningVisible(false);
+    if (!shouldWatchLocalInactivity) return;
+
+    const timer = setTimeout(() => {
+      setIsTurnInactive(true);
+      setInactivityWarningVisible(true);
+      playSound('bell');
+    }, 10_000);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [
+    gameState.drawnCard?.id,
+    gameState.phase,
+    isDrawnCardFlipped,
+    isLocalServerTurn,
+    isServerTurnReady,
+    isSubmittingMove,
+    isAwaitingTurnFinish,
+    serverCurrentPlayerId,
+    shouldWatchLocalInactivity,
+  ]);
+
+  const activityLane = currentActingPlayer?.lane ?? [];
+  const activityLaneValues = activityLane.map((card) => card.index.toFixed(1));
+  const activityLaneSummary = `${activityLaneValues.length > 5 ? '… · ' : ''}${activityLaneValues.slice(-5).join(' · ') || '—'}`;
+  const activityProps = {
+    cardTitle: gameState.drawnCard
+      ? isBs ? gameState.drawnCard.titleBs : gameState.drawnCard.titleEn
+      : isBs ? 'NEMA KARTE' : 'NO CURRENT CARD',
+    inactive: isTurnInactive,
+    isMyTurn: isLocalServerTurn,
+    laneCount: activityLane.length,
+    laneSummary: activityLaneSummary,
+    playerName: currentActingPlayer?.name ?? (isBs ? 'IGRAČ' : 'PLAYER'),
+    status: isVictoryPhase || isGameOverPhase ? 'finished' as const : 'playing' as const,
+  };
+
+  useEffect(() => {
+    if (gameState.phase === 'LOBBY' || gameState.players.length === 0) return;
+    if (activityProps.status === 'finished') {
+      void endGameLiveActivity(activityProps);
+      return;
+    }
+    void syncGameLiveActivity(activityProps);
+  }, [
+    activityProps.cardTitle,
+    activityProps.inactive,
+    activityProps.isMyTurn,
+    activityProps.laneCount,
+    activityProps.laneSummary,
+    activityProps.playerName,
+    activityProps.status,
+    gameState.phase,
+    gameState.players.length,
+  ]);
+
+  useEffect(() => () => {
+    void endGameLiveActivity();
+  }, []);
   const faceDownPrompt = gameId && !isLocalServerTurn
     ? !isAwaitingTurnFinish && currentActingPlayer?.name
       ? activeStealer
@@ -878,8 +974,12 @@ export default function GameBoard({
       leaveFinishedGame,
       lastInsertedCardId,
       lastResultCardScore,
+      lastStealWasFromLocalPlayer,
       handleLaneResultFadeComplete,
       hasPendingLaneAnimation: selectedSlotResult !== null || isLaneCollapsing,
+      inactivityWarningVisible,
+      isTurnInactive,
+      dismissInactivityWarning: () => setInactivityWarningVisible(false),
       laneResult,
       selectedSlotIndex,
       selectedSlotResult,
@@ -894,7 +994,13 @@ export default function GameBoard({
         (!gameId || Number(activeStealer.id) === Number(userId))
       ),
     });
-  }, [currentActingPlayer, gameId, gameState, isAwaitingTurnFinish, isDrawnCardFlipped, isDrawnCardScoreRevealed, isServerTurnReady, isSubmittingMove, laneResult, lastInsertedCardId, lastResultCardScore, localPlayer, selectedSlotIndex, selectedSlotResult, serverCurrentPlayerId, setGameRuntime, userId]);
+  }, [currentActingPlayer, gameId, gameState, inactivityWarningVisible, isAwaitingTurnFinish, isDrawnCardFlipped, isDrawnCardScoreRevealed, isServerTurnReady, isSubmittingMove, isTurnInactive, laneResult, lastInsertedCardId, lastResultCardScore, lastStealWasFromLocalPlayer, localPlayer, selectedSlotIndex, selectedSlotResult, serverCurrentPlayerId, setGameRuntime, userId]);
+
+  useEffect(() => {
+    if (!didLocalWin || winnerCelebratedRef.current) return;
+    winnerCelebratedRef.current = true;
+    playSound('applause');
+  }, [didLocalWin]);
 
   useEffect(() => {
     const finished = gameState.phase === 'VICTORY' || gameState.phase === 'GAME_OVER';
@@ -918,6 +1024,7 @@ export default function GameBoard({
 
   return (
     <Animated.View className="flex-1 bg-neutral-950" style={{ opacity: finishedScreenOpacity }}>
+      <VictoryConfetti visible={didLocalWin} />
       {(isVictoryPhase || isGameOverPhase) && (
         <LinearGradient
           colors={isVictoryPhase
@@ -1062,122 +1169,17 @@ export default function GameBoard({
                     ],
                   }}
                 >
-                  <View
-                    style={{
-                      alignItems: 'center',
-                      backgroundColor: isWrongPhase
-                        ? 'rgba(239,68,68,0.14)'
-                        : isCorrectPhase
-                          ? 'rgba(16,185,129,0.14)'
-                          : '#090909',
-                      borderColor: isWrongPhase ? '#ef4444' : isCorrectPhase ? '#10b981' : '#fbbf24',
-                      borderRadius: 16,
-                      borderWidth: 6,
-                      height: drawnCardHeight,
-                      overflow: 'hidden',
-                      width: '100%',
-                    }}
-                  >
-                    <View style={{ borderColor: 'rgba(251,191,36,0.35)', borderRadius: 10, borderWidth: 2, bottom: 12, left: 12, position: 'absolute', right: 12, top: 12 }} />
-                    <View className="w-full items-center px-9 pt-9">
-                      <Text className="text-center text-2xl font-black uppercase leading-7 tracking-tight text-amber-400">
-                        {isBs ? gameState.drawnCard.titleBs : gameState.drawnCard.titleEn}
-                      </Text>
-                      {(gameState.drawnCard.descriptionBs || gameState.drawnCard.descriptionEn) && (
-                        <Text className="mt-2 text-center text-xs leading-5 text-neutral-400" numberOfLines={3}>
-                          {isBs ? gameState.drawnCard.descriptionBs : gameState.drawnCard.descriptionEn}
-                        </Text>
-                      )}
-                    </View>
-                    <View
-                      pointerEvents="none"
-                      className="absolute inset-0 items-center justify-center"
-                    >
-                      <View
-                        className="items-center justify-center rounded-full bg-amber-400"
-                        style={{ height: dummyArtworkSize, width: dummyArtworkSize }}
-                      >
-                        <AlertOctagon size={dummyArtworkSize * 0.48} color="#0a0a0a" strokeWidth={1.8} />
-                        <Text className="mt-2 font-mono text-[9px] font-black uppercase tracking-[2px] text-neutral-950/70">
-                          {isBs ? 'ILUSTRACIJA USKORO' : 'ARTWORK COMING SOON'}
-                        </Text>
-                      </View>
-                    </View>
-                    {(isCorrectPhase || isWrongPhase) && !currentActingPlayer.isBot && (
-                      <Animated.Text
-                        className="absolute bottom-[106px] font-mono text-[10px] font-black uppercase tracking-[2px] text-white"
-                        style={{ transform: [{ translateY: cardPromptFloat }] }}
-                      >
-                        {gameId
-                          ? isBs ? 'DODIRNI ZA ZAVRŠETAK POTEZA' : 'TAP TO FINISH TURN'
-                          : isBs ? 'DODIRNI KARTU ZA NASTAVAK' : 'TAP CARD TO CONTINUE'}
-                      </Animated.Text>
-                    )}
-                    <View className="absolute bottom-0 left-0 right-0 items-center">
-                      <Text
-                        adjustsFontSizeToFit
-                        className="mb-1 text-base uppercase tracking-wider text-amber-400"
-                        minimumFontScale={0.65}
-                        numberOfLines={1}
-                        style={{ fontFamily: 'Outfit_900Black', fontWeight: '900', textAlign: 'center', width: 100 }}
-                      >
-                        {isBs ? 'STOPA BIJEDE' : 'MISERY RATE'}
-                      </Text>
-                      <LinearGradient
-                        colors={['#fbbf24', '#eab308']}
-                        style={{
-                          alignItems: 'center',
-                          height: 70,
-                          justifyContent: 'center',
-                          padding: 8,
-                          width: 100,
-                        }}
-                      >
-                        <Animated.Text
-                          className="text-neutral-950"
-                          style={{
-                            fontFamily: 'JetBrainsMono_700Bold',
-                            fontSize: 36,
-                            fontWeight: '700',
-                            height: 70,
-                            lineHeight: 70,
-                            opacity: scoreReveal.interpolate({ inputRange: [0, 0.45, 1], outputRange: [1, 0, 0] }),
-                            position: 'absolute',
-                            textAlign: 'center',
-                            textAlignVertical: 'center',
-                            transform: [
-                              { scale: scoreReveal.interpolate({ inputRange: [0, 0.45, 1], outputRange: [1, 0.82, 0.82] }) },
-                              { translateY: 2 },
-                            ],
-                            width: 100,
-                          }}
-                        >
-                          ??.?
-                        </Animated.Text>
-                        <Animated.Text
-                          className="text-neutral-950"
-                          style={{
-                            fontFamily: 'JetBrainsMono_700Bold',
-                            fontSize: 36,
-                            fontWeight: '700',
-                            height: 70,
-                            lineHeight: 70,
-                            opacity: scoreReveal.interpolate({ inputRange: [0, 0.45, 1], outputRange: [0, 0, 1] }),
-                            position: 'absolute',
-                            textAlign: 'center',
-                            textAlignVertical: 'center',
-                            transform: [
-                              { scale: scoreReveal.interpolate({ inputRange: [0, 0.45, 1], outputRange: [1.18, 1.18, 1] }) },
-                              { translateY: scoreReveal.interpolate({ inputRange: [0, 1], outputRange: [9, 2] }) },
-                            ],
-                            width: 100,
-                          }}
-                        >
-                          {gameState.drawnCard.index.toFixed(1)}
-                        </Animated.Text>
-                      </LinearGradient>
-                    </View>
-                  </View>
+                  <DrawnCardFace
+                    artworkSize={dummyArtworkSize}
+                    card={gameState.drawnCard}
+                    height={drawnCardHeight}
+                    isOnline={Boolean(gameId)}
+                    language={language}
+                    promptFloat={cardPromptFloat}
+                    result={isWrongPhase ? 'wrong' : isCorrectPhase ? 'correct' : 'neutral'}
+                    scoreReveal={scoreReveal}
+                    showFinishPrompt={(isCorrectPhase || isWrongPhase) && !currentActingPlayer.isBot}
+                  />
                 </Animated.View>
               </Pressable>
             </View>

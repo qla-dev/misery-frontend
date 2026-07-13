@@ -7,27 +7,41 @@ import VolumeOffIcon from '@expo/material-symbols/volume_off.xml';
 import VolumeUpIcon from '@expo/material-symbols/volume_up.xml';
 import { SFSymbol } from 'sf-symbols-typescript';
 import { useEffect, useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/context/GameContext';
 import { playHaptic, setGameMusicMuted, setLobbyMusicActive } from '@/lib/sound';
 import { InfoModal } from '@/components/InfoModal';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { LaneModal } from '@/components/LaneModal';
 import { ButtonTab } from '@/components/ButtonTab';
-import CardItem from '@/components/CardItem';
+import { DrawnCardFace } from '@/components/DrawnCardFace';
 import { Card } from '@/types';
 import { X } from 'lucide-react-native';
 
-type DebugOverlay = 'right' | 'wrong' | 'yellow' | 'white';
+type DebugOverlay = 'right' | 'wrong' | 'yellow' | 'white' | 'steal';
+
+// Keep the debug tools available in source so they can be enabled again later.
+const DEBUG_UI_ENABLED = false;
 
 const DEBUG_CARD: Card = {
   id: '1',
-  titleEn: 'Miss the bus',
-  titleBs: 'Miss the bus',
-  descriptionEn: 'You watch it pull away just as you reach the stop.',
-  descriptionBs: 'You watch it pull away just as you reach the stop.',
-  illustrationType: 'general_misery',
+  titleEn: 'A Flat Tire in the Middle of a Thunderstorm',
+  titleBs: 'Probušena guma usred olujnog nevremena',
+  descriptionEn: 'You hear the hiss, pull over, and get drenched while trying to find the jack.',
+  descriptionBs: 'Čuješ šištanje, staješ sa strane i skroz pokisneš dok tražiš dizalicu.',
+  illustrationType: 'tire',
   image: 'https://misery.qla.dev/card-images/cards/generated/card-1-20260713001450.png',
-  index: 3.7,
+  index: 6.0,
+};
+
+const DEBUG_CARD_WITHOUT_IMAGE: Card = {
+  ...DEBUG_CARD,
+  id: 'debug-card-without-image',
+  image: undefined,
+  titleEn: 'A Card Without Connected Artwork',
+  titleBs: 'Karta bez povezane ilustracije',
+  descriptionEn: 'This card intentionally has no image so the real fallback can be verified.',
+  descriptionBs: 'Ova karta namjerno nema sliku kako bi se provjerio pravi zamjenski prikaz.',
 };
 
 function toolbarIcon(ios: SFSymbol, android: ImageSourcePropType) {
@@ -35,7 +49,8 @@ function toolbarIcon(ios: SFSymbol, android: ImageSourcePropType) {
 }
 
 export default function TabLayout() {
-  const { height } = useWindowDimensions();
+  const { height, width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const {
     language,
     lobbyView,
@@ -45,20 +60,27 @@ export default function TabLayout() {
     setLobbyView,
     setMusicMuted,
     setRoomExitWarningOpen,
+    toggleLanguage,
   } = useGame();
   const isBs = language === 'bs';
   const pathname = usePathname();
   const isPlayScreen = pathname === '/';
   const [debugMenuOpen, setDebugMenuOpen] = useState(false);
   const [debugOverlay, setDebugOverlay] = useState<DebugOverlay | null>(null);
-  const [debugCardOpen, setDebugCardOpen] = useState(false);
+  const [debugCard, setDebugCard] = useState<Card | null>(null);
+  const debugCardWidth = Math.min(width - 32, 420);
+  const debugCardHeight = Math.min(
+    height - insets.top - insets.bottom - 72,
+    debugCardWidth * 1.48,
+    680,
+  );
   const showDebugOverlay = (overlay: DebugOverlay) => {
     setDebugMenuOpen(false);
     requestAnimationFrame(() => setDebugOverlay(overlay));
   };
-  const showDebugCard = () => {
+  const showDebugCard = (card: Card) => {
     setDebugMenuOpen(false);
-    requestAnimationFrame(() => setDebugCardOpen(true));
+    requestAnimationFrame(() => setDebugCard(card));
   };
   const headerTitle =
     lobbyView === 'WELCOME'
@@ -109,16 +131,29 @@ export default function TabLayout() {
       {isPlayScreen && lobbyView === 'WELCOME' && (
         <Stack.Toolbar placement="left">
           <Stack.Toolbar.Button
-            accessibilityLabel="Open overlay debug menu"
+            accessibilityLabel={language === 'en' ? 'Switch to Bosnian' : 'Switch to English'}
             onPress={() => {
               playHaptic();
-              setDebugMenuOpen(true);
+              toggleLanguage();
             }}
             separateBackground
             tintColor="#fbbf24"
           >
-            DEBUG
+            {language === 'en' ? '🇬🇧' : '🇧🇦'}
           </Stack.Toolbar.Button>
+          {DEBUG_UI_ENABLED && (
+            <Stack.Toolbar.Button
+              accessibilityLabel="Open overlay debug menu"
+              onPress={() => {
+                playHaptic();
+                setDebugMenuOpen(true);
+              }}
+              separateBackground
+              tintColor="#fbbf24"
+            >
+              DEBUG
+            </Stack.Toolbar.Button>
+          )}
         </Stack.Toolbar>
       )}
       {isPlayScreen && lobbyView !== 'WELCOME' && (
@@ -206,7 +241,7 @@ export default function TabLayout() {
         </NativeTabs.Trigger>
       </NativeTabs>
       <InfoModal />
-      <ConfirmModal
+      {DEBUG_UI_ENABLED && <ConfirmModal
         confirmLabel="CLOSE"
         onConfirm={() => setDebugMenuOpen(false)}
         onRequestClose={() => setDebugMenuOpen(false)}
@@ -228,13 +263,19 @@ export default function TabLayout() {
           <ButtonTab category="button" onPress={() => showDebugOverlay('white')} size="100" type="third">
             WHITE
           </ButtonTab>
-          <ButtonTab category="button" onPress={showDebugCard} size="100" type="secondary">
-            CARD
+          <ButtonTab category="button" onPress={() => showDebugOverlay('steal')} size="100" type="primary">
+            CARD STOLEN + SCORE
+          </ButtonTab>
+          <ButtonTab category="button" onPress={() => showDebugCard(DEBUG_CARD)} size="100" type="secondary">
+            CARD — IMAGE
+          </ButtonTab>
+          <ButtonTab category="button" onPress={() => showDebugCard(DEBUG_CARD_WITHOUT_IMAGE)} size="100" type="secondary">
+            CARD — DEFAULT IMAGE
           </ButtonTab>
         </View>
-      </ConfirmModal>
-      <LaneModal
-        failureMessage="TOO HIGH OR TOO LOW"
+      </ConfirmModal>}
+      {DEBUG_UI_ENABLED && <LaneModal
+        failureMessage="YOUR GUESS WAS TOO HIGH OR TOO LOW"
         failureTitle="INCORRECT"
         holding={debugOverlay === 'yellow'}
         neutral={debugOverlay === 'white'}
@@ -245,30 +286,39 @@ export default function TabLayout() {
           ? 'YOUR CARD IS OFFERED TO THE NEXT PLAYER — WAIT FOR THEIR DECISION'
           : debugOverlay === 'white'
             ? 'TAP THE CARD TO PLAY'
+            : debugOverlay === 'steal'
+              ? 'YOU SUCCESSFULLY STOLE THE CARD AND IT WAS ADDED TO YOUR LANE'
             : 'EVENT ADDED TO YOUR LANE'}
         successTitle={debugOverlay === 'yellow'
           ? "YOU'RE ON HOLD"
           : debugOverlay === 'white'
             ? 'YOUR TURN STARTED'
+            : debugOverlay === 'steal'
+              ? 'CARD STOLEN'
             : 'CORRECT'}
+        score={debugOverlay === 'steal' ? DEBUG_CARD.index : undefined}
+        scoreLabel="MISERY RATE"
         visible={debugOverlay !== null}
-        warning={debugOverlay === 'yellow'}
-      />
-      <Modal
+        warning={debugOverlay === 'yellow' || debugOverlay === 'steal'}
+      />}
+      {DEBUG_UI_ENABLED && <Modal
         animationType="slide"
-        onRequestClose={() => setDebugCardOpen(false)}
+        onRequestClose={() => setDebugCard(null)}
         presentationStyle="fullScreen"
         statusBarTranslucent
-        visible={debugCardOpen}
+        visible={debugCard !== null}
       >
-        <View className="flex-1 items-center justify-center bg-neutral-950 px-4 py-12">
-          <View style={{ maxWidth: 460, width: '100%' }}>
-            <CardItem
-              card={DEBUG_CARD}
-              fluidHeight={Math.min(Math.max(height - 112, 480), 720)}
+        <View
+          className="flex-1 items-center justify-center bg-neutral-950"
+          style={{ paddingBottom: insets.bottom + 16, paddingTop: insets.top + 16 }}
+        >
+          <View style={{ width: debugCardWidth }}>
+            <DrawnCardFace
+              artworkSize={Math.min(192, debugCardHeight * 0.34)}
+              card={debugCard ?? DEBUG_CARD_WITHOUT_IMAGE}
+              height={debugCardHeight}
               language={language}
-              size="xl"
-              state="face-up"
+              scoreRevealed
             />
           </View>
           <Pressable
@@ -277,7 +327,7 @@ export default function TabLayout() {
             hitSlop={10}
             onPress={() => {
               playHaptic();
-              setDebugCardOpen(false);
+              setDebugCard(null);
             }}
             style={{
               alignItems: 'center',
@@ -287,14 +337,14 @@ export default function TabLayout() {
               justifyContent: 'center',
               position: 'absolute',
               right: 18,
-              top: 54,
+              top: insets.top + 12,
               width: 44,
             }}
           >
             <X color="#ffffff" size={22} strokeWidth={2.6} />
           </Pressable>
         </View>
-      </Modal>
+      </Modal>}
     </>
   );
 }

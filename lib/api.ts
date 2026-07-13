@@ -23,6 +23,7 @@ export interface ApiUser {
 }
 export interface ApiCard { id: number; title: string; subtitle: string | null; score: number | string; image: string | null; deck: string }
 export interface ApiMove { id: number; player_id: number; correct: boolean; player: ApiUser; card: ApiCard | null; created_at: string }
+export interface ApiQuestion { id: number; question: string; answer: string; category: string; difficulty: number }
 export interface ApiGame { id: number; code: string; owner_id: number; started: boolean; host_in_lobby: boolean; stack_id: number | null; stack: 'normal' | 'spicy' | string | null; target_score: number; winner_id: number | null; current_player_id: number | null; turn_owner_id: number | null; awaiting_finish: boolean; is_steal_turn: boolean; ingame_polling_interval_ms: number; members: ApiUser[]; hands: Record<string, ApiCard[]>; current_card: ApiCard | null; moves: ApiMove[] }
 export interface SocialAuthResponse { token: string; user: ApiUser; is_new_user: boolean }
 
@@ -69,6 +70,14 @@ export const api = {
     headers: { Authorization: `Bearer ${token}` },
   }),
   listAvailableGames: () => request<ApiGame[]>('/games'),
+  getQuestions: (filters: { category?: string; difficulty?: number; limit?: number } = {}) => {
+    const query = new URLSearchParams();
+    if (filters.category) query.set('category', filters.category);
+    if (filters.difficulty) query.set('difficulty', String(filters.difficulty));
+    if (filters.limit) query.set('limit', String(filters.limit));
+    const suffix = query.toString();
+    return request<ApiQuestion[]>(`/questions${suffix ? `?${suffix}` : ''}`);
+  },
   createGame: (name: string, color: string) => request<{ game: ApiGame; user: ApiUser }>('/games', { method: 'POST', body: JSON.stringify({ name, color }) }),
   joinGame: (code: string, name: string, color: string) => {
     const normalizedCode = code.trim().toUpperCase();

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Modal, Pressable, Text, View } from 'react-native';
-import { Ban, Check, Pause, Play, ShieldAlert, Square, X } from 'lucide-react-native';
+import { Ban, BellRing, Check, Pause, Play, ShieldAlert, Square, X } from 'lucide-react-native';
 import { playHaptic } from '@/lib/sound';
 
 type LaneModalProps = {
@@ -19,6 +19,7 @@ type LaneModalProps = {
   scoreLabel?: string;
   holding?: boolean;
   persistent?: boolean;
+  bell?: boolean;
 };
 
 export function LaneModal({
@@ -34,9 +35,10 @@ export function LaneModal({
   neutral = false,
   ending = false,
   score,
-  scoreLabel = 'MISERY VALUE',
+  scoreLabel = 'MISERY RATE',
   holding = false,
   persistent = false,
+  bell = false,
 }: LaneModalProps) {
   const [rendered, setRendered] = useState(false);
   const opacity = useRef(new Animated.Value(0)).current;
@@ -58,7 +60,7 @@ export function LaneModal({
     }
 
     setRendered(true);
-    playHaptic(holding || neutral ? 'click' : warning ? 'steal' : success ? 'correct' : 'wrong');
+    playHaptic(bell ? 'bell' : holding || neutral ? 'click' : warning ? 'steal' : success ? 'correct' : 'wrong');
     opacity.setValue(0);
     scale.setValue(0.25);
     rotation.setValue(success ? -0.18 : -0.1);
@@ -104,7 +106,7 @@ export function LaneModal({
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [holding, neutral, opacity, persistent, rotation, scale, success, visible, warning]);
+  }, [bell, holding, neutral, opacity, persistent, rotation, scale, success, visible, warning]);
 
   const rotate = rotation.interpolate({
     inputRange: [-1, 1],
@@ -142,6 +144,36 @@ export function LaneModal({
               ending
                 ? <Square color="#0a0a0a" fill="#0a0a0a" size={72} strokeWidth={2.5} />
                 : <Play color="#0a0a0a" fill="#0a0a0a" size={82} strokeWidth={2.5} />
+            ) : bell ? (
+              <BellRing color="#ffffff" size={88} strokeWidth={3.5} />
+            ) : warning && score !== undefined ? (
+              <View className="items-center justify-center" style={{ height: 126, width: 132 }}>
+                <Text
+                  className="font-black text-white"
+                  style={{
+                    fontFamily: 'JetBrainsMono_700Bold',
+                    fontSize: 44,
+                    height: 62,
+                    includeFontPadding: false,
+                    lineHeight: 58,
+                    paddingTop: 3,
+                    textAlign: 'center',
+                    textAlignVertical: 'center',
+                    width: 132,
+                  }}
+                >
+                  {score.toFixed(1)}
+                </Text>
+                <Text
+                  adjustsFontSizeToFit
+                  className="mt-1 text-center font-mono text-[9px] font-black uppercase tracking-[2px] text-white/75"
+                  minimumFontScale={0.72}
+                  numberOfLines={1}
+                  style={{ lineHeight: 14, width: 124 }}
+                >
+                  {scoreLabel}
+                </Text>
+              </View>
             ) : warning ? (
               <ShieldAlert color="#ffffff" size={90} strokeWidth={3.5} />
             ) : success ? (
@@ -162,7 +194,7 @@ export function LaneModal({
             <Text className={`text-center text-sm font-bold uppercase tracking-widest ${neutral ? 'text-neutral-950/65' : 'text-white/85'}`}>
               {success ? successMessage : failureMessage}
             </Text>
-            {score !== undefined && (
+            {score !== undefined && !warning && (
               <View className={`mt-2 rounded-xl border px-5 py-2 ${neutral ? 'border-neutral-950/20 bg-neutral-950/5' : 'border-white/40 bg-white/15'}`}>
                 <Text className={`text-center font-mono text-[9px] font-black uppercase tracking-[2px] ${neutral ? 'text-neutral-950/60' : 'text-white/75'}`}>
                   {`${scoreLabel}  •  ${score.toFixed(1)}`}

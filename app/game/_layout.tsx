@@ -66,6 +66,21 @@ export default function GameTabsLayout() {
         ? `DOGAĐAJ JE DODAN U TRAKU IGRAČA ${laneResultPlayerName}`
         : `EVENT ADDED TO ${laneResultPlayerName.toUpperCase()}'S LANE`
       : isBs ? 'DOGAĐAJ JE DODAN U TRAKU IGRAČA' : "EVENT ADDED TO THE PLAYER'S LANE";
+  const laneStealMessage = isLocalLaneResult
+    ? isBs
+      ? 'USPJEŠNO SI UKRAO KARTU I DODANA JE U TVOJU TRAKU'
+      : 'YOU SUCCESSFULLY STOLE THE CARD AND IT WAS ADDED TO YOUR LANE'
+    : laneResultPlayerName
+      ? gameRuntime?.lastStealWasFromLocalPlayer
+        ? isBs
+          ? `${laneResultPlayerName.toUpperCase()} JE USPJEŠNO UKRAO TVOJU KARTU I DODANA JE U NJEGOVU TRAKU`
+          : `${laneResultPlayerName.toUpperCase()} SUCCESSFULLY STOLE YOUR CARD AND IT WAS ADDED TO THEIR LANE`
+        : isBs
+          ? `${laneResultPlayerName.toUpperCase()} JE USPJEŠNO UKRAO KARTU I DODANA JE U NJEGOVU TRAKU`
+          : `${laneResultPlayerName.toUpperCase()} SUCCESSFULLY STOLE THE CARD AND IT WAS ADDED TO THEIR LANE`
+      : isBs
+        ? 'KARTA JE USPJEŠNO UKRADENA I DODANA U TRAKU IGRAČA'
+        : "THE CARD WAS SUCCESSFULLY STOLEN AND ADDED TO THE PLAYER'S LANE";
   const isGameFinished = gameRuntime?.phase === 'VICTORY' || gameRuntime?.phase === 'GAME_OVER';
   const turnTitle = isGameFinished
     ? isBs ? 'KONAČNI POREDAK' : 'FINAL STANDINGS'
@@ -260,24 +275,22 @@ export default function GameTabsLayout() {
         </View>
       </ConfirmModal>
       <LaneModal
-        failureMessage={isBs ? 'PREVIŠE ILI PREMALO BIJEDE' : 'TOO HIGH OR TOO LOW'}
+        failureMessage={isBs ? 'TVOJA PROCJENA JE BILA PREVISOKA ILI PRENISKA' : 'YOUR GUESS WAS TOO HIGH OR TOO LOW'}
         failureTitle={isBs ? 'NETAČNO' : 'INCORRECT'}
         onComplete={() => {
           setLaneResult(null);
           setLaneResultPlayerName(null);
         }}
-        playerName={laneResultPlayerName ?? undefined}
+        playerName={laneResult === 'steal' ? undefined : laneResultPlayerName ?? undefined}
         success={laneResult !== 'failure'}
-        successMessage={laneResult === 'steal'
-          ? isBs ? 'IGRAČ JE USPJEŠNO UKRAO KARTU' : 'PLAYER SUCCESSFULLY STOLE THE CARD'
-          : laneSuccessMessage}
+        successMessage={laneResult === 'steal' ? laneStealMessage : laneSuccessMessage}
         successTitle={laneResult === 'steal'
           ? isBs ? 'KARTA UKRADENA' : 'CARD STOLEN'
           : isBs ? 'TAČNO' : 'CORRECT'}
         score={laneResult === 'steal' && gameRuntime?.lastResultCardScore !== null
           ? gameRuntime?.lastResultCardScore
           : undefined}
-        scoreLabel={isBs ? 'STOPA BIJEDE' : 'MISERY VALUE'}
+        scoreLabel={isBs ? 'STOPA BIJEDE' : 'MISERY RATE'}
         visible={laneResult !== null}
         warning={laneResult === 'steal'}
       />
@@ -314,8 +327,19 @@ export default function GameTabsLayout() {
           : turnNotice?.steal
             ? isBs ? 'POKUŠAJ KRAĐE' : 'YOUR STEAL ATTEMPT'
             : isBs ? 'TVOJ POTEZ JE POČEO' : 'YOUR TURN STARTED'}
-        visible={laneResult === null && turnNoticeReady && !gameRuntime?.hasPendingLaneAnimation && Boolean(turnNotice)}
+        visible={laneResult === null && !gameRuntime?.inactivityWarningVisible && turnNoticeReady && !gameRuntime?.hasPendingLaneAnimation && Boolean(turnNotice)}
         warning={turnNotice?.type === 'hold'}
+      />
+      <LaneModal
+        bell
+        failureMessage=""
+        failureTitle=""
+        onComplete={() => gameRuntime?.dismissInactivityWarning?.()}
+        success
+        successMessage={isBs ? 'ODIGRAJ TRENUTNU KARTU DA SE IGRA NASTAVI' : 'PLAY THE CURRENT CARD TO KEEP THE GAME MOVING'}
+        successTitle={isBs ? 'TVOJ POTEZ ČEKA' : 'YOUR TURN IS WAITING'}
+        visible={laneResult === null && Boolean(gameRuntime?.inactivityWarningVisible)}
+        warning
       />
       <ConfirmModal
         cancelLabel={isBs ? 'NAPUSTI IGRU' : 'LEAVE GAME'}

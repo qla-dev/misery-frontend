@@ -88,6 +88,10 @@ export default function GameTabsLayout() {
 
   const returnToWelcome = () => {
     playHaptic();
+    if (gameRuntime?.leaveFinishedGame) {
+      gameRuntime.leaveFinishedGame('WELCOME');
+      return;
+    }
     setGameRuntime(null);
     setIsGameCountingDown(false);
     setLaneResult(null);

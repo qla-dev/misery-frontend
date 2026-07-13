@@ -88,6 +88,7 @@ export default function GameBoard({
     setIsGameCountingDown,
     setLaneResult,
     setLaneResultPlayerName,
+    setLobbyEntryFade,
     setLobbyView,
     setSession,
     setTurnNotices,
@@ -103,6 +104,7 @@ export default function GameBoard({
   const cardFlip = useRef(new Animated.Value(0)).current;
   const cardFloat = useRef(new Animated.Value(0)).current;
   const cardPromptFloat = useRef(new Animated.Value(0)).current;
+  const finishedScreenOpacity = useRef(new Animated.Value(1)).current;
   const scoreReveal = useRef(new Animated.Value(0)).current;
   const optimisticLaneCardsRef = useRef<Record<string, Card[]>>({});
   const pendingPlacementRef = useRef<{ actingPlayerId: string; card: Card; slotIdx: number } | null>(null);
@@ -111,6 +113,7 @@ export default function GameBoard({
   const observedTurnRef = useRef<{ actorId: number; cardId: string; isSteal: boolean; announced: boolean } | null>(null);
   const turnNoticeIdRef = useRef(0);
   const gameFinishedAnnouncedRef = useRef(false);
+  const finishedExitInProgressRef = useRef(false);
 
   const [gameState, setGameState] = useState<GameState>({
     mode,
@@ -549,14 +552,28 @@ export default function GameBoard({
   };
 
   const leaveFinishedGame = (destination: 'WELCOME' | 'SETUP') => {
-    setTurnNotices([]);
-    setLaneResult(null);
-    setLaneResultPlayerName(null);
-    setGameRuntime(null);
-    setIsGameCountingDown(false);
-    setSession(null);
-    setLobbyView(destination);
-    router.replace('/');
+    if (finishedExitInProgressRef.current) return;
+    finishedExitInProgressRef.current = true;
+    Animated.timing(finishedScreenOpacity, {
+      duration: 220,
+      easing: Easing.in(Easing.cubic),
+      toValue: 0,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (!finished) {
+        finishedExitInProgressRef.current = false;
+        return;
+      }
+      setLobbyEntryFade(true);
+      setTurnNotices([]);
+      setLaneResult(null);
+      setLaneResultPlayerName(null);
+      setGameRuntime(null);
+      setIsGameCountingDown(false);
+      setSession(null);
+      setLobbyView(destination);
+      router.replace('/');
+    });
   };
 
   const handleRestartGame = () => leaveFinishedGame('WELCOME');
@@ -760,6 +777,7 @@ export default function GameBoard({
       handleSlotSelect,
       handleProceedNextRound,
       handleStealChoice,
+      leaveFinishedGame,
       lastInsertedCardId,
       laneResult,
       selectedSlotIndex,
@@ -798,7 +816,7 @@ export default function GameBoard({
   }
 
   return (
-    <View className="flex-1 bg-neutral-950">
+    <Animated.View className="flex-1 bg-neutral-950" style={{ opacity: finishedScreenOpacity }}>
       {(isVictoryPhase || isGameOverPhase) && (
         <LinearGradient
           colors={isVictoryPhase
@@ -1268,6 +1286,6 @@ export default function GameBoard({
         </View>
       </Modal>
 
-    </View>
+    </Animated.View>
   );
 }

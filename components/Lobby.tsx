@@ -345,6 +345,8 @@ export default function Lobby() {
     setLobbyView,
     lobbyTransitionTarget,
     setLobbyTransitionTarget,
+    lobbyEntryFade,
+    setLobbyEntryFade,
     setupTab,
     setSetupTab,
     userName,
@@ -492,6 +494,21 @@ export default function Lobby() {
       });
     });
   };
+
+  useEffect(() => {
+    if (!lobbyEntryFade || (lobbyView !== 'WELCOME' && lobbyView !== 'SETUP')) return;
+    const incomingOpacity = lobbyView === 'WELCOME' ? welcomeOpacity : setupOpacity;
+    incomingOpacity.setValue(0);
+    const frame = requestAnimationFrame(() => {
+      Animated.timing(incomingOpacity, {
+        duration: 260,
+        easing: Easing.out(Easing.cubic),
+        toValue: 1,
+        useNativeDriver: true,
+      }).start(() => setLobbyEntryFade(false));
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [lobbyEntryFade, lobbyView, setLobbyEntryFade, setupOpacity, welcomeOpacity]);
 
   useEffect(() => {
     if (lobbyTransitionTarget !== 'WELCOME' && lobbyTransitionTarget !== 'SETUP') return;

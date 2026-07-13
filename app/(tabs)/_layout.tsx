@@ -1,4 +1,4 @@
-import { ImageSourcePropType, Modal, Pressable, Text, useWindowDimensions, View } from 'react-native';
+import { ImageSourcePropType, Modal, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { router, Stack, usePathname } from 'expo-router';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import ChevronLeftIcon from '@expo/material-symbols/chevron_left.xml';
@@ -15,6 +15,7 @@ import { ConfirmModal } from '@/components/ConfirmModal';
 import { LaneModal } from '@/components/LaneModal';
 import { ButtonTab } from '@/components/ButtonTab';
 import { DrawnCardFace } from '@/components/DrawnCardFace';
+import { WebAppCard } from '@/components/WebAppCard';
 import { Card } from '@/types';
 import { X } from 'lucide-react-native';
 
@@ -68,6 +69,7 @@ export default function TabLayout() {
   const [debugMenuOpen, setDebugMenuOpen] = useState(false);
   const [debugOverlay, setDebugOverlay] = useState<DebugOverlay | null>(null);
   const [debugCard, setDebugCard] = useState<Card | null>(null);
+  const [debugWebCardVisible, setDebugWebCardVisible] = useState(false);
   const debugCardWidth = Math.min(width - 32, 420);
   const debugCardHeight = Math.min(
     height - insets.top - insets.bottom - 72,
@@ -151,7 +153,7 @@ export default function TabLayout() {
               separateBackground
               tintColor="#fbbf24"
             >
-              DEBUG
+              LOGS
             </Stack.Toolbar.Button>
           )}
         </Stack.Toolbar>
@@ -247,7 +249,11 @@ export default function TabLayout() {
         onRequestClose={() => setDebugMenuOpen(false)}
         visible={debugMenuOpen}
       >
-        <View style={{ gap: 10 }}>
+        <ScrollView
+          contentContainerStyle={{ gap: 10 }}
+          showsVerticalScrollIndicator={false}
+          style={{ maxHeight: Math.max(280, height - insets.top - insets.bottom - 230) }}
+        >
           <Text className="mb-1 text-center text-lg font-black uppercase tracking-wider text-amber-400">
             OVERLAY DEBUG
           </Text>
@@ -272,7 +278,13 @@ export default function TabLayout() {
           <ButtonTab category="button" onPress={() => showDebugCard(DEBUG_CARD_WITHOUT_IMAGE)} size="100" type="secondary">
             CARD — DEFAULT IMAGE
           </ButtonTab>
-        </View>
+          <ButtonTab category="button" onPress={() => {
+            setDebugMenuOpen(false);
+            requestAnimationFrame(() => setDebugWebCardVisible(true));
+          }} size="100" type="secondary">
+            WEB APP CARD
+          </ButtonTab>
+        </ScrollView>
       </ConfirmModal>}
       {DEBUG_UI_ENABLED && <LaneModal
         failureMessage="YOUR GUESS WAS TOO HIGH OR TOO LOW"
@@ -314,7 +326,7 @@ export default function TabLayout() {
         >
           <View style={{ width: debugCardWidth }}>
             <DrawnCardFace
-              artworkSize={Math.min(192, debugCardHeight * 0.34)}
+              artworkSize={Math.min(220, debugCardHeight * 0.39)}
               card={debugCard ?? DEBUG_CARD_WITHOUT_IMAGE}
               height={debugCardHeight}
               language={language}
@@ -328,6 +340,47 @@ export default function TabLayout() {
             onPress={() => {
               playHaptic();
               setDebugCard(null);
+            }}
+            style={{
+              alignItems: 'center',
+              backgroundColor: 'rgba(64,64,64,0.9)',
+              borderRadius: 22,
+              height: 44,
+              justifyContent: 'center',
+              position: 'absolute',
+              right: 18,
+              top: insets.top + 12,
+              width: 44,
+            }}
+          >
+            <X color="#ffffff" size={22} strokeWidth={2.6} />
+          </Pressable>
+        </View>
+      </Modal>}
+      {DEBUG_UI_ENABLED && <Modal
+        animationType="slide"
+        onRequestClose={() => setDebugWebCardVisible(false)}
+        presentationStyle="fullScreen"
+        statusBarTranslucent
+        visible={debugWebCardVisible}
+      >
+        <View
+          className="flex-1 items-center justify-center bg-neutral-950"
+          style={{ paddingBottom: insets.bottom + 16, paddingTop: insets.top + 16 }}
+        >
+          <WebAppCard
+            card={DEBUG_CARD}
+            height={debugCardHeight}
+            language={language}
+            width={debugCardWidth}
+          />
+          <Pressable
+            accessibilityLabel="Close web app card preview"
+            accessibilityRole="button"
+            hitSlop={10}
+            onPress={() => {
+              playHaptic();
+              setDebugWebCardVisible(false);
             }}
             style={{
               alignItems: 'center',

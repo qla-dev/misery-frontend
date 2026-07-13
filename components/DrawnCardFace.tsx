@@ -38,15 +38,23 @@ export function DrawnCardFace({
   const promptAnimation = promptFloat ?? staticPromptFloat;
   const isCorrect = result === 'correct';
   const isWrong = result === 'wrong';
+  const cardGradient: [string, string, string, string] = isWrong
+    ? ['#5a1414', '#311616', '#171010', '#090909']
+    : isCorrect
+      ? ['#0c4430', '#173126', '#101713', '#090909']
+      : ['#1d1d1d', '#191919', '#101010', '#090909'];
 
   useEffect(() => setImageFailed(false), [card.image]);
   useEffect(() => staticScoreReveal.setValue(scoreRevealed ? 1 : 0), [scoreRevealed, staticScoreReveal]);
 
   return (
-    <View
+    <LinearGradient
+      colors={cardGradient}
+      end={{ x: 0.82, y: 1 }}
+      locations={[0, 0.36, 0.7, 1]}
+      start={{ x: 0.12, y: 0 }}
       style={{
         alignItems: 'center',
-        backgroundColor: isWrong ? 'rgba(239,68,68,0.14)' : isCorrect ? 'rgba(16,185,129,0.14)' : '#090909',
         borderColor: isWrong ? '#ef4444' : isCorrect ? '#10b981' : '#fbbf24',
         borderRadius: 16,
         borderWidth: 6,
@@ -70,7 +78,7 @@ export function DrawnCardFace({
         <View
           className="items-center justify-center overflow-hidden rounded-full"
           style={{
-            backgroundColor: '#1a1a1a',
+            backgroundColor: '#191919',
             height: artworkSize,
             width: artworkSize,
           }}
@@ -81,7 +89,7 @@ export function DrawnCardFace({
               onError={() => setImageFailed(true)}
               resizeMode="cover"
               source={{ uri: card.image }}
-              style={{ height: '112%', width: '112%' }}
+              style={{ height: '120%', width: '120%' }}
             />
           ) : (
             <Image
@@ -89,9 +97,9 @@ export function DrawnCardFace({
               resizeMode="contain"
               source={DEFAULT_CARD_IMAGE}
               style={{
-                height: '116%',
+                height: '124%',
                 transform: [{ translateY: 10 }],
-                width: '116%',
+                width: '124%',
               }}
             />
           )}
@@ -165,6 +173,6 @@ export function DrawnCardFace({
           </Animated.Text>
         </LinearGradient>
       </View>
-    </View>
+    </LinearGradient>
   );
 }

@@ -1,4 +1,5 @@
-import { Linking, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import LottieView from 'lottie-react-native';
 import { useGame } from '@/context/GameContext';
 import { playSound } from '@/lib/sound';
@@ -27,7 +28,10 @@ export default function AboutScreen() {
 
   const handleOpenUrl = (url: string) => {
     playSound('click');
-    void Linking.openURL(url).catch(() => undefined);
+    void WebBrowser.openBrowserAsync(url, {
+      controlsColor: '#facc15',
+      toolbarColor: '#0a0a0a',
+    }).catch(() => undefined);
   };
 
   return (

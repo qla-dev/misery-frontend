@@ -14,7 +14,6 @@ import LottieView from 'lottie-react-native';
 import { api, ApiCard, API_BASE_URL } from '@/lib/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VictoryConfetti } from './VictoryConfetti';
-import { endGameLiveActivity, syncGameLiveActivity } from '@/lib/gameLiveActivity';
 import { DrawnCardFace } from './DrawnCardFace';
 
 const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
@@ -117,7 +116,7 @@ export default function GameBoard({
   const cardTopPadding = 12;
   const drawnCardHeight = height - cardTopOffset - cardTopPadding - 105;
   const cardAreaHeight = drawnCardHeight + cardTopPadding;
-  const dummyArtworkSize = Math.min(192, drawnCardHeight * 0.34);
+  const dummyArtworkSize = Math.min(220, drawnCardHeight * 0.39);
   const cardFlip = useRef(new Animated.Value(0)).current;
   const cardFloat = useRef(new Animated.Value(0)).current;
   const cardPromptFloat = useRef(new Animated.Value(0)).current;
@@ -782,43 +781,6 @@ export default function GameBoard({
     shouldWatchLocalInactivity,
   ]);
 
-  const activityLane = currentActingPlayer?.lane ?? [];
-  const activityLaneValues = activityLane.map((card) => card.index.toFixed(1));
-  const activityLaneSummary = `${activityLaneValues.length > 5 ? '… · ' : ''}${activityLaneValues.slice(-5).join(' · ') || '—'}`;
-  const activityProps = {
-    cardTitle: gameState.drawnCard
-      ? isBs ? gameState.drawnCard.titleBs : gameState.drawnCard.titleEn
-      : isBs ? 'NEMA KARTE' : 'NO CURRENT CARD',
-    inactive: isTurnInactive,
-    isMyTurn: isLocalServerTurn,
-    laneCount: activityLane.length,
-    laneSummary: activityLaneSummary,
-    playerName: currentActingPlayer?.name ?? (isBs ? 'IGRAČ' : 'PLAYER'),
-    status: isVictoryPhase || isGameOverPhase ? 'finished' as const : 'playing' as const,
-  };
-
-  useEffect(() => {
-    if (gameState.phase === 'LOBBY' || gameState.players.length === 0) return;
-    if (activityProps.status === 'finished') {
-      void endGameLiveActivity(activityProps);
-      return;
-    }
-    void syncGameLiveActivity(activityProps);
-  }, [
-    activityProps.cardTitle,
-    activityProps.inactive,
-    activityProps.isMyTurn,
-    activityProps.laneCount,
-    activityProps.laneSummary,
-    activityProps.playerName,
-    activityProps.status,
-    gameState.phase,
-    gameState.players.length,
-  ]);
-
-  useEffect(() => () => {
-    void endGameLiveActivity();
-  }, []);
   const faceDownPrompt = gameId && !isLocalServerTurn
     ? !isAwaitingTurnFinish && currentActingPlayer?.name
       ? activeStealer

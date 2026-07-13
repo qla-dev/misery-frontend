@@ -49,15 +49,6 @@
           "enableBackgroundPlayback": true
         }
       ],
-      "./plugins/with-no-push-notifications",
-      [
-        "expo-widgets",
-        {
-          "bundleIdentifier": "misery.qla.dev.ExpoWidgetsTarget",
-          "groupIdentifier": "group.misery.qla.dev",
-          "enablePushNotifications": false
-        }
-      ],
       [
         "expo-splash-screen",
         {

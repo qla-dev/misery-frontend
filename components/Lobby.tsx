@@ -957,7 +957,8 @@ export default function Lobby() {
     });
     if (serverGameId && serverUserId) {
       try {
-        const game = await api.startGame(serverGameId, serverUserId);
+        const stack = deck === 'SPICY' ? 'spicy' : 'normal';
+        const game = await api.startGame(serverGameId, serverUserId, stack);
         console.log('[StartGame] API success', {
           gameId: game.id,
           started: game.started,

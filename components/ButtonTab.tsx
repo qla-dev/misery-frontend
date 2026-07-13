@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, Text } from 'react-native';
 import { GlassView } from 'expo-glass-effect';
+import { playSound } from '@/lib/sound';
 
 interface ButtonTabProps {
   category: 'button' | 'tab';
@@ -23,6 +24,10 @@ export function ButtonTab({
   className = '',
   glassEffect = false,
 }: ButtonTabProps) {
+  const handlePress = () => {
+    playSound('click');
+    onPress?.();
+  };
   // Determine size styling
   const sizeStyle =
     category === 'tab'
@@ -86,7 +91,7 @@ export function ButtonTab({
       >
         <Pressable
           className={`h-full flex-row items-center justify-center gap-2 px-4 ${category === 'button' ? 'w-full' : ''} ${className}`}
-          onPress={onPress}
+          onPress={handlePress}
         >
           {content}
         </Pressable>
@@ -97,7 +102,7 @@ export function ButtonTab({
   return (
     <Pressable
       disabled={disabled}
-      onPress={onPress}
+      onPress={handlePress}
       style={({ pressed }) => [
         sizeStyle as any,
         { opacity: pressed ? 0.8 : 1 }

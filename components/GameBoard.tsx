@@ -193,6 +193,7 @@ export default function GameBoard({
         isAwaitingTurnFinish ||
         Number(serverCurrentPlayerId) !== Number(userId))
     ) return;
+    playSound('shuffle');
     setIsDrawnCardFlipped(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Animated.timing(cardFlip, {

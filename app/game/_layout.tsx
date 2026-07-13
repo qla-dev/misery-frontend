@@ -4,9 +4,9 @@ import { LaneModal } from '@/components/LaneModal';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { router, Stack } from 'expo-router';
 import { useGame } from '@/context/GameContext';
-import { playSound } from '@/lib/sound';
+import { playSound, setGameMusicActive, setSoundMuted } from '@/lib/sound';
 import { ImageSourcePropType, Text, View } from 'react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import HelpIcon from '@expo/material-symbols/help.xml';
 import VolumeOffIcon from '@expo/material-symbols/volume_off.xml';
 import VolumeUpIcon from '@expo/material-symbols/volume_up.xml';
@@ -58,6 +58,15 @@ export default function GameTabsLayout() {
     : isBs
       ? 'IGRAČ JE NA POTEZU'
       : 'PLAYER TURN';
+
+  useEffect(() => {
+    setGameMusicActive(true);
+    return () => setGameMusicActive(false);
+  }, []);
+
+  useEffect(() => {
+    setSoundMuted(muted);
+  }, [muted]);
 
   return (
     <>

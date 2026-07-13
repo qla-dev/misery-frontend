@@ -13,7 +13,7 @@ export const API_BASE_URL = API_URLS[API_TARGET];
 export interface ApiUser { id: number; name: string; email: string | null; color: string | null }
 export interface ApiCard { id: number; title: string; subtitle: string | null; score: number | string; image: string | null; deck: string }
 export interface ApiMove { id: number; player_id: number; correct: boolean; player: ApiUser; card: ApiCard | null; created_at: string }
-export interface ApiGame { id: number; code: string; owner_id: number; started: boolean; current_player_id: number | null; turn_owner_id: number | null; awaiting_finish: boolean; is_steal_turn: boolean; ingame_polling_interval_ms: number; members: ApiUser[]; hands: Record<string, ApiCard[]>; current_card: ApiCard | null; moves: ApiMove[] }
+export interface ApiGame { id: number; code: string; owner_id: number; started: boolean; stack_id: number | null; stack: 'normal' | 'spicy' | string | null; current_player_id: number | null; turn_owner_id: number | null; awaiting_finish: boolean; is_steal_turn: boolean; ingame_polling_interval_ms: number; members: ApiUser[]; hands: Record<string, ApiCard[]>; current_card: ApiCard | null; moves: ApiMove[] }
 export interface SocialAuthResponse { token: string; user: ApiUser; is_new_user: boolean }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -67,7 +67,7 @@ export const api = {
   },
   getGame: (id: number) => request<ApiGame>(`/games/${id}`),
   deleteGame: (id: number) => request<void>(`/games/${id}`, { method: 'DELETE' }),
-  startGame: (id: number, userId: number) => request<ApiGame>(`/games/${id}/start`, { method: 'POST', body: JSON.stringify({ user_id: userId }) }),
+  startGame: (id: number, userId: number, stack: 'normal' | 'spicy') => request<ApiGame>(`/games/${id}/start`, { method: 'POST', body: JSON.stringify({ user_id: userId, stack }) }),
   submitMove: (id: number, playerId: number, correct: boolean) => request<{ game: ApiGame }>(`/games/${id}/moves`, { method: 'POST', body: JSON.stringify({ player_id: playerId, correct }) }),
   finishTurn: (id: number, playerId: number) => request<{ game: ApiGame }>(`/games/${id}/finish-turn`, { method: 'POST', body: JSON.stringify({ player_id: playerId }) }),
   passSteal: (id: number, playerId: number) => request<{ game: ApiGame }>(`/games/${id}/pass-steal`, { method: 'POST', body: JSON.stringify({ player_id: playerId }) }),

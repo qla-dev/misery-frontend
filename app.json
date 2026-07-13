@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "miseryindex",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
     "owner": "kulasinn-2",
     "ios": {
       "supportsTablet": true,
@@ -43,6 +42,7 @@
     "plugins": [
       "expo-router",
       "expo-font",
+      "expo-asset",
       [
         "expo-splash-screen",
         {

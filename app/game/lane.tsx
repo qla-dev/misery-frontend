@@ -115,7 +115,7 @@ export default function MiseryLaneScreen() {
             card={gameRuntime.isDrawnCardFlipped
               ? gameRuntime.drawnCard
               : { ...gameRuntime.drawnCard, titleBs: '????????', titleEn: '????????', descriptionBs: '???', descriptionEn: '???' }}
-            hiddenScore
+            hiddenScore={!gameRuntime.isDrawnCardScoreRevealed}
             isBs={isBs}
             isNew={false}
           />

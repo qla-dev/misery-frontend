@@ -15,6 +15,8 @@ type LaneModalProps = {
   warning?: boolean;
   neutral?: boolean;
   ending?: boolean;
+  score?: number;
+  scoreLabel?: string;
 };
 
 export function LaneModal({
@@ -29,6 +31,8 @@ export function LaneModal({
   warning = false,
   neutral = false,
   ending = false,
+  score,
+  scoreLabel = 'MISERY VALUE',
 }: LaneModalProps) {
   const [rendered, setRendered] = useState(false);
   const opacity = useRef(new Animated.Value(0)).current;
@@ -117,7 +121,7 @@ export function LaneModal({
       >
         <Animated.View
           className="items-center"
-          style={{ gap: 22, transform: [{ translateY: -36 }, { scale }, { rotate }] }}
+          style={{ gap: 22, transform: [{ translateY: -31 }, { scale }, { rotate }] }}
         >
           <View className={`h-40 w-40 items-center justify-center rounded-full border-[6px] ${neutral ? 'border-neutral-950 bg-neutral-950/5' : 'border-white bg-white/15'}`}>
             {neutral ? (
@@ -144,6 +148,13 @@ export function LaneModal({
             <Text className={`text-center text-sm font-bold uppercase tracking-widest ${neutral ? 'text-neutral-950/65' : 'text-white/85'}`}>
               {success ? successMessage : failureMessage}
             </Text>
+            {score !== undefined && (
+              <View className={`mt-2 rounded-xl border px-5 py-2 ${neutral ? 'border-neutral-950/20 bg-neutral-950/5' : 'border-white/40 bg-white/15'}`}>
+                <Text className={`text-center font-mono text-[9px] font-black uppercase tracking-[2px] ${neutral ? 'text-neutral-950/60' : 'text-white/75'}`}>
+                  {`${scoreLabel}  •  ${score.toFixed(1)}`}
+                </Text>
+              </View>
+            )}
           </View>
         </Animated.View>
         <View

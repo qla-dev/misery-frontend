@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  content: { alignItems: 'center', transform: [{ translateY: -10 }], width: '100%' },
+  content: { alignItems: 'center', transform: [{ translateY: -31 }], width: '100%' },
   titleBlock: { alignItems: 'center', marginBottom: -15 },
   titleRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'center' },
   titleAmber: {

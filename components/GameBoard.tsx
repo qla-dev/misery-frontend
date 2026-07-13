@@ -136,6 +136,8 @@ export default function GameBoard({
   const [isServerTurnReady, setIsServerTurnReady] = useState(!gameId);
   const [isAwaitingTurnFinish, setIsAwaitingTurnFinish] = useState(false);
   const [isSubmittingMove, setIsSubmittingMove] = useState(false);
+  const [lastResultCardScore, setLastResultCardScore] = useState<number | null>(null);
+  const [revealedScoreCardId, setRevealedScoreCardId] = useState<string | null>(null);
   const laneNavigationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [serverCurrentPlayerId, setServerCurrentPlayerId] = useState<number | null>(null);
   const toLocalCard = (card: ApiCard): Card => ({
@@ -159,7 +161,12 @@ export default function GameBoard({
     cardFlip.setValue(0);
     scoreReveal.setValue(0);
     setIsDrawnCardFlipped(false);
+    setRevealedScoreCardId(null);
   }, [cardFlip, gameState.drawnCard?.id, scoreReveal]);
+
+  const isDrawnCardScoreRevealed = Boolean(
+    gameState.drawnCard && revealedScoreCardId === gameState.drawnCard.id
+  );
 
   useEffect(() => {
     observedTurnRef.current = null;
@@ -168,10 +175,14 @@ export default function GameBoard({
 
   useFocusEffect(
     useCallback(() => {
-      const canReveal = laneResult === null && ['CORRECT_REVEAL', 'WRONG_REVEAL'].includes(gameState.phase);
-      if (!canReveal) return;
+      const canReveal = laneResult === null && isDrawnCardScoreRevealed;
+      if (!canReveal) {
+        scoreReveal.stopAnimation();
+        scoreReveal.setValue(0);
+        return;
+      }
       scoreReveal.setValue(0);
-      Animated.sequence([
+      const animation = Animated.sequence([
         Animated.delay(180),
         Animated.timing(scoreReveal, {
           duration: 900,
@@ -179,8 +190,10 @@ export default function GameBoard({
           toValue: 1,
           useNativeDriver: true,
         }),
-      ]).start();
-    }, [gameState.drawnCard?.id, gameState.phase, laneResult, scoreReveal])
+      ]);
+      animation.start();
+      return () => animation.stop();
+    }, [gameState.drawnCard?.id, isDrawnCardScoreRevealed, laneResult, scoreReveal])
   );
 
   useEffect(() => {
@@ -321,6 +334,8 @@ export default function GameBoard({
     const actingPlayerIndex = activeStealerIndex !== undefined ? activeStealerIndex : currentPlayerIndex;
     const actingPlayer = players[actingPlayerIndex];
     const isCorrect = verifySlotChoice(actingPlayer.lane, drawnCard, slotIdx);
+    setLastResultCardScore(drawnCard.index);
+    setRevealedScoreCardId(drawnCard.id);
     setSelectedSlotIndex(slotIdx);
     setSelectedSlotResult(isCorrect ? 'success' : 'failure');
     if (gameId && userId) {
@@ -357,6 +372,7 @@ export default function GameBoard({
       const historyLog = {
         playerName: actingPlayer.name,
         cardTitle: isBs ? drawnCard.titleBs : drawnCard.titleEn,
+        cardScore: drawnCard.index,
         guessIndex: slotIdx,
         correctIndex: slotIdx,
         success: true,
@@ -378,6 +394,7 @@ export default function GameBoard({
       const historyLog = {
         playerName: actingPlayer.name,
         cardTitle: isBs ? drawnCard.titleBs : drawnCard.titleEn,
+        cardScore: drawnCard.index,
         guessIndex: slotIdx,
         correctIndex: -1,
         success: false,
@@ -435,6 +452,8 @@ export default function GameBoard({
           if (Number(latestMove.player_id) !== Number(userId)) {
             playSound(latestMove.correct ? 'correct' : 'wrong');
             setLaneResultPlayerName(latestMove.player.name);
+            setLastResultCardScore(latestMove.card ? Number(latestMove.card.score) : null);
+            if (latestMove.card) setRevealedScoreCardId(String(latestMove.card.id));
             const wasStolen = latestMove.correct &&
               game.turn_owner_id !== null &&
               Number(latestMove.player_id) !== Number(game.turn_owner_id);
@@ -463,7 +482,14 @@ export default function GameBoard({
             const lane = [...serverLane, ...pendingCards].sort((a, b) => a.index - b.index);
             return { ...player, lane, score: pointsFromLane(lane) };
           }),
-          guessHistory: game.moves.map((move) => ({ playerName: move.player.name, cardTitle: move.card?.title ?? '', guessIndex: -1, correctIndex: -1, success: move.correct })),
+          guessHistory: game.moves.map((move) => ({
+            playerName: move.player.name,
+            cardTitle: move.card?.title ?? '',
+            cardScore: move.card ? Number(move.card.score) : undefined,
+            guessIndex: -1,
+            correctIndex: -1,
+            success: move.correct,
+          })),
         }));
       } catch { /* Retry using the default interval. */ }
       const requestDuration = Date.now() - pollStartedAt;
@@ -652,6 +678,7 @@ export default function GameBoard({
       isLocalServerTurn
     ))
   );
+  const shouldFloatDrawnCard = canFlipCard || isDrawnCardFlipped;
   const isLocalStealAttempt = Boolean(gameId && isLocalServerTurn && activeStealer);
   const faceDownPrompt = gameId && !isLocalServerTurn
     ? !isAwaitingTurnFinish && currentActingPlayer?.name
@@ -662,7 +689,7 @@ export default function GameBoard({
       : isBs ? 'DODIRNI ZA OKRETANJE' : 'TAP TO FLIP';
 
   useEffect(() => {
-    if (!canFlipCard) {
+    if (!shouldFloatDrawnCard) {
       cardFloat.stopAnimation();
       cardFloat.setValue(0);
       return;
@@ -685,7 +712,7 @@ export default function GameBoard({
     );
     animation.start();
     return () => animation.stop();
-  }, [canFlipCard, cardFloat]);
+  }, [cardFloat, shouldFloatDrawnCard]);
 
   useEffect(() => {
     if (isVictoryPhase || isGameOverPhase) {
@@ -773,12 +800,14 @@ export default function GameBoard({
       localPlayer,
       drawnCard: gameState.drawnCard,
       isDrawnCardFlipped,
+      isDrawnCardScoreRevealed,
       guessHistory: gameState.guessHistory,
       handleSlotSelect,
       handleProceedNextRound,
       handleStealChoice,
       leaveFinishedGame,
       lastInsertedCardId,
+      lastResultCardScore,
       laneResult,
       selectedSlotIndex,
       selectedSlotResult,
@@ -793,7 +822,7 @@ export default function GameBoard({
         (!gameId || Number(activeStealer.id) === Number(userId))
       ),
     });
-  }, [currentActingPlayer, gameId, gameState, isAwaitingTurnFinish, isDrawnCardFlipped, isServerTurnReady, isSubmittingMove, laneResult, lastInsertedCardId, localPlayer, selectedSlotIndex, selectedSlotResult, serverCurrentPlayerId, setGameRuntime, userId]);
+  }, [currentActingPlayer, gameId, gameState, isAwaitingTurnFinish, isDrawnCardFlipped, isDrawnCardScoreRevealed, isServerTurnReady, isSubmittingMove, laneResult, lastInsertedCardId, lastResultCardScore, localPlayer, selectedSlotIndex, selectedSlotResult, serverCurrentPlayerId, setGameRuntime, userId]);
 
   useEffect(() => {
     const finished = gameState.phase === 'VICTORY' || gameState.phase === 'GAME_OVER';
@@ -835,7 +864,12 @@ export default function GameBoard({
           }}
         >
           {mode === 'MULTIPLAYER' && !isVictoryPhase && !isGameOverPhase && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-5 px-5 py-1">
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              className="-mx-5 px-5 py-1"
+              style={{ transform: [{ translateY: -3 }] }}
+            >
               <View className="flex-row gap-2.5">
                 {gameState.players.map((p, idx) => {
                   const isActiveTurn = idx === gameState.currentPlayerIndex;

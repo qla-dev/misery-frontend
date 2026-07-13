@@ -37,6 +37,7 @@ export interface GameState {
   guessHistory: {
     playerName: string;
     cardTitle: string;
+    cardScore?: number;
     guessIndex: number;
     correctIndex: number;
     success: boolean;

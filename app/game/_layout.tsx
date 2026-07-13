@@ -6,7 +6,7 @@ import { router, Stack } from 'expo-router';
 import { useGame } from '@/context/GameContext';
 import { playHaptic, setGameMusicActive, setGameMusicMuted, setLobbyMusicActive } from '@/lib/sound';
 import { ImageSourcePropType, Pressable, Text, View } from 'react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import HelpIcon from '@expo/material-symbols/help.xml';
 import VolumeOffIcon from '@expo/material-symbols/volume_off.xml';
 import VolumeUpIcon from '@expo/material-symbols/volume_up.xml';
@@ -49,6 +49,7 @@ export default function GameTabsLayout() {
     turnNotices,
   } = useGame();
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
+  const finishTurnDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isBs = language === 'bs';
   const turnNotice = turnNotices[0];
   const activePlayerName = gameRuntime?.currentActingPlayer?.name ?? session?.players[0]?.name;
@@ -85,6 +86,10 @@ export default function GameTabsLayout() {
     if (turnNotice?.type !== 'start') return;
     router.navigate('/game');
   }, [turnNotice?.id, turnNotice?.type]);
+
+  useEffect(() => () => {
+    if (finishTurnDelayRef.current) clearTimeout(finishTurnDelayRef.current);
+  }, []);
 
   const returnToWelcome = () => {
     playHaptic();
@@ -239,9 +244,16 @@ export default function GameTabsLayout() {
         failureTitle={isBs ? 'NETAČNO' : 'INCORRECT'}
         onComplete={() => {
           const shouldFinishTurn = Boolean(gameRuntime?.canFinishTurn);
+          const finishTurn = gameRuntime?.handleProceedNextRound;
           setLaneResult(null);
           setLaneResultPlayerName(null);
-          if (shouldFinishTurn) void gameRuntime?.handleProceedNextRound?.();
+          if (shouldFinishTurn && finishTurn) {
+            if (finishTurnDelayRef.current) clearTimeout(finishTurnDelayRef.current);
+            finishTurnDelayRef.current = setTimeout(() => {
+              finishTurnDelayRef.current = null;
+              void finishTurn();
+            }, 2100);
+          }
         }}
         playerName={laneResultPlayerName ?? undefined}
         success={laneResult !== 'failure'}
@@ -251,6 +263,10 @@ export default function GameTabsLayout() {
         successTitle={laneResult === 'steal'
           ? isBs ? 'KARTA UKRADENA' : 'CARD STOLEN'
           : isBs ? 'TAČNO' : 'CORRECT'}
+        score={laneResult === 'steal' && gameRuntime?.lastResultCardScore !== null
+          ? gameRuntime?.lastResultCardScore
+          : undefined}
+        scoreLabel={isBs ? 'STOPA BIJEDE' : 'MISERY VALUE'}
         visible={laneResult !== null}
         warning={laneResult === 'steal'}
       />

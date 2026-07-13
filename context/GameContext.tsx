@@ -3,6 +3,9 @@ import { Language } from '@/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GameSession, LobbyView, PlayerInput } from './game-types';
 
+const LANGUAGE_KEY = '@misery-index/language';
+const MUSIC_MUTED_KEY = '@misery-index/music-muted';
+
 interface GameContextValue {
   isPremium: boolean;
   activatePremium: () => Promise<void>;
@@ -96,10 +99,31 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [isGameCountingDown, setIsGameCountingDown] = useState(false);
   const [laneResult, setLaneResult] = useState<'success' | 'failure' | 'steal' | null>(null);
   const [laneResultPlayerName, setLaneResultPlayerName] = useState<string | null>(null);
+  const [settingsRestored, setSettingsRestored] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem('@misery-meter/premium').then((value) => setIsPremium(value === 'active')).catch(() => undefined);
+    AsyncStorage.multiGet([LANGUAGE_KEY, MUSIC_MUTED_KEY])
+      .then((entries) => {
+        const saved = Object.fromEntries(entries);
+        if (saved[LANGUAGE_KEY] === 'en' || saved[LANGUAGE_KEY] === 'bs') {
+          setLanguage(saved[LANGUAGE_KEY] as Language);
+        }
+        setMusicMuted(saved[MUSIC_MUTED_KEY] === 'true');
+      })
+      .catch(() => undefined)
+      .finally(() => setSettingsRestored(true));
   }, []);
+
+  useEffect(() => {
+    if (!settingsRestored) return;
+    void AsyncStorage.setItem(LANGUAGE_KEY, language).catch(() => undefined);
+  }, [language, settingsRestored]);
+
+  useEffect(() => {
+    if (!settingsRestored) return;
+    void AsyncStorage.setItem(MUSIC_MUTED_KEY, String(musicMuted)).catch(() => undefined);
+  }, [musicMuted, settingsRestored]);
 
   const activatePremium = async () => {
     await AsyncStorage.setItem('@misery-meter/premium', 'active');

@@ -5,7 +5,7 @@ import ChevronLeftIcon from '@expo/material-symbols/chevron_left.xml';
 import HelpIcon from '@expo/material-symbols/help.xml';
 import { SFSymbol } from 'sf-symbols-typescript';
 import { useGame } from '@/context/GameContext';
-import { playSound } from '@/lib/sound';
+import { playHaptic } from '@/lib/sound';
 import { InfoModal } from '@/components/InfoModal';
 
 function toolbarIcon(ios: SFSymbol, android: ImageSourcePropType) {
@@ -34,7 +34,7 @@ export default function TabLayout() {
           headerBackground: () => null,
           headerShadowVisible: false,
           headerStyle: { backgroundColor: 'transparent' },
-          headerTitle: headerTitle
+          headerTitle: isPlayScreen && headerTitle
             ? () => (
                 <Text
                   style={{
@@ -54,13 +54,13 @@ export default function TabLayout() {
           headerTintColor: '#ffffff',
         }}
       />
-      {(lobbyView !== 'WELCOME' || !isPlayScreen) && (
+      {isPlayScreen && lobbyView !== 'WELCOME' && (
         <Stack.Toolbar placement="left">
           <Stack.Toolbar.Button
             accessibilityLabel={lobbyView === 'SETUP' ? 'Back to welcome' : 'Back to settings'}
             icon={toolbarIcon('chevron.left', ChevronLeftIcon)}
             onPress={() => {
-              playSound('click');
+              playHaptic();
               if (lobbyView === 'ROOM_CREATED') {
                 setRoomExitWarningOpen(true);
                 return;
@@ -90,7 +90,7 @@ export default function TabLayout() {
           accessibilityLabel="Instructions"
           icon={toolbarIcon('questionmark.circle.fill', HelpIcon)}
           onPress={() => {
-            playSound('click');
+            playHaptic();
             setInfoModalOpen(true);
           }}
           tintColor="#ffffff"
@@ -98,7 +98,7 @@ export default function TabLayout() {
         <Stack.Toolbar.Button
           accessibilityLabel={language === 'en' ? 'Switch to Bosnian' : 'Switch to English'}
           onPress={() => {
-            playSound('click');
+            playHaptic();
             toggleLanguage();
           }}
           tintColor="#fbbf24"
@@ -109,9 +109,7 @@ export default function TabLayout() {
 
       <NativeTabs
         disableTransparentOnScrollEdge
-        screenListeners={{
-          tabPress: () => playSound('click'),
-        }}
+        screenListeners={{ tabPress: () => playHaptic() }}
         iconColor={{ default: '#737373', selected: '#fbbf24' }}
         labelStyle={{
           default: { color: '#737373', fontSize: 10, fontWeight: '900' },

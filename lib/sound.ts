@@ -10,7 +10,7 @@ let audioModule: typeof import('expo-audio') | null = null;
 let connectPlayer: any = null;
 let shufflePlayer: any = null;
 let backgroundPlayer: any = null;
-let muted = false;
+let musicMuted = false;
 let gameMusicActive = false;
 let audioReadyPromise: Promise<void> | null = null;
 let lastClickAt = 0;
@@ -40,7 +40,6 @@ async function effectPlayer(type: 'click' | 'shuffle') {
 }
 
 async function playEffect(type: 'click' | 'shuffle') {
-  if (muted) return;
   if (type === 'click') {
     const now = Date.now();
     if (now - lastClickAt < 80) return;
@@ -48,7 +47,7 @@ async function playEffect(type: 'click' | 'shuffle') {
   }
   try {
     const player = await effectPlayer(type);
-    if (!player || muted) return;
+    if (!player) return;
     await player.seekTo?.(0);
     player.play?.();
   } catch {
@@ -63,19 +62,15 @@ async function syncBackgroundMusic() {
     backgroundPlayer ??= audioModule.createAudioPlayer(GAME_BACKGROUND_AUDIO, { keepAudioSessionActive: true });
     backgroundPlayer.loop = true;
     backgroundPlayer.volume = 0.22;
-    if (gameMusicActive && !muted) backgroundPlayer.play?.();
+    if (gameMusicActive && !musicMuted) backgroundPlayer.play?.();
     else backgroundPlayer.pause?.();
   } catch {
     // Game remains playable if audio is unavailable.
   }
 }
 
-export function setSoundMuted(value: boolean) {
-  muted = value;
-  if (muted) {
-    connectPlayer?.pause?.();
-    shufflePlayer?.pause?.();
-  }
+export function setGameMusicMuted(value: boolean) {
+  musicMuted = value;
   void syncBackgroundMusic();
 }
 
@@ -84,9 +79,7 @@ export function setGameMusicActive(value: boolean) {
   void syncBackgroundMusic();
 }
 
-export function playSound(type: SoundType) {
-  if (muted) return;
-  if (type === 'click' || type === 'shuffle') void playEffect(type);
+export function playHaptic(type: SoundType = 'click') {
   try {
     if (type === 'correct' || type === 'victory') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     else if (type === 'wrong') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -95,4 +88,9 @@ export function playSound(type: SoundType) {
   } catch {
     // Haptics are optional.
   }
+}
+
+export function playSound(type: SoundType) {
+  if (type === 'click' || type === 'shuffle') void playEffect(type);
+  playHaptic(type);
 }

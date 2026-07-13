@@ -4,7 +4,7 @@ import { LaneModal } from '@/components/LaneModal';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { router, Stack } from 'expo-router';
 import { useGame } from '@/context/GameContext';
-import { playSound, setGameMusicActive, setSoundMuted } from '@/lib/sound';
+import { playHaptic, setGameMusicActive, setGameMusicMuted } from '@/lib/sound';
 import { ImageSourcePropType, Text, View } from 'react-native';
 import { useEffect, useState } from 'react';
 import HelpIcon from '@expo/material-symbols/help.xml';
@@ -34,14 +34,14 @@ export default function GameTabsLayout() {
     language,
     laneResult,
     laneResultPlayerName,
-    muted,
+    musicMuted,
     setGameRuntime,
     setInfoModalOpen,
     setIsGameCountingDown,
     setLaneResult,
     setLaneResultPlayerName,
     setLobbyView,
-    setMuted,
+    setMusicMuted,
     setSession,
     session,
   } = useGame();
@@ -65,8 +65,8 @@ export default function GameTabsLayout() {
   }, []);
 
   useEffect(() => {
-    setSoundMuted(muted);
-  }, [muted]);
+    setGameMusicMuted(musicMuted);
+  }, [musicMuted]);
 
   return (
     <>
@@ -115,17 +115,20 @@ export default function GameTabsLayout() {
         <>
           <Stack.Toolbar placement="right">
             <Stack.Toolbar.Button
-              accessibilityLabel={muted ? 'Unmute' : 'Mute'}
-              icon={toolbarIcon(muted ? 'speaker.slash.fill' : 'speaker.wave.2.fill', muted ? VolumeOffIcon : VolumeUpIcon)}
-              onPress={() => setMuted(!muted)}
+              accessibilityLabel={musicMuted ? 'Turn music on' : 'Turn music off'}
+              icon={toolbarIcon(musicMuted ? 'speaker.slash.fill' : 'speaker.wave.2.fill', musicMuted ? VolumeOffIcon : VolumeUpIcon)}
+              onPress={() => {
+                playHaptic();
+                setMusicMuted(!musicMuted);
+              }}
               separateBackground
-              tintColor={muted ? '#737373' : '#fbbf24'}
+              tintColor={musicMuted ? '#737373' : '#fbbf24'}
             />
             <Stack.Toolbar.Button
               accessibilityLabel="Instructions"
               icon={toolbarIcon('questionmark.circle.fill', HelpIcon)}
               onPress={() => {
-                playSound('click');
+                playHaptic();
                 setInfoModalOpen(true);
               }}
               separateBackground
@@ -137,7 +140,7 @@ export default function GameTabsLayout() {
       <NativeTabs
         disableTransparentOnScrollEdge
         hidden={isGameCountingDown}
-        screenListeners={{ tabPress: () => playSound('click') }}
+        screenListeners={{ tabPress: () => playHaptic() }}
         iconColor={{ default: '#737373', selected: '#fbbf24' }}
         labelStyle={{
           default: { color: '#737373', fontSize: 10, fontWeight: '900' },

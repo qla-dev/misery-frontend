@@ -25,8 +25,9 @@ export function ButtonTab({
   glassEffect = false,
 }: ButtonTabProps) {
   const handlePress = () => {
+    if (!onPress) return;
     playSound('click');
-    onPress?.();
+    onPress();
   };
   // Determine size styling
   const sizeStyle =

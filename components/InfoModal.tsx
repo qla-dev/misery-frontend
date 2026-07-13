@@ -1,7 +1,6 @@
 import { useGame } from '@/context/GameContext';
 import LottieView from 'lottie-react-native';
 import { ScrollView, Text, View } from 'react-native';
-import { playSound } from '@/lib/sound';
 import { ConfirmModal } from './ConfirmModal';
 
 const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
@@ -11,7 +10,6 @@ export function InfoModal({ onLeaveGame }: { onLeaveGame?: () => void }) {
   const isBs = language === 'bs';
 
   const handleAcknowledge = () => {
-    playSound('click');
     setInfoModalOpen(false);
   };
 
@@ -20,7 +18,6 @@ export function InfoModal({ onLeaveGame }: { onLeaveGame?: () => void }) {
       confirmLabel={isBs ? 'RAZUMIJEM' : 'GOT IT'}
       cancelLabel={onLeaveGame ? (isBs ? 'NAPUSTI IGRU' : 'LEAVE GAME') : undefined}
       onCancel={onLeaveGame ? () => {
-        playSound('click');
         setInfoModalOpen(false);
         onLeaveGame();
       } : undefined}

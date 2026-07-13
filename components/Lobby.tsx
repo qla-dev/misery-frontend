@@ -591,7 +591,6 @@ export default function Lobby() {
   const handleCreateRoom = async () => {
     if (isCreatingRoom) return;
     setIsCreatingRoom(true);
-    playSound('click');
     const finalName = userName.trim() || (isBs ? 'Igrač 1' : 'Player 1');
     try {
       void AsyncStorage.setItem(LAST_USERNAME_KEY, finalName).catch(() => undefined);
@@ -641,7 +640,6 @@ export default function Lobby() {
       return;
     }
     joinPendingRef.current = true;
-    playSound('click');
     setRoomCode(cleanCode);
     setLobbyView('ROOM_JOINING');
     setJoinStatusText(isBs ? 'Traženje sobe...' : 'Searching for room...');
@@ -722,7 +720,6 @@ export default function Lobby() {
 
   const handleSocialSignIn = async (provider: 'google' | 'apple') => {
     if (isSigningIn) return;
-    playSound('click');
 
     try {
       if (provider === 'google') {
@@ -1183,7 +1180,6 @@ export default function Lobby() {
                   type="third"
                   size="100"
                   onPress={() => {
-                    playSound('click');
                     transitionLobbyView('SETUP');
                   }}
                 >
@@ -1271,7 +1267,6 @@ export default function Lobby() {
                 size="100"
                 onPress={() => {
                   logLobbyTransition('guest-pressed', { lobbyView });
-                  playSound('click');
                   setIsSocialUser(false);
                   setSocialProvider(null);
                   setUserName('');
@@ -1459,7 +1454,6 @@ export default function Lobby() {
                     size="auto"
                     className="flex-1"
                     onPress={() => {
-                      playSound('click');
                       setTargetScore(num);
                     }}
                   >
@@ -1655,7 +1649,6 @@ export default function Lobby() {
                 targetScore,
                 selectedDeck,
               });
-              playSound('click');
               startGame('MULTIPLAYER', roomPlayers, targetScore, selectedDeck);
             }}
           >
@@ -1697,7 +1690,6 @@ export default function Lobby() {
                 targetScore,
                 selectedDeck,
               });
-              playSound('click');
               startGame('MULTIPLAYER', roomPlayers, targetScore, selectedDeck);
             }}
           >
@@ -1819,7 +1811,6 @@ export default function Lobby() {
       <ConfirmModal
         confirmLabel={isBs ? 'POKUŠAJ PONOVO' : 'TRY AGAIN'}
         onConfirm={() => {
-          playSound('click');
           setJoinCodeErrorOpen(false);
         }}
         onRequestClose={() => setJoinCodeErrorOpen(false)}

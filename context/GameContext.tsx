@@ -50,8 +50,8 @@ interface GameContextValue {
   setRoomExitWarningOpen: (open: boolean) => void;
   session: GameSession | null;
   setSession: (session: GameSession | null) => void;
-  muted: boolean;
-  setMuted: (value: boolean) => void;
+  musicMuted: boolean;
+  setMusicMuted: (value: boolean) => void;
   showRules: boolean;
   setShowRules: (value: boolean) => void;
 }
@@ -77,7 +77,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [joinStatusText, setJoinStatusText] = useState('');
   const [infoModalOpen, setInfoModalOpen] = useState(false);
   const [roomExitWarningOpen, setRoomExitWarningOpen] = useState(false);
-  const [muted, setMuted] = useState(false);
+  const [musicMuted, setMusicMuted] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [session, setSession] = useState<GameSession | null>(null);
   const [gameRuntime, setGameRuntime] = useState<any | null>(null);
@@ -142,8 +142,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setRoomExitWarningOpen,
       session,
       setSession,
-      muted,
-      setMuted,
+      musicMuted,
+      setMusicMuted,
       showRules,
       setShowRules,
     }),
@@ -171,7 +171,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       infoModalOpen,
       roomExitWarningOpen,
       session,
-      muted,
+      musicMuted,
       showRules,
     ]
   );

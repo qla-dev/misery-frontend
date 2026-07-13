@@ -3,7 +3,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { AlertOctagon, Crown, Loader2, Medal, Trophy, X } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { Animated, Easing, Modal, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { Animated, Easing, LayoutAnimation, Modal, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { Card, Player, Language, GameState, GameMode } from '@/types';
 import { CARD_DECK } from '@/data/cards';
 import Illustration from './Illustration';
@@ -111,6 +111,7 @@ export default function GameBoard({
   const lastObservedMoveIdRef = useRef<number | null>(null);
   const acceptedStealCardIdRef = useRef<string | null>(null);
   const observedTurnRef = useRef<{ actorId: number; cardId: string; isSteal: boolean; announced: boolean } | null>(null);
+  const observedTurnOwnerIdRef = useRef<number | null>(null);
   const turnNoticeIdRef = useRef(0);
   const gameFinishedAnnouncedRef = useRef(false);
   const finishedExitInProgressRef = useRef(false);
@@ -129,6 +130,7 @@ export default function GameBoard({
 
   const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null);
   const [selectedSlotResult, setSelectedSlotResult] = useState<'success' | 'failure' | null>(null);
+  const [isLaneCollapsing, setIsLaneCollapsing] = useState(false);
   const [shakeCard, setShakeCard] = useState(false);
   const [isLaneSheetOpen, setIsLaneSheetOpen] = useState(false);
   const [isDrawnCardFlipped, setIsDrawnCardFlipped] = useState(false);
@@ -140,6 +142,7 @@ export default function GameBoard({
   const [revealedScoreCardId, setRevealedScoreCardId] = useState<string | null>(null);
   const laneNavigationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [serverCurrentPlayerId, setServerCurrentPlayerId] = useState<number | null>(null);
+  const [serverTurnOwnerId, setServerTurnOwnerId] = useState<number | null>(null);
   const toLocalCard = (card: ApiCard): Card => ({
     id: String(card.id),
     titleEn: card.title,
@@ -219,33 +222,26 @@ export default function GameBoard({
     }));
   }, [laneResult]);
 
-  useEffect(() => {
-    if (laneResult !== null || selectedSlotIndex === null || selectedSlotResult === null) return;
-    const timer = setTimeout(() => {
-      setSelectedSlotIndex(null);
-      setSelectedSlotResult(null);
-    }, 2050);
-    return () => clearTimeout(timer);
-  }, [laneResult, selectedSlotIndex, selectedSlotResult]);
-
   const flipDrawnCard = () => {
-    if (isDrawnCardFlipped) return;
+    if (isDrawnCardFlipped && !canReflipWhileStealPending) return;
     if (
       gameId &&
+      !canReflipWhileStealPending &&
       (!isServerTurnReady ||
         isAwaitingTurnFinish ||
         Number(serverCurrentPlayerId) !== Number(userId))
     ) return;
     playSound('shuffle');
-    setIsDrawnCardFlipped(true);
+    const nextFlipped = !isDrawnCardFlipped;
+    setIsDrawnCardFlipped(nextFlipped);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Animated.timing(cardFlip, {
-      toValue: 1,
+      toValue: nextFlipped ? 1 : 0,
       duration: 560,
       easing: Easing.inOut(Easing.cubic),
       useNativeDriver: true,
     }).start(({ finished }) => {
-      if (!finished) return;
+      if (!finished || canReflipWhileStealPending || !nextFlipped) return;
       if (laneNavigationTimerRef.current) clearTimeout(laneNavigationTimerRef.current);
       laneNavigationTimerRef.current = setTimeout(() => {
         router.navigate('/game/lane');
@@ -344,6 +340,7 @@ export default function GameBoard({
         .then(({ game }) => {
           const nextIndex = players.findIndex((player) => Number(player.id) === Number(game.current_player_id));
           setServerCurrentPlayerId(game.current_player_id);
+          setServerTurnOwnerId(game.turn_owner_id);
           setIsAwaitingTurnFinish(game.awaiting_finish);
           if (!isCorrect) acceptedStealCardIdRef.current = null;
           setGameState((prev) => ({
@@ -366,7 +363,6 @@ export default function GameBoard({
 
     if (isCorrect) {
       pendingPlacementRef.current = { actingPlayerId: actingPlayer.id, card: drawnCard, slotIdx };
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setLaneResultPlayerName(actingPlayer.name);
       setLaneResult('success');
       const historyLog = {
@@ -388,7 +384,6 @@ export default function GameBoard({
     } else {
       setLaneResultPlayerName(actingPlayer.name);
       setLaneResult('failure');
-      triggerSound('wrong');
       setShakeCard(true);
       setTimeout(() => setShakeCard(false), 600);
       const historyLog = {
@@ -443,6 +438,7 @@ export default function GameBoard({
         setIsServerTurnReady(true);
         setIsAwaitingTurnFinish(game.awaiting_finish);
         setServerCurrentPlayerId(game.current_player_id);
+        setServerTurnOwnerId(game.turn_owner_id);
         nextPollDelay = Math.max(250, Number(game.ingame_polling_interval_ms) || 3000);
         const latestMove = game.moves[0];
         if (lastObservedMoveIdRef.current === null) {
@@ -450,7 +446,6 @@ export default function GameBoard({
         } else if (latestMove && latestMove.id !== lastObservedMoveIdRef.current) {
           lastObservedMoveIdRef.current = latestMove.id;
           if (Number(latestMove.player_id) !== Number(userId)) {
-            playSound(latestMove.correct ? 'correct' : 'wrong');
             setLaneResultPlayerName(latestMove.player.name);
             setLastResultCardScore(latestMove.card ? Number(latestMove.card.score) : null);
             if (latestMove.card) setRevealedScoreCardId(String(latestMove.card.id));
@@ -507,6 +502,9 @@ export default function GameBoard({
     if (activeStealerIndex === undefined || !drawnCard) return;
     if (accept) {
       triggerSound('steal');
+      setRevealedScoreCardId(null);
+      scoreReveal.stopAnimation();
+      scoreReveal.setValue(0);
       if (gameId) {
         acceptedStealCardIdRef.current = String(drawnCard.id);
         if (observedTurnRef.current) observedTurnRef.current.announced = true;
@@ -541,6 +539,8 @@ export default function GameBoard({
         const game = response.game;
         acceptedStealCardIdRef.current = null;
         setIsAwaitingTurnFinish(game.awaiting_finish);
+        setServerCurrentPlayerId(game.current_player_id);
+        setServerTurnOwnerId(game.turn_owner_id);
         const nextIndex = gameState.players.findIndex((player) => Number(player.id) === Number(game.current_player_id));
         setGameState((prev) => ({
           ...prev,
@@ -600,6 +600,25 @@ export default function GameBoard({
       setLobbyView(destination);
       router.replace('/');
     });
+  };
+
+  const handleLaneResultFadeComplete = () => {
+    if (isLaneCollapsing || selectedSlotResult === null) return;
+    setIsLaneCollapsing(true);
+    LayoutAnimation.configureNext(
+      {
+        duration: 420,
+        create: { property: LayoutAnimation.Properties.opacity, type: LayoutAnimation.Types.easeInEaseOut },
+        delete: { property: LayoutAnimation.Properties.opacity, type: LayoutAnimation.Types.easeInEaseOut },
+        update: { type: LayoutAnimation.Types.easeInEaseOut },
+      },
+      () => {
+        setIsLaneCollapsing(false);
+        if (isAwaitingTurnFinish) void handleProceedNextRound();
+      }
+    );
+    setSelectedSlotIndex(null);
+    setSelectedSlotResult(null);
   };
 
   const handleRestartGame = () => leaveFinishedGame('WELCOME');
@@ -680,9 +699,30 @@ export default function GameBoard({
   );
   const shouldFloatDrawnCard = canFlipCard || isDrawnCardFlipped;
   const isLocalStealAttempt = Boolean(gameId && isLocalServerTurn && activeStealer);
+  const isOtherPlayerStealingMyCard = Boolean(
+    gameId &&
+    userId &&
+    activeStealer &&
+    !isLocalServerTurn &&
+    Number(serverTurnOwnerId) === Number(userId)
+  );
+  const canReflipWhileStealPending = Boolean(
+    isOtherPlayerStealingMyCard &&
+    activeStealer &&
+    !isAwaitingTurnFinish &&
+    gameState.phase !== 'VICTORY'
+  );
   const faceDownPrompt = gameId && !isLocalServerTurn
     ? !isAwaitingTurnFinish && currentActingPlayer?.name
-      ? isBs ? `${currentActingPlayer.name} IGRA` : `${currentActingPlayer.name} IS PLAYING`
+      ? activeStealer
+        ? isBs
+          ? isOtherPlayerStealingMyCard
+            ? `${currentActingPlayer.name} POKUŠAVA UKRASTI TVOJU KARTU`
+            : `${currentActingPlayer.name} POKUŠAVA UKRASTI KARTU`
+          : isOtherPlayerStealingMyCard
+            ? `${currentActingPlayer.name} IS TRYING TO STEAL YOUR CARD`
+            : `${currentActingPlayer.name} IS TRYING TO STEAL A CARD`
+        : isBs ? `${currentActingPlayer.name} IGRA` : `${currentActingPlayer.name} IS PLAYING`
       : isBs ? 'ČEKANJE SLJEDEĆEG POTEZA' : 'WAITING FOR THE NEXT TURN'
     : isLocalStealAttempt
       ? isBs ? 'DODIRNI ZA OKRETANJE I POKUŠAJ KRAĐU' : 'TAP TO FLIP TO TRY TO STEAL'
@@ -771,9 +811,15 @@ export default function GameBoard({
 
     observedTurnRef.current = currentTurn;
     const previousWasMine = previousTurn.actorId === Number(userId);
+    const nextActorName = gameState.players.find((player) => Number(player.id) === currentTurn.actorId)?.name;
     setTurnNotices((current) => {
       const next = [...current];
-      if (previousWasMine && previousTurn.announced) next.push({ id: ++turnNoticeIdRef.current, type: 'end' });
+      if (previousWasMine && previousTurn.announced && !previousTurn.isSteal && currentTurn.isSteal) next.push({
+        id: ++turnNoticeIdRef.current,
+        type: 'hold',
+        steal: true,
+        playerName: nextActorName,
+      });
       if (currentIsMine && !currentTurn.isSteal) {
         currentTurn.announced = true;
         next.push({ id: ++turnNoticeIdRef.current, type: 'start' });
@@ -781,6 +827,19 @@ export default function GameBoard({
       return next;
     });
   }, [activeStealer, gameId, gameState.drawnCard, isServerTurnReady, serverCurrentPlayerId, setTurnNotices, userId]);
+
+  useEffect(() => {
+    if (!gameId || !userId || serverTurnOwnerId === null) return;
+    const previousOwnerId = observedTurnOwnerIdRef.current;
+    observedTurnOwnerIdRef.current = Number(serverTurnOwnerId);
+    if (previousOwnerId === null) return;
+    if (previousOwnerId === Number(userId) && Number(serverTurnOwnerId) !== Number(userId)) {
+      setTurnNotices((current) => [...current.filter((notice) => notice.type !== 'hold'), {
+        id: ++turnNoticeIdRef.current,
+        type: 'end',
+      }]);
+    }
+  }, [gameId, serverTurnOwnerId, setTurnNotices, userId]);
 
   useEffect(() => {
     setGameRuntime({
@@ -808,6 +867,8 @@ export default function GameBoard({
       leaveFinishedGame,
       lastInsertedCardId,
       lastResultCardScore,
+      handleLaneResultFadeComplete,
+      hasPendingLaneAnimation: selectedSlotResult !== null || isLaneCollapsing,
       laneResult,
       selectedSlotIndex,
       selectedSlotResult,
@@ -916,15 +977,14 @@ export default function GameBoard({
           {!isVictoryPhase && !isGameOverPhase && (
             <View className="items-center justify-start w-full" style={{ minHeight: cardAreaHeight, paddingTop: cardTopPadding }}>
               <Pressable
-                accessibilityLabel={isCorrectPhase || isWrongPhase ? (isBs ? 'Završi potez' : 'Finish turn') : faceDownPrompt}
-                disabled={
-                  (isDrawnCardFlipped && !isCorrectPhase && !isWrongPhase) ||
-                  Boolean(gameId && (
-                    !isServerTurnReady ||
-                    isAwaitingTurnFinish ||
-                    Number(serverCurrentPlayerId) !== Number(userId)
-                  ))
-                }
+                accessibilityLabel={isCorrectPhase || isWrongPhase
+                  ? (isBs ? 'Završi potez' : 'Finish turn')
+                  : canReflipWhileStealPending
+                    ? isDrawnCardFlipped
+                      ? (isBs ? 'Okreni kartu licem prema dolje' : 'Flip card face down')
+                      : (isBs ? 'Ponovo otkrij kartu' : 'Reveal card again')
+                    : faceDownPrompt}
+                disabled={!isCorrectPhase && !isWrongPhase && !canFlipCard && !canReflipWhileStealPending}
                 onPress={isCorrectPhase || isWrongPhase ? handleProceedNextRound : flipDrawnCard}
                 style={{ alignSelf: 'stretch', height: drawnCardHeight, transform: [{ scale: shakeCard ? 0.95 : 1 }] }}
               >

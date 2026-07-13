@@ -65,8 +65,9 @@ interface GameContextValue {
 
 export interface TurnNotice {
   id: number;
-  type: 'start' | 'end' | 'finish';
+  type: 'start' | 'hold' | 'end' | 'finish';
   steal?: boolean;
+  playerName?: string;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);

@@ -4,16 +4,25 @@ import { useEffect, useRef } from 'react';
 import { Animated, Pressable, ScrollView, Text, View } from 'react-native';
 import { TabFadeView } from '@/components/TabFadeView';
 
-function SelectedInsertSlot({ isBs, result, shouldFade }: { isBs: boolean; result: 'success' | 'failure'; shouldFade: boolean }) {
+function SelectedInsertSlot({ isBs, onFadeComplete, result, shouldFade }: { isBs: boolean; onFadeComplete?: () => void; result: 'success' | 'failure'; shouldFade: boolean }) {
   const opacity = useRef(new Animated.Value(1)).current;
+  const onFadeCompleteRef = useRef(onFadeComplete);
+
+  useEffect(() => {
+    onFadeCompleteRef.current = onFadeComplete;
+  }, [onFadeComplete]);
 
   useEffect(() => {
     if (!shouldFade) return;
-    Animated.timing(opacity, {
-      duration: 2000,
+    const animation = Animated.timing(opacity, {
+      duration: 2400,
       toValue: 0,
       useNativeDriver: true,
-    }).start();
+    });
+    animation.start(({ finished }) => {
+      if (finished) onFadeCompleteRef.current?.();
+    });
+    return () => animation.stop();
   }, [opacity, shouldFade]);
 
   const color = result === 'success' ? '#10b981' : '#ef4444';
@@ -136,6 +145,7 @@ export default function MiseryLaneScreen() {
             {gameRuntime.selectedSlotIndex === index && gameRuntime.selectedSlotResult ? (
               <SelectedInsertSlot
                 isBs={isBs}
+                onFadeComplete={gameRuntime.handleLaneResultFadeComplete}
                 result={gameRuntime.selectedSlotResult}
                 shouldFade={gameRuntime.laneResult === null}
               />
@@ -155,6 +165,7 @@ export default function MiseryLaneScreen() {
         {gameRuntime.selectedSlotIndex === player.lane.length && gameRuntime.selectedSlotResult ? (
           <SelectedInsertSlot
             isBs={isBs}
+            onFadeComplete={gameRuntime.handleLaneResultFadeComplete}
             result={gameRuntime.selectedSlotResult}
             shouldFade={gameRuntime.laneResult === null}
           />

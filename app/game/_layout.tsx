@@ -6,7 +6,7 @@ import { router, Stack } from 'expo-router';
 import { useGame } from '@/context/GameContext';
 import { playHaptic, setGameMusicActive, setGameMusicMuted, setLobbyMusicActive } from '@/lib/sound';
 import { ImageSourcePropType, Pressable, Text, View } from 'react-native';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import HelpIcon from '@expo/material-symbols/help.xml';
 import VolumeOffIcon from '@expo/material-symbols/volume_off.xml';
 import VolumeUpIcon from '@expo/material-symbols/volume_up.xml';
@@ -49,7 +49,7 @@ export default function GameTabsLayout() {
     turnNotices,
   } = useGame();
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
-  const finishTurnDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [turnNoticeReady, setTurnNoticeReady] = useState(true);
   const isBs = language === 'bs';
   const turnNotice = turnNotices[0];
   const activePlayerName = gameRuntime?.currentActingPlayer?.name ?? session?.players[0]?.name;
@@ -87,9 +87,19 @@ export default function GameTabsLayout() {
     router.navigate('/game');
   }, [turnNotice?.id, turnNotice?.type]);
 
-  useEffect(() => () => {
-    if (finishTurnDelayRef.current) clearTimeout(finishTurnDelayRef.current);
-  }, []);
+  useEffect(() => {
+    if (laneResult !== null) {
+      setTurnNoticeReady(false);
+      return;
+    }
+    if (turnNotice?.type !== 'end') {
+      setTurnNoticeReady(true);
+      return;
+    }
+    setTurnNoticeReady(false);
+    const timer = setTimeout(() => setTurnNoticeReady(true), 1000);
+    return () => clearTimeout(timer);
+  }, [laneResult, turnNotice?.id, turnNotice?.type]);
 
   const returnToWelcome = () => {
     playHaptic();
@@ -243,17 +253,8 @@ export default function GameTabsLayout() {
         failureMessage={isBs ? 'PREVIŠE ILI PREMALO BIJEDE' : 'TOO HIGH OR TOO LOW'}
         failureTitle={isBs ? 'NETAČNO' : 'INCORRECT'}
         onComplete={() => {
-          const shouldFinishTurn = Boolean(gameRuntime?.canFinishTurn);
-          const finishTurn = gameRuntime?.handleProceedNextRound;
           setLaneResult(null);
           setLaneResultPlayerName(null);
-          if (shouldFinishTurn && finishTurn) {
-            if (finishTurnDelayRef.current) clearTimeout(finishTurnDelayRef.current);
-            finishTurnDelayRef.current = setTimeout(() => {
-              finishTurnDelayRef.current = null;
-              void finishTurn();
-            }, 2100);
-          }
         }}
         playerName={laneResultPlayerName ?? undefined}
         success={laneResult !== 'failure'}
@@ -275,24 +276,35 @@ export default function GameTabsLayout() {
         ending={turnNotice?.type === 'end' || turnNotice?.type === 'finish'}
         failureMessage=""
         failureTitle=""
+        holding={turnNotice?.type === 'hold'}
         neutral
         onComplete={() => setTurnNotices((current) => current.slice(1))}
         success
         successMessage={turnNotice?.type === 'finish'
           ? isBs ? 'KONAČNI POREDAK JE SPREMAN' : 'YOUR FINAL STANDINGS ARE READY'
+          : turnNotice?.type === 'hold'
+            ? isBs
+              ? `TVOJA KARTA JE PONUĐENA IGRAČU ${turnNotice.playerName ?? 'SLJEDEĆEM IGRAČU'} — SAČEKAJ ODLUKU`
+              : `YOUR CARD IS OFFERED TO ${turnNotice.playerName ?? 'THE NEXT PLAYER'} — WAIT FOR THEIR DECISION`
           : turnNotice?.type === 'end'
-          ? isBs ? 'ČEKAJ SLJEDEĆU PRILIKU' : 'WAITING FOR THE NEXT PLAYER'
+          ? turnNotice.steal
+            ? isBs
+              ? `KARTA JE PONUĐENA IGRAČU ${turnNotice.playerName ?? ''} ZA KRAĐU`
+              : `THE CARD IS NOW OFFERED TO ${turnNotice.playerName ?? 'THE NEXT PLAYER'} TO STEAL`
+            : isBs ? 'ČEKAJ SLJEDEĆU PRILIKU' : 'WAITING FOR THE NEXT PLAYER'
           : turnNotice?.steal
             ? isBs ? 'DODIRNI KARTU I POKUŠAJ KRAĐU' : 'TAP THE CARD TO TRY TO STEAL'
             : isBs ? 'DODIRNI KARTU ZA IGRU' : 'TAP THE CARD TO PLAY'}
         successTitle={turnNotice?.type === 'finish'
           ? isBs ? 'IGRA JE ZAVRŠENA' : 'GAME FINISHED'
+          : turnNotice?.type === 'hold'
+            ? isBs ? 'NA ČEKANJU SI' : `YOU'RE ON HOLD`
           : turnNotice?.type === 'end'
           ? isBs ? 'TVOJ POTEZ JE ZAVRŠEN' : 'YOUR TURN ENDED'
           : turnNotice?.steal
             ? isBs ? 'POKUŠAJ KRAĐE' : 'YOUR STEAL ATTEMPT'
             : isBs ? 'TVOJ POTEZ JE POČEO' : 'YOUR TURN STARTED'}
-        visible={laneResult === null && Boolean(turnNotice)}
+        visible={laneResult === null && turnNoticeReady && !gameRuntime?.hasPendingLaneAnimation && Boolean(turnNotice)}
       />
       <ConfirmModal
         cancelLabel={isBs ? 'NAPUSTI IGRU' : 'LEAVE GAME'}

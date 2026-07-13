@@ -4,8 +4,9 @@ import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import ChevronLeftIcon from '@expo/material-symbols/chevron_left.xml';
 import HelpIcon from '@expo/material-symbols/help.xml';
 import { SFSymbol } from 'sf-symbols-typescript';
+import { useEffect } from 'react';
 import { useGame } from '@/context/GameContext';
-import { playHaptic } from '@/lib/sound';
+import { playHaptic, setLobbyMusicActive } from '@/lib/sound';
 import { InfoModal } from '@/components/InfoModal';
 
 function toolbarIcon(ios: SFSymbol, android: ImageSourcePropType) {
@@ -25,6 +26,11 @@ export default function TabLayout() {
           ? 'POSTAVKE IGRE'
           : 'GAME SETTINGS'
         : 'LOBBY';
+
+  useEffect(() => {
+    setLobbyMusicActive(isPlayScreen && lobbyView !== 'SETUP');
+    return () => setLobbyMusicActive(false);
+  }, [isPlayScreen, lobbyView]);
 
   return (
     <>

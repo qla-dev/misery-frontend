@@ -78,7 +78,7 @@ export default function GameBoard({
   gameId,
   userId,
 }: GameBoardProps) {
-  const { language, laneResult, setGameRuntime, setLaneResult, setLaneResultPlayerName } = useGame();
+  const { language, laneResult, setGameRuntime, setLaneResult, setLaneResultPlayerName, setTurnNotices } = useGame();
   const isBs = language === 'bs';
   const { height } = useWindowDimensions();
   const cardTopOffset = 104 + (mode === 'MULTIPLAYER' ? 52 : 0);
@@ -87,11 +87,14 @@ export default function GameBoard({
   const cardAreaHeight = drawnCardHeight + cardTopPadding;
   const dummyArtworkSize = Math.min(192, drawnCardHeight * 0.34);
   const cardFlip = useRef(new Animated.Value(0)).current;
+  const cardFloat = useRef(new Animated.Value(0)).current;
   const scoreReveal = useRef(new Animated.Value(0)).current;
   const optimisticLaneCardsRef = useRef<Record<string, Card[]>>({});
   const pendingPlacementRef = useRef<{ actingPlayerId: string; card: Card; slotIdx: number } | null>(null);
   const lastObservedMoveIdRef = useRef<number | null>(null);
   const acceptedStealCardIdRef = useRef<string | null>(null);
+  const observedTurnRef = useRef<{ actorId: number; cardId: string; isSteal: boolean; announced: boolean } | null>(null);
+  const turnNoticeIdRef = useRef(0);
 
   const [gameState, setGameState] = useState<GameState>({
     mode,
@@ -138,6 +141,11 @@ export default function GameBoard({
     scoreReveal.setValue(0);
     setIsDrawnCardFlipped(false);
   }, [cardFlip, gameState.drawnCard?.id, scoreReveal]);
+
+  useEffect(() => {
+    observedTurnRef.current = null;
+    setTurnNotices([]);
+  }, [gameId, setTurnNotices]);
 
   useFocusEffect(
     useCallback(() => {
@@ -450,7 +458,15 @@ export default function GameBoard({
     if (activeStealerIndex === undefined || !drawnCard) return;
     if (accept) {
       triggerSound('steal');
-      if (gameId) acceptedStealCardIdRef.current = String(drawnCard.id);
+      if (gameId) {
+        acceptedStealCardIdRef.current = String(drawnCard.id);
+        if (observedTurnRef.current) observedTurnRef.current.announced = true;
+        setTurnNotices((current) => [...current, {
+          id: ++turnNoticeIdRef.current,
+          type: 'start',
+          steal: true,
+        }]);
+      }
       setGameState((prev) => ({ ...prev, phase: 'PLAYING' }));
     } else {
       triggerSound('click');
@@ -598,6 +614,96 @@ export default function GameBoard({
   });
   const podiumPlayers = leaderboard.slice(0, 3);
   const podiumOrder = podiumPlayers.length === 3 ? [1, 0, 2] : podiumPlayers.map((_, index) => index).reverse();
+  const isLocalServerTurn = Boolean(
+    gameId && userId && Number(serverCurrentPlayerId) === Number(userId)
+  );
+  const canFlipCard = Boolean(
+    !isDrawnCardFlipped &&
+    gameState.phase === 'PLAYING' &&
+    (!gameId || (
+      isServerTurnReady &&
+      !isAwaitingTurnFinish &&
+      !isSubmittingMove &&
+      isLocalServerTurn
+    ))
+  );
+  const isLocalStealAttempt = Boolean(gameId && isLocalServerTurn && activeStealer);
+  const faceDownPrompt = gameId && !isLocalServerTurn
+    ? !isAwaitingTurnFinish && currentActingPlayer?.name
+      ? isBs ? `${currentActingPlayer.name} IGRA` : `${currentActingPlayer.name} IS PLAYING`
+      : isBs ? 'ČEKANJE SLJEDEĆEG POTEZA' : 'WAITING FOR THE NEXT TURN'
+    : isLocalStealAttempt
+      ? isBs ? 'DODIRNI ZA OKRETANJE I POKUŠAJ KRAĐU' : 'TAP TO FLIP TO TRY TO STEAL'
+      : isBs ? 'DODIRNI ZA OKRETANJE' : 'TAP TO FLIP';
+
+  useEffect(() => {
+    if (!canFlipCard) {
+      cardFloat.stopAnimation();
+      cardFloat.setValue(0);
+      return;
+    }
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(cardFloat, {
+          duration: 1600,
+          easing: Easing.inOut(Easing.sin),
+          toValue: -5,
+          useNativeDriver: true,
+        }),
+        Animated.timing(cardFloat, {
+          duration: 1600,
+          easing: Easing.inOut(Easing.sin),
+          toValue: 0,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [canFlipCard, cardFloat]);
+
+  useEffect(() => {
+    if (!gameId || !userId || !isServerTurnReady || !gameState.drawnCard || !serverCurrentPlayerId) return;
+    const currentTurn = {
+      actorId: Number(serverCurrentPlayerId),
+      cardId: String(gameState.drawnCard.id),
+      isSteal: Boolean(activeStealer),
+      announced: false,
+    };
+    const previousTurn = observedTurnRef.current;
+    const currentIsMine = currentTurn.actorId === Number(userId);
+
+    if (!previousTurn) {
+      observedTurnRef.current = currentTurn;
+      if (currentIsMine && !currentTurn.isSteal) {
+        currentTurn.announced = true;
+        setTurnNotices((current) => [...current, {
+          id: ++turnNoticeIdRef.current,
+          type: 'start',
+          steal: currentTurn.isSteal,
+        }]);
+      }
+      return;
+    }
+
+    const changed = previousTurn.actorId !== currentTurn.actorId ||
+      previousTurn.cardId !== currentTurn.cardId ||
+      previousTurn.isSteal !== currentTurn.isSteal;
+    if (!changed) return;
+
+    observedTurnRef.current = currentTurn;
+    const previousWasMine = previousTurn.actorId === Number(userId);
+    setTurnNotices((current) => {
+      const next = [...current];
+      if (previousWasMine && previousTurn.announced) next.push({ id: ++turnNoticeIdRef.current, type: 'end' });
+      if (currentIsMine && !currentTurn.isSteal) {
+        currentTurn.announced = true;
+        next.push({ id: ++turnNoticeIdRef.current, type: 'start' });
+      }
+      return next;
+    });
+  }, [activeStealer, gameId, gameState.drawnCard, isServerTurnReady, serverCurrentPlayerId, setTurnNotices, userId]);
+
   useEffect(() => {
     setGameRuntime({
       canPlaceCard:
@@ -689,7 +795,7 @@ export default function GameBoard({
           {!isVictoryPhase && !isGameOverPhase && (
             <View className="items-center justify-start w-full" style={{ minHeight: cardAreaHeight, paddingTop: cardTopPadding }}>
               <Pressable
-                accessibilityLabel={isCorrectPhase || isWrongPhase ? (isBs ? 'Završi potez' : 'Finish turn') : (isBs ? 'Okreni kartu' : 'Flip card')}
+                accessibilityLabel={isCorrectPhase || isWrongPhase ? (isBs ? 'Završi potez' : 'Finish turn') : faceDownPrompt}
                 disabled={
                   (isDrawnCardFlipped && !isCorrectPhase && !isWrongPhase) ||
                   Boolean(gameId && (
@@ -712,6 +818,7 @@ export default function GameBoard({
                     top: 0,
                     transform: [
                       { perspective: 850 },
+                      { translateY: cardFloat },
                       { rotateY: cardFlip.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) },
                     ],
                   }}
@@ -735,8 +842,13 @@ export default function GameBoard({
                     />
                     <View style={{ borderColor: 'rgba(251,191,36,0.55)', borderRadius: 10, borderWidth: 2, bottom: 12, left: 12, position: 'absolute', right: 12, top: 12 }} />
                     <CardLogo />
-                    <Text className="absolute bottom-8 font-mono text-[10px] font-black uppercase tracking-[3px] text-amber-400/70">
-                      {isBs ? 'DODIRNI ZA OKRETANJE' : 'TAP TO FLIP'}
+                    <Text
+                      adjustsFontSizeToFit
+                      className="absolute bottom-8 left-6 right-6 text-center font-mono text-[10px] font-black uppercase tracking-[3px] text-amber-400/70"
+                      minimumFontScale={0.7}
+                      numberOfLines={1}
+                    >
+                      {faceDownPrompt}
                     </Text>
                   </View>
                 </Animated.View>
@@ -752,6 +864,7 @@ export default function GameBoard({
                     top: 0,
                     transform: [
                       { perspective: 850 },
+                      { translateY: cardFloat },
                       { rotateY: cardFlip.interpolate({ inputRange: [0, 1], outputRange: ['-180deg', '0deg'] }) },
                     ],
                   }}

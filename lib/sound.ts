@@ -1,17 +1,20 @@
 import * as Haptics from 'expo-haptics';
 
-const CONNECT_AUDIO = require('../assets/audio/connect.mp3');
+const CLICK_AUDIO = require('../assets/audio/click.mp3');
 const SHUFFLE_AUDIO = require('../assets/audio/shuffle.mp3');
 const GAME_BACKGROUND_AUDIO = require('../assets/audio/game-bg.mp3');
+const LOBBY_BACKGROUND_AUDIO = require('../assets/audio/lobby.mp3');
 
 export type SoundType = 'correct' | 'wrong' | 'victory' | 'click' | 'steal' | 'shuffle';
 
 let audioModule: typeof import('expo-audio') | null = null;
-let connectPlayer: any = null;
+let clickPlayer: any = null;
 let shufflePlayer: any = null;
 let backgroundPlayer: any = null;
+let lobbyBackgroundPlayer: any = null;
 let musicMuted = false;
 let gameMusicActive = false;
+let lobbyMusicActive = false;
 let audioReadyPromise: Promise<void> | null = null;
 let lastClickAt = 0;
 
@@ -32,8 +35,8 @@ async function effectPlayer(type: 'click' | 'shuffle') {
   await ensureAudio();
   if (!audioModule) return null;
   if (type === 'click') {
-    connectPlayer ??= audioModule.createAudioPlayer(CONNECT_AUDIO, { keepAudioSessionActive: true });
-    return connectPlayer;
+    clickPlayer ??= audioModule.createAudioPlayer(CLICK_AUDIO, { keepAudioSessionActive: true });
+    return clickPlayer;
   }
   shufflePlayer ??= audioModule.createAudioPlayer(SHUFFLE_AUDIO, { keepAudioSessionActive: true });
   return shufflePlayer;
@@ -60,10 +63,15 @@ async function syncBackgroundMusic() {
     await ensureAudio();
     if (!audioModule) return;
     backgroundPlayer ??= audioModule.createAudioPlayer(GAME_BACKGROUND_AUDIO, { keepAudioSessionActive: true });
+    lobbyBackgroundPlayer ??= audioModule.createAudioPlayer(LOBBY_BACKGROUND_AUDIO, { keepAudioSessionActive: true });
     backgroundPlayer.loop = true;
     backgroundPlayer.volume = 0.22;
+    lobbyBackgroundPlayer.loop = true;
+    lobbyBackgroundPlayer.volume = 0.22;
     if (gameMusicActive && !musicMuted) backgroundPlayer.play?.();
     else backgroundPlayer.pause?.();
+    if (lobbyMusicActive && !gameMusicActive && !musicMuted) lobbyBackgroundPlayer.play?.();
+    else lobbyBackgroundPlayer.pause?.();
   } catch {
     // Game remains playable if audio is unavailable.
   }
@@ -76,6 +84,11 @@ export function setGameMusicMuted(value: boolean) {
 
 export function setGameMusicActive(value: boolean) {
   gameMusicActive = value;
+  void syncBackgroundMusic();
+}
+
+export function setLobbyMusicActive(value: boolean) {
+  lobbyMusicActive = value;
   void syncBackgroundMusic();
 }
 

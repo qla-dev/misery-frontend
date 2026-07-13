@@ -54,6 +54,14 @@ interface GameContextValue {
   setMusicMuted: (value: boolean) => void;
   showRules: boolean;
   setShowRules: (value: boolean) => void;
+  turnNotices: TurnNotice[];
+  setTurnNotices: React.Dispatch<React.SetStateAction<TurnNotice[]>>;
+}
+
+export interface TurnNotice {
+  id: number;
+  type: 'start' | 'end';
+  steal?: boolean;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -79,6 +87,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [roomExitWarningOpen, setRoomExitWarningOpen] = useState(false);
   const [musicMuted, setMusicMuted] = useState(false);
   const [showRules, setShowRules] = useState(false);
+  const [turnNotices, setTurnNotices] = useState<TurnNotice[]>([]);
   const [session, setSession] = useState<GameSession | null>(null);
   const [gameRuntime, setGameRuntime] = useState<any | null>(null);
   const [isGameCountingDown, setIsGameCountingDown] = useState(false);
@@ -146,6 +155,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setMusicMuted,
       showRules,
       setShowRules,
+      turnNotices,
+      setTurnNotices,
     }),
     [
       isPremium,
@@ -173,6 +184,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       session,
       musicMuted,
       showRules,
+      turnNotices,
     ]
   );
 

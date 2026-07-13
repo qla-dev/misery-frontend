@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Modal, Text, View } from 'react-native';
-import { Ban, Check, ShieldAlert } from 'lucide-react-native';
+import { Ban, Check, Play, ShieldAlert, Square } from 'lucide-react-native';
 
 type LaneModalProps = {
   failureMessage: string;
@@ -12,6 +12,8 @@ type LaneModalProps = {
   successTitle: string;
   visible: boolean;
   warning?: boolean;
+  neutral?: boolean;
+  ending?: boolean;
 };
 
 export function LaneModal({
@@ -24,6 +26,8 @@ export function LaneModal({
   successTitle,
   visible,
   warning = false,
+  neutral = false,
+  ending = false,
 }: LaneModalProps) {
   const [rendered, setRendered] = useState(false);
   const opacity = useRef(new Animated.Value(0)).current;
@@ -91,15 +95,19 @@ export function LaneModal({
   return (
     <Modal animationType="none" statusBarTranslucent transparent visible={rendered && visible}>
       <Animated.View
-        className={`flex-1 items-center justify-center px-8 ${warning ? 'bg-amber-400' : success ? 'bg-emerald-500' : 'bg-red-500'}`}
+        className={`flex-1 items-center justify-center px-8 ${neutral ? 'bg-white' : warning ? 'bg-amber-400' : success ? 'bg-emerald-500' : 'bg-red-500'}`}
         style={{ opacity }}
       >
         <Animated.View
           className="items-center"
           style={{ gap: 22, transform: [{ translateY: -36 }, { scale }, { rotate }] }}
         >
-          <View className="h-40 w-40 items-center justify-center rounded-full border-[6px] border-white bg-white/15">
-            {warning ? (
+          <View className={`h-40 w-40 items-center justify-center rounded-full border-[6px] ${neutral ? 'border-neutral-950 bg-neutral-950/5' : 'border-white bg-white/15'}`}>
+            {neutral ? (
+              ending
+                ? <Square color="#0a0a0a" fill="#0a0a0a" size={72} strokeWidth={2.5} />
+                : <Play color="#0a0a0a" fill="#0a0a0a" size={82} strokeWidth={2.5} />
+            ) : warning ? (
               <ShieldAlert color="#ffffff" size={90} strokeWidth={3.5} />
             ) : success ? (
               <Check color="#ffffff" size={94} strokeWidth={4} />
@@ -109,14 +117,14 @@ export function LaneModal({
           </View>
           <View className="items-center" style={{ gap: 8 }}>
             {playerName && (
-              <Text className="text-center text-base font-black uppercase tracking-widest text-white/90">
+              <Text className={`text-center text-base font-black uppercase tracking-widest ${neutral ? 'text-neutral-950/70' : 'text-white/90'}`}>
                 {playerName}
               </Text>
             )}
-            <Text className="text-center text-4xl font-black uppercase tracking-wider text-white">
+            <Text className={`text-center text-4xl font-black uppercase tracking-wider ${neutral ? 'text-neutral-950' : 'text-white'}`}>
               {success ? successTitle : failureTitle}
             </Text>
-            <Text className="text-center text-sm font-bold uppercase tracking-widest text-white/85">
+            <Text className={`text-center text-sm font-bold uppercase tracking-widest ${neutral ? 'text-neutral-950/65' : 'text-white/85'}`}>
               {success ? successMessage : failureMessage}
             </Text>
           </View>

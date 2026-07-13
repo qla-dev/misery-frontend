@@ -44,9 +44,12 @@ export default function GameTabsLayout() {
     setMusicMuted,
     setSession,
     session,
+    setTurnNotices,
+    turnNotices,
   } = useGame();
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
   const isBs = language === 'bs';
+  const turnNotice = turnNotices[0];
   const activePlayerName = gameRuntime?.currentActingPlayer?.name ?? session?.players[0]?.name;
   const activePlayerColor = playerColor(gameRuntime?.currentActingPlayer?.color ?? session?.players[0]?.color);
   const laneCardsAdded = Math.max(0, (gameRuntime?.localPlayer?.lane?.length ?? 3) - 3);
@@ -177,13 +180,33 @@ export default function GameTabsLayout() {
         playerName={laneResultPlayerName ?? undefined}
         success={laneResult !== 'failure'}
         successMessage={laneResult === 'steal'
-          ? isBs ? 'DRUGI IGRAČ JE PREUZEO KARTU' : 'ANOTHER PLAYER TOOK THE CARD'
+          ? isBs ? 'IGRAČ JE USPJEŠNO UKRAO KARTU' : 'PLAYER SUCCESSFULLY STOLE THE CARD'
           : isBs ? 'DOGAĐAJ JE USPJEŠNO DODAN' : 'EVENT ADDED TO YOUR LANE'}
         successTitle={laneResult === 'steal'
           ? isBs ? 'KARTA UKRADENA' : 'CARD STOLEN'
           : isBs ? 'TAČNO' : 'CORRECT'}
         visible={laneResult !== null}
         warning={laneResult === 'steal'}
+      />
+      <LaneModal
+        key={turnNotice?.id ?? 'no-turn-notice'}
+        ending={turnNotice?.type === 'end'}
+        failureMessage=""
+        failureTitle=""
+        neutral
+        onComplete={() => setTurnNotices((current) => current.slice(1))}
+        success
+        successMessage={turnNotice?.type === 'end'
+          ? isBs ? 'ČEKAJ SLJEDEĆU PRILIKU' : 'WAITING FOR THE NEXT PLAYER'
+          : turnNotice?.steal
+            ? isBs ? 'DODIRNI KARTU I POKUŠAJ KRAĐU' : 'TAP THE CARD TO TRY TO STEAL'
+            : isBs ? 'DODIRNI KARTU ZA IGRU' : 'TAP THE CARD TO PLAY'}
+        successTitle={turnNotice?.type === 'end'
+          ? isBs ? 'TVOJ POTEZ JE ZAVRŠEN' : 'YOUR TURN ENDED'
+          : turnNotice?.steal
+            ? isBs ? 'POKUŠAJ KRAĐE' : 'YOUR STEAL ATTEMPT'
+            : isBs ? 'TVOJ POTEZ JE POČEO' : 'YOUR TURN STARTED'}
+        visible={laneResult === null && Boolean(turnNotice)}
       />
       <ConfirmModal
         cancelLabel={isBs ? 'NAPUSTI IGRU' : 'LEAVE GAME'}
@@ -194,6 +217,7 @@ export default function GameTabsLayout() {
           setIsGameCountingDown(false);
           setLaneResult(null);
           setLaneResultPlayerName(null);
+          setTurnNotices([]);
           setSession(null);
           setLobbyView('SETUP');
           requestAnimationFrame(() => router.replace('/'));

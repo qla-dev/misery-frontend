@@ -60,7 +60,7 @@ interface GameContextValue {
 
 export interface TurnNotice {
   id: number;
-  type: 'start' | 'end';
+  type: 'start' | 'end' | 'finish';
   steal?: boolean;
 }
 

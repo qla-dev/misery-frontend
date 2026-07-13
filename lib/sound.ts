@@ -68,10 +68,18 @@ async function syncBackgroundMusic() {
     backgroundPlayer.volume = 0.22;
     lobbyBackgroundPlayer.loop = true;
     lobbyBackgroundPlayer.volume = 0.22;
-    if (gameMusicActive && !musicMuted) backgroundPlayer.play?.();
-    else backgroundPlayer.pause?.();
-    if (lobbyMusicActive && !gameMusicActive && !musicMuted) lobbyBackgroundPlayer.play?.();
-    else lobbyBackgroundPlayer.pause?.();
+    const shouldPlayGameMusic = gameMusicActive && !musicMuted;
+    const shouldPlayLobbyMusic = lobbyMusicActive && !gameMusicActive && !musicMuted;
+    if (shouldPlayGameMusic) {
+      if (!backgroundPlayer.playing) backgroundPlayer.play?.();
+    } else if (backgroundPlayer.playing) {
+      backgroundPlayer.pause?.();
+    }
+    if (shouldPlayLobbyMusic) {
+      if (!lobbyBackgroundPlayer.playing) lobbyBackgroundPlayer.play?.();
+    } else if (lobbyBackgroundPlayer.playing) {
+      lobbyBackgroundPlayer.pause?.();
+    }
   } catch {
     // Game remains playable if audio is unavailable.
   }
@@ -106,4 +114,8 @@ export function playHaptic(type: SoundType = 'click') {
 export function playSound(type: SoundType) {
   if (type === 'click' || type === 'shuffle') void playEffect(type);
   playHaptic(type);
+}
+
+export function playClickSound() {
+  void playEffect('click');
 }

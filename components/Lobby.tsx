@@ -14,7 +14,7 @@ import { GlassView } from 'expo-glass-effect';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Path, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/context/GameContext';
-import { playSound } from '@/lib/sound';
+import { playClickSound, playSound } from '@/lib/sound';
 import { AppButton, Section, Surface } from './AppPrimitives';
 import { AppInput } from './AppInput';
 import { GradientButton } from './GradientButton';
@@ -42,6 +42,7 @@ const AVAILABLE_COLORS = [
 const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
 const ROOM_CODE_REGEX = /^(?=(?:.*[A-Z]){4})(?=(?:.*\d){4})[A-Z\d]{8}$/;
 const LAST_USERNAME_KEY = '@misery-index/last-username';
+const LAST_GUEST_USERNAME_KEY = '@misery-index/last-guest-username';
 const AUTH_TOKEN_KEY = '@misery-index/auth-token';
 const AUTH_USER_KEY = '@misery-index/auth-user';
 const AUTH_PROVIDER_KEY = '@misery-index/auth-provider';
@@ -408,11 +409,25 @@ export default function Lobby() {
   });
   const serverStartedRef = useRef(false);
   const processedGoogleTokenRef = useRef<string | null>(null);
+  const observedLobbyPlayerIdsRef = useRef<Set<string> | null>(null);
   const [, googleAuthResponse, promptGoogleSignIn] = Google.useIdTokenAuthRequest({
     ...GOOGLE_AUTH_REQUEST_CONFIG,
     redirectUri: GOOGLE_REDIRECT_URI,
     selectAccount: true,
   });
+
+  useEffect(() => {
+    if (Platform.OS === 'web' || (lobbyView !== 'ROOM_CREATED' && lobbyView !== 'ROOM_JOINED')) {
+      observedLobbyPlayerIdsRef.current = null;
+      return;
+    }
+
+    const playerIds = new Set(roomPlayers.map((player) => String(player.id ?? `name:${player.name}`)));
+    const previousPlayerIds = observedLobbyPlayerIdsRef.current;
+    observedLobbyPlayerIdsRef.current = playerIds;
+    if (!previousPlayerIds) return;
+    if ([...playerIds].some((playerId) => !previousPlayerIds.has(playerId))) playClickSound();
+  }, [lobbyView, roomPlayers]);
 
   useEffect(() => {
     const canPrefetchAvailableGames = lobbyView === 'WELCOME' || lobbyView === 'SETUP';
@@ -447,25 +462,34 @@ export default function Lobby() {
 
     lobbyCrossfadeRef.current = true;
     logLobbyTransition('transition-crossfade-start', { from: lobbyView, nextView });
-    beforeSwap?.();
-    setLobbyView(nextView);
+    const outgoingOpacity = lobbyView === 'WELCOME' ? welcomeOpacity : setupOpacity;
+    const incomingOpacity = nextView === 'WELCOME' ? welcomeOpacity : setupOpacity;
+    incomingOpacity.setValue(0);
 
-    Animated.parallel([
-      Animated.timing(welcomeOpacity, {
-        duration: 280,
-        easing: Easing.inOut(Easing.cubic),
-        toValue: nextView === 'WELCOME' ? 1 : 0,
-        useNativeDriver: true,
-      }),
-      Animated.timing(setupOpacity, {
-        duration: 280,
-        easing: Easing.inOut(Easing.cubic),
-        toValue: nextView === 'SETUP' ? 1 : 0,
-        useNativeDriver: true,
-      }),
-    ]).start(({ finished }) => {
-      lobbyCrossfadeRef.current = false;
-      logLobbyTransition('transition-crossfade-end', { finished, nextView });
+    Animated.timing(outgoingOpacity, {
+      duration: 220,
+      easing: Easing.in(Easing.cubic),
+      toValue: 0,
+      useNativeDriver: true,
+    }).start(({ finished: fadedOut }) => {
+      if (!fadedOut) {
+        lobbyCrossfadeRef.current = false;
+        return;
+      }
+
+      beforeSwap?.();
+      setLobbyView(nextView);
+      requestAnimationFrame(() => {
+        Animated.timing(incomingOpacity, {
+          duration: 260,
+          easing: Easing.out(Easing.cubic),
+          toValue: 1,
+          useNativeDriver: true,
+        }).start(({ finished }) => {
+          lobbyCrossfadeRef.current = false;
+          logLobbyTransition('transition-crossfade-end', { finished, nextView });
+        });
+      });
     });
   };
 
@@ -477,15 +501,17 @@ export default function Lobby() {
 
   useEffect(() => {
     logLobbyTransition('username-restore-start');
-    AsyncStorage.multiGet([LAST_USERNAME_KEY, AUTH_TOKEN_KEY, AUTH_PROVIDER_KEY])
+    AsyncStorage.multiGet([LAST_USERNAME_KEY, LAST_GUEST_USERNAME_KEY, AUTH_TOKEN_KEY, AUTH_PROVIDER_KEY])
       .then((entries) => {
         const saved = Object.fromEntries(entries);
-        const savedName = saved[LAST_USERNAME_KEY];
+        const savedSocialName = saved[LAST_USERNAME_KEY];
+        const savedGuestName = saved[LAST_GUEST_USERNAME_KEY];
         const savedProvider = saved[AUTH_PROVIDER_KEY];
         const hasSocialSession = Boolean(saved[AUTH_TOKEN_KEY]) &&
           (savedProvider === 'google' || savedProvider === 'apple');
-        logLobbyTransition('username-restore-end', { hasSavedName: Boolean(savedName), hasSocialSession });
-        if (savedName) setUserName(savedName);
+        const restoredName = hasSocialSession ? savedSocialName : savedGuestName;
+        logLobbyTransition('username-restore-end', { hasSavedName: Boolean(restoredName), hasSocialSession });
+        if (restoredName) setUserName(restoredName);
         if (hasSocialSession) {
           setIsSocialUser(true);
           setSocialProvider(savedProvider as 'google' | 'apple');
@@ -493,6 +519,16 @@ export default function Lobby() {
       })
       .catch(() => undefined);
   }, [setIsSocialUser, setSocialProvider, setUserName]);
+
+  const handleGuestNameChange = (name: string) => {
+    setUserName(name);
+    const trimmedName = name.trim();
+    if (trimmedName) {
+      void AsyncStorage.setItem(LAST_GUEST_USERNAME_KEY, trimmedName).catch(() => undefined);
+    } else {
+      void AsyncStorage.removeItem(LAST_GUEST_USERNAME_KEY).catch(() => undefined);
+    }
+  };
 
   const applyServerGame = (game: ApiGame) => {
     setRoomCode(game.code);
@@ -542,7 +578,7 @@ export default function Lobby() {
     setIsCreatingRoom(true);
     const finalName = userName.trim() || (isBs ? 'Igrač 1' : 'Player 1');
     try {
-      void AsyncStorage.setItem(LAST_USERNAME_KEY, finalName).catch(() => undefined);
+      if (!isSocialUser) void AsyncStorage.setItem(LAST_GUEST_USERNAME_KEY, finalName).catch(() => undefined);
       const result = await api.createGame(finalName, selectedColor);
       setServerGameId(result.game.id);
       setServerUserId(result.user.id);
@@ -595,7 +631,7 @@ export default function Lobby() {
 
     try {
       const finalName = userName.trim() || (isBs ? 'Igrač 2' : 'Player 2');
-      void AsyncStorage.setItem(LAST_USERNAME_KEY, finalName).catch(() => undefined);
+      if (!isSocialUser) void AsyncStorage.setItem(LAST_GUEST_USERNAME_KEY, finalName).catch(() => undefined);
       const result = await api.joinGame(cleanCode, finalName, selectedColor);
       setServerGameId(result.game.id);
       setServerUserId(result.user.id);
@@ -862,9 +898,13 @@ export default function Lobby() {
       }
 
       void (async () => {
-        const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
-        if (token) void api.logout(token).catch(() => undefined);
-        await AsyncStorage.multiRemove([AUTH_TOKEN_KEY, AUTH_USER_KEY, AUTH_PROVIDER_KEY, LAST_USERNAME_KEY]);
+        if (isSocialUser) {
+          const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+          if (token) void api.logout(token).catch(() => undefined);
+          await AsyncStorage.multiRemove([AUTH_TOKEN_KEY, AUTH_USER_KEY, AUTH_PROVIDER_KEY, LAST_USERNAME_KEY]);
+        } else {
+          await AsyncStorage.removeItem(LAST_GUEST_USERNAME_KEY);
+        }
 
         LayoutAnimation.configureNext({
           duration: 320,
@@ -1064,6 +1104,10 @@ export default function Lobby() {
     const hasRememberedSocialSession = Boolean(
       isSocialUser && socialProvider && userName && !isSigningIn
     );
+    const hasRememberedGuestName = Boolean(
+      !isSocialUser && userName.trim() && !isSigningIn
+    );
+    const hasRememberedIdentity = hasRememberedSocialSession || hasRememberedGuestName;
 
     if (view === 'WELCOME') {
       return (
@@ -1122,18 +1166,26 @@ export default function Lobby() {
             </View>
 
             <Animated.View style={{ gap: 12, opacity: authButtonsOpacity }}>
-              {hasRememberedSocialSession ? (
+              {hasRememberedIdentity ? (
                 <View className="relative">
                 <ButtonTab
                   category="button"
                   type="third"
                   size="100"
                   onPress={() => {
+                    if (hasRememberedGuestName) {
+                      setIsSocialUser(false);
+                      setSocialProvider(null);
+                    }
                     transitionLobbyView('SETUP');
                   }}
                 >
                   <SocialButtonContent
-                    icon={socialProvider === 'google' ? <GoogleIcon /> : <AppleIcon buttonAligned />}
+                    icon={hasRememberedGuestName
+                      ? <User size={16} color="#171717" />
+                      : socialProvider === 'google'
+                        ? <GoogleIcon />
+                        : <AppleIcon buttonAligned />}
                     label={isBs ? `Nastavi kao ${userName}` : `Continue as ${userName}`}
                     tone="light"
                   />
@@ -1150,7 +1202,7 @@ export default function Lobby() {
                 </View>
               ) : null}
 
-              <View style={{ display: hasRememberedSocialSession ? 'none' : 'flex', gap: 12 }}>
+              <View style={{ display: hasRememberedIdentity ? 'none' : 'flex', gap: 12 }}>
               <View style={{ gap: 10 }}>
                 <ButtonTab
                   category="button"
@@ -1218,7 +1270,6 @@ export default function Lobby() {
                   logLobbyTransition('guest-pressed', { lobbyView });
                   setIsSocialUser(false);
                   setSocialProvider(null);
-                  setUserName('');
                   transitionLobbyView('SETUP');
                 }}
               >
@@ -1299,7 +1350,6 @@ export default function Lobby() {
               onPress={() => {
                 setIsSocialUser(false);
                 setSocialProvider(null);
-                setUserName('');
                 transitionLobbyView('SETUP');
               }}
               className="w-full py-3.5 bg-neutral-900/30 border border-neutral-800 rounded-xl flex-row items-center justify-center gap-2"
@@ -1362,7 +1412,7 @@ export default function Lobby() {
                   leftIcon={<User size={16} color="#737373" />}
                   maxLength={15}
                   value={userName}
-                  onChangeText={setUserName}
+                  onChangeText={handleGuestNameChange}
                   placeholder={isBs ? 'Npr. Hana' : 'E.g. Ashley'}
                 />
               )}
@@ -1497,7 +1547,7 @@ export default function Lobby() {
                   leftIcon={<User size={16} color="#737373" />}
                   maxLength={15}
                   value={userName}
-                  onChangeText={setUserName}
+                  onChangeText={handleGuestNameChange}
                   placeholder={isBs ? 'Npr. Hana' : 'E.g. Ashley'}
                 />
               )}

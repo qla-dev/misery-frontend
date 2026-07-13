@@ -4,13 +4,14 @@ import { LaneModal } from '@/components/LaneModal';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { router, Stack } from 'expo-router';
 import { useGame } from '@/context/GameContext';
-import { playHaptic, setGameMusicActive, setGameMusicMuted } from '@/lib/sound';
-import { ImageSourcePropType, Text, View } from 'react-native';
+import { playHaptic, setGameMusicActive, setGameMusicMuted, setLobbyMusicActive } from '@/lib/sound';
+import { ImageSourcePropType, Pressable, Text, View } from 'react-native';
 import { useEffect, useState } from 'react';
 import HelpIcon from '@expo/material-symbols/help.xml';
 import VolumeOffIcon from '@expo/material-symbols/volume_off.xml';
 import VolumeUpIcon from '@expo/material-symbols/volume_up.xml';
 import { SFSymbol } from 'sf-symbols-typescript';
+import { ChevronLeft, ShieldAlert } from 'lucide-react-native';
 
 function toolbarIcon(ios: SFSymbol, android: ImageSourcePropType) {
   return process.env.EXPO_OS === 'ios' ? ios : android;
@@ -54,7 +55,10 @@ export default function GameTabsLayout() {
   const activePlayerColor = playerColor(gameRuntime?.currentActingPlayer?.color ?? session?.players[0]?.color);
   const laneCardsAdded = Math.max(0, (gameRuntime?.localPlayer?.lane?.length ?? 3) - 3);
   const laneCardsNeeded = session?.targetScore ?? 0;
-  const turnTitle = activePlayerName
+  const isGameFinished = gameRuntime?.phase === 'VICTORY' || gameRuntime?.phase === 'GAME_OVER';
+  const turnTitle = isGameFinished
+    ? isBs ? 'KONAČNI POREDAK' : 'FINAL STANDINGS'
+    : activePlayerName
     ? isBs
       ? `${activePlayerName} JE NA POTEZU`
       : `${activePlayerName}'S TURN`
@@ -71,6 +75,29 @@ export default function GameTabsLayout() {
     setGameMusicMuted(musicMuted);
   }, [musicMuted]);
 
+  useEffect(() => {
+    if (!isGameFinished) return;
+    setLobbyMusicActive(true);
+    setGameMusicActive(false);
+  }, [isGameFinished]);
+
+  useEffect(() => {
+    if (turnNotice?.type !== 'start') return;
+    router.navigate('/game');
+  }, [turnNotice?.id, turnNotice?.type]);
+
+  const returnToWelcome = () => {
+    playHaptic();
+    setGameRuntime(null);
+    setIsGameCountingDown(false);
+    setLaneResult(null);
+    setLaneResultPlayerName(null);
+    setTurnNotices([]);
+    setSession(null);
+    setLobbyView('WELCOME');
+    router.replace('/');
+  };
+
   return (
     <>
       <Stack.Screen
@@ -80,7 +107,22 @@ export default function GameTabsLayout() {
           headerShown: !isGameCountingDown,
           headerShadowVisible: false,
           headerStyle: { backgroundColor: 'transparent' },
-          headerLeft: () => (
+          headerLeft: () => isGameFinished ? (
+            <Pressable
+              accessibilityLabel={isBs ? 'Nazad na početni ekran' : 'Back to welcome'}
+              accessibilityRole="button"
+              hitSlop={10}
+              onPress={returnToWelcome}
+              style={{
+                alignItems: 'center',
+                height: 32,
+                justifyContent: 'center',
+                width: 32,
+              }}
+            >
+              <ChevronLeft color="#ffffff" size={27} strokeWidth={2.4} />
+            </Pressable>
+          ) : (
             <View
               accessibilityLabel={activePlayerName ? `${activePlayerName} is playing` : 'Active player'}
               accessible
@@ -142,7 +184,7 @@ export default function GameTabsLayout() {
       )}
       <NativeTabs
         disableTransparentOnScrollEdge
-        hidden={isGameCountingDown}
+        hidden={isGameCountingDown || isGameFinished}
         screenListeners={{ tabPress: () => playHaptic() }}
         iconColor={{ default: '#737373', selected: '#fbbf24' }}
         labelStyle={{
@@ -168,6 +210,26 @@ export default function GameTabsLayout() {
         </NativeTabs.Trigger>
       </NativeTabs>
       <InfoModal onLeaveGame={() => setIsExitConfirmOpen(true)} />
+      <ConfirmModal
+        cancelLabel={isBs ? 'PRESKOČI' : 'PASS'}
+        confirmLabel={isBs ? 'POKUŠAJ KRAĐU' : 'TRY TO STEAL'}
+        onCancel={() => gameRuntime?.handleStealChoice?.(false)}
+        onConfirm={() => gameRuntime?.handleStealChoice?.(true)}
+        onRequestClose={() => gameRuntime?.handleStealChoice?.(false)}
+        visible={Boolean(gameRuntime?.stealDecisionVisible)}
+      >
+        <View className="items-center" style={{ gap: 10 }}>
+          <ShieldAlert size={38} color="#fbbf24" />
+          <Text className="text-center text-lg font-black uppercase tracking-wider text-amber-400">
+            {isBs ? 'MOGUĆNOST KRAĐE' : 'STEAL OPPORTUNITY'}
+          </Text>
+          <Text className="text-center text-sm leading-6 text-neutral-300">
+            {isBs
+              ? `${gameRuntime?.activeStealer?.name}, želiš li pokušati pravilno smjestiti kartu i ukrasti je?`
+              : `${gameRuntime?.activeStealer?.name}, do you want to place the card correctly and steal it?`}
+          </Text>
+        </View>
+      </ConfirmModal>
       <LaneModal
         failureMessage={isBs ? 'PREVIŠE ILI PREMALO BIJEDE' : 'TOO HIGH OR TOO LOW'}
         failureTitle={isBs ? 'NETAČNO' : 'INCORRECT'}
@@ -190,18 +252,22 @@ export default function GameTabsLayout() {
       />
       <LaneModal
         key={turnNotice?.id ?? 'no-turn-notice'}
-        ending={turnNotice?.type === 'end'}
+        ending={turnNotice?.type === 'end' || turnNotice?.type === 'finish'}
         failureMessage=""
         failureTitle=""
         neutral
         onComplete={() => setTurnNotices((current) => current.slice(1))}
         success
-        successMessage={turnNotice?.type === 'end'
+        successMessage={turnNotice?.type === 'finish'
+          ? isBs ? 'KONAČNI POREDAK JE SPREMAN' : 'YOUR FINAL STANDINGS ARE READY'
+          : turnNotice?.type === 'end'
           ? isBs ? 'ČEKAJ SLJEDEĆU PRILIKU' : 'WAITING FOR THE NEXT PLAYER'
           : turnNotice?.steal
             ? isBs ? 'DODIRNI KARTU I POKUŠAJ KRAĐU' : 'TAP THE CARD TO TRY TO STEAL'
             : isBs ? 'DODIRNI KARTU ZA IGRU' : 'TAP THE CARD TO PLAY'}
-        successTitle={turnNotice?.type === 'end'
+        successTitle={turnNotice?.type === 'finish'
+          ? isBs ? 'IGRA JE ZAVRŠENA' : 'GAME FINISHED'
+          : turnNotice?.type === 'end'
           ? isBs ? 'TVOJ POTEZ JE ZAVRŠEN' : 'YOUR TURN ENDED'
           : turnNotice?.steal
             ? isBs ? 'POKUŠAJ KRAĐE' : 'YOUR STEAL ATTEMPT'

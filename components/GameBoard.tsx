@@ -132,6 +132,7 @@ export default function GameBoard({
   const gameFinishedAnnouncedRef = useRef(false);
   const winnerCelebratedRef = useRef(false);
   const finishedExitInProgressRef = useRef(false);
+  const consecutivePollFailuresRef = useRef(0);
 
   const [gameState, setGameState] = useState<GameState>({
     mode,
@@ -148,6 +149,7 @@ export default function GameBoard({
   const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null);
   const [selectedSlotResult, setSelectedSlotResult] = useState<'success' | 'failure' | null>(null);
   const [isLaneCollapsing, setIsLaneCollapsing] = useState(false);
+  const [connectionWarningVisible, setConnectionWarningVisible] = useState(false);
   const [shakeCard, setShakeCard] = useState(false);
   const [isLaneSheetOpen, setIsLaneSheetOpen] = useState(false);
   const [isDrawnCardFlipped, setIsDrawnCardFlipped] = useState(false);
@@ -449,8 +451,12 @@ export default function GameBoard({
     const poll = async () => {
       const pollStartedAt = Date.now();
       let nextPollDelay = 3000;
+      const pollController = new AbortController();
+      const pollTimeout = setTimeout(() => pollController.abort(), 8000);
       try {
-        const game = await api.getGame(gameId);
+        const game = await api.getGame(gameId, pollController.signal);
+        consecutivePollFailuresRef.current = 0;
+        setConnectionWarningVisible(false);
         const serverPlayerIndex = game.current_player_id === null
           ? 0
           : game.members.findIndex((player) => Number(player.id) === Number(game.current_player_id));
@@ -510,7 +516,15 @@ export default function GameBoard({
             success: move.correct,
           })),
         }));
-      } catch { /* Retry using the default interval. */ }
+      } catch (error) {
+        consecutivePollFailuresRef.current += 1;
+        const timedOut = error instanceof Error && error.name === 'AbortError';
+        if (timedOut || consecutivePollFailuresRef.current >= 2) {
+          setConnectionWarningVisible(true);
+        }
+      } finally {
+        clearTimeout(pollTimeout);
+      }
       const requestDuration = Date.now() - pollStartedAt;
       if (!cancelled) timer = setTimeout(poll, Math.max(0, nextPollDelay - requestDuration));
     };
@@ -940,6 +954,7 @@ export default function GameBoard({
       handleLaneResultFadeComplete,
       hasPendingLaneAnimation: selectedSlotResult !== null || isLaneCollapsing,
       inactivityWarningVisible,
+      connectionWarningVisible,
       isTurnInactive,
       dismissInactivityWarning: () => setInactivityWarningVisible(false),
       laneResult,
@@ -956,7 +971,7 @@ export default function GameBoard({
         (!gameId || Number(activeStealer.id) === Number(userId))
       ),
     });
-  }, [currentActingPlayer, gameId, gameState, inactivityWarningVisible, isAwaitingTurnFinish, isDrawnCardFlipped, isDrawnCardScoreRevealed, isServerTurnReady, isSubmittingMove, isTurnInactive, laneResult, lastInsertedCardId, lastResultCardScore, lastStealWasFromLocalPlayer, localPlayer, selectedSlotIndex, selectedSlotResult, serverCurrentPlayerId, setGameRuntime, userId]);
+  }, [connectionWarningVisible, currentActingPlayer, gameId, gameState, inactivityWarningVisible, isAwaitingTurnFinish, isDrawnCardFlipped, isDrawnCardScoreRevealed, isServerTurnReady, isSubmittingMove, isTurnInactive, laneResult, lastInsertedCardId, lastResultCardScore, lastStealWasFromLocalPlayer, localPlayer, selectedSlotIndex, selectedSlotResult, serverCurrentPlayerId, setGameRuntime, userId]);
 
   useEffect(() => {
     if (!didLocalWin || winnerCelebratedRef.current) return;

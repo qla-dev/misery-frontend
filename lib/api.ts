@@ -84,7 +84,7 @@ export const api = {
     if (!normalizedCode) throw new Error('Enter a room code.');
     return request<{ game: ApiGame; user: ApiUser; color_changed: boolean }>(`/games/code/${encodeURIComponent(normalizedCode)}/join`, { method: 'POST', body: JSON.stringify({ name, color }) });
   },
-  getGame: (id: number) => request<ApiGame>(`/games/${id}`),
+  getGame: (id: number, signal?: AbortSignal) => request<ApiGame>(`/games/${id}`, { signal }),
   setHostLobbyPresence: (id: number, userId: number, present: boolean) => request<ApiGame>(`/games/${id}/host-lobby-presence`, { method: 'POST', body: JSON.stringify({ user_id: userId, present }) }),
   deleteGame: (id: number) => request<void>(`/games/${id}`, { method: 'DELETE' }),
   startGame: (id: number, userId: number, stack: 'normal' | 'spicy', targetScore: number) => request<ApiGame>(`/games/${id}/start`, { method: 'POST', body: JSON.stringify({ user_id: userId, stack, target_score: targetScore }) }),

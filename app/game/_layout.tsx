@@ -11,7 +11,7 @@ import HelpIcon from '@expo/material-symbols/help.xml';
 import VolumeOffIcon from '@expo/material-symbols/volume_off.xml';
 import VolumeUpIcon from '@expo/material-symbols/volume_up.xml';
 import { SFSymbol } from 'sf-symbols-typescript';
-import { ChevronLeft, ShieldAlert } from 'lucide-react-native';
+import { ChevronLeft, ShieldAlert, WifiOff } from 'lucide-react-native';
 
 function toolbarIcon(ios: SFSymbol, android: ImageSourcePropType) {
   return process.env.EXPO_OS === 'ios' ? ios : android;
@@ -81,6 +81,13 @@ export default function GameTabsLayout() {
       : isBs
         ? 'KARTA JE USPJEŠNO UKRADENA I DODANA U TRAKU IGRAČA'
         : "THE CARD WAS SUCCESSFULLY STOLEN AND ADDED TO THE PLAYER'S LANE";
+  const laneFailureMessage = isLocalLaneResult || !laneResultPlayerName
+    ? isBs
+      ? 'TVOJA PROCJENA JE BILA PREVISOKA ILI PRENISKA'
+      : 'YOUR GUESS WAS TOO HIGH OR TOO LOW'
+    : isBs
+      ? `PROCJENA IGRAČA ${laneResultPlayerName.toUpperCase()} BILA JE PREVISOKA ILI PRENISKA`
+      : `${laneResultPlayerName.toUpperCase()}'S GUESS WAS TOO HIGH OR TOO LOW`;
   const isGameFinished = gameRuntime?.phase === 'VICTORY' || gameRuntime?.phase === 'GAME_OVER';
   const turnTitle = isGameFinished
     ? isBs ? 'KONAČNI POREDAK' : 'FINAL STANDINGS'
@@ -254,6 +261,32 @@ export default function GameTabsLayout() {
         </NativeTabs.Trigger>
       </NativeTabs>
       <InfoModal onLeaveGame={() => setIsExitConfirmOpen(true)} />
+      {gameRuntime?.connectionWarningVisible && !isGameCountingDown && (
+        <View
+          accessibilityLiveRegion="polite"
+          pointerEvents="none"
+          style={{
+            alignItems: 'center',
+            alignSelf: 'center',
+            backgroundColor: 'rgba(23,23,23,0.96)',
+            borderColor: 'rgba(251,191,36,0.35)',
+            borderRadius: 18,
+            borderWidth: 1,
+            flexDirection: 'row',
+            gap: 8,
+            paddingHorizontal: 14,
+            paddingVertical: 9,
+            position: 'absolute',
+            top: 58,
+            zIndex: 50,
+          }}
+        >
+          <WifiOff color="#fbbf24" size={16} strokeWidth={2.4} />
+          <Text style={{ color: '#d4d4d4', fontFamily: 'Outfit_700Bold', fontSize: 12 }}>
+            {isBs ? 'Slaba veza — pokušavamo ponovo…' : 'Weak connection — retrying…'}
+          </Text>
+        </View>
+      )}
       <ConfirmModal
         cancelLabel={isBs ? 'PRESKOČI' : 'PASS'}
         confirmLabel={isBs ? 'POKUŠAJ KRAĐU' : 'TRY TO STEAL'}
@@ -275,7 +308,7 @@ export default function GameTabsLayout() {
         </View>
       </ConfirmModal>
       <LaneModal
-        failureMessage={isBs ? 'TVOJA PROCJENA JE BILA PREVISOKA ILI PRENISKA' : 'YOUR GUESS WAS TOO HIGH OR TOO LOW'}
+        failureMessage={laneFailureMessage}
         failureTitle={isBs ? 'NETAČNO' : 'INCORRECT'}
         onComplete={() => {
           setLaneResult(null);

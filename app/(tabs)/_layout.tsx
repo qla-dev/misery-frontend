@@ -3,10 +3,12 @@ import { router, Stack, usePathname } from 'expo-router';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import ChevronLeftIcon from '@expo/material-symbols/chevron_left.xml';
 import HelpIcon from '@expo/material-symbols/help.xml';
+import VolumeOffIcon from '@expo/material-symbols/volume_off.xml';
+import VolumeUpIcon from '@expo/material-symbols/volume_up.xml';
 import { SFSymbol } from 'sf-symbols-typescript';
 import { useEffect } from 'react';
 import { useGame } from '@/context/GameContext';
-import { playHaptic, setLobbyMusicActive } from '@/lib/sound';
+import { playHaptic, setGameMusicMuted, setLobbyMusicActive } from '@/lib/sound';
 import { InfoModal } from '@/components/InfoModal';
 
 function toolbarIcon(ios: SFSymbol, android: ImageSourcePropType) {
@@ -14,7 +16,17 @@ function toolbarIcon(ios: SFSymbol, android: ImageSourcePropType) {
 }
 
 export default function TabLayout() {
-  const { language, lobbyView, toggleLanguage, setInfoModalOpen, setLobbyView, setLobbyTransitionTarget, setRoomExitWarningOpen } = useGame();
+  const {
+    language,
+    lobbyView,
+    musicMuted,
+    setInfoModalOpen,
+    setLobbyTransitionTarget,
+    setLobbyView,
+    setMusicMuted,
+    setRoomExitWarningOpen,
+    toggleLanguage,
+  } = useGame();
   const isBs = language === 'bs';
   const pathname = usePathname();
   const isPlayScreen = pathname === '/';
@@ -28,9 +40,13 @@ export default function TabLayout() {
         : 'LOBBY';
 
   useEffect(() => {
-    setLobbyMusicActive(isPlayScreen && lobbyView !== 'SETUP');
+    setLobbyMusicActive(isPlayScreen);
     return () => setLobbyMusicActive(false);
-  }, [isPlayScreen, lobbyView]);
+  }, [isPlayScreen]);
+
+  useEffect(() => {
+    setGameMusicMuted(musicMuted);
+  }, [musicMuted]);
 
   return (
     <>
@@ -60,6 +76,21 @@ export default function TabLayout() {
           headerTintColor: '#ffffff',
         }}
       />
+      {isPlayScreen && lobbyView === 'WELCOME' && (
+        <Stack.Toolbar placement="left">
+          <Stack.Toolbar.Button
+            accessibilityLabel={language === 'en' ? 'Switch to Bosnian' : 'Switch to English'}
+            onPress={() => {
+              playHaptic();
+              toggleLanguage();
+            }}
+            separateBackground
+            tintColor="#fbbf24"
+          >
+            {language === 'en' ? '🇬🇧' : '🇧🇦'}
+          </Stack.Toolbar.Button>
+        </Stack.Toolbar>
+      )}
       {isPlayScreen && lobbyView !== 'WELCOME' && (
         <Stack.Toolbar placement="left">
           <Stack.Toolbar.Button
@@ -99,18 +130,21 @@ export default function TabLayout() {
             playHaptic();
             setInfoModalOpen(true);
           }}
+          separateBackground={isPlayScreen}
           tintColor="#ffffff"
         />
-        <Stack.Toolbar.Button
-          accessibilityLabel={language === 'en' ? 'Switch to Bosnian' : 'Switch to English'}
-          onPress={() => {
-            playHaptic();
-            toggleLanguage();
-          }}
-          tintColor="#fbbf24"
-        >
-          {language === 'en' ? '🇬🇧' : '🇧🇦'}
-        </Stack.Toolbar.Button>
+        {isPlayScreen && (
+          <Stack.Toolbar.Button
+            accessibilityLabel={musicMuted ? 'Turn music on' : 'Turn music off'}
+            icon={toolbarIcon(musicMuted ? 'speaker.slash.fill' : 'speaker.wave.2.fill', musicMuted ? VolumeOffIcon : VolumeUpIcon)}
+            onPress={() => {
+              playHaptic();
+              setMusicMuted(!musicMuted);
+            }}
+            separateBackground
+            tintColor={musicMuted ? '#737373' : '#fbbf24'}
+          />
+        )}
       </Stack.Toolbar>
 
       <NativeTabs

@@ -1105,7 +1105,7 @@ export default function Lobby() {
           : !hasPlayerIdentity
             ? isBs ? 'UNESI IME' : 'ENTER NAME'
             : !hasValidRoomCode
-              ? isBs ? 'UNESI KOD SOBE' : 'ENTER ROOM CODE'
+              ? isBs ? 'UNESI CODE SOBE' : 'ENTER ROOM CODE'
               : isBs ? 'PRIDRUŽI SE SOBI' : 'JOIN ROOM'}
       </ButtonTab>
     </View>

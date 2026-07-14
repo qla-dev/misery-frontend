@@ -2,12 +2,14 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Modal, Pressable, Text, View } from 'react-native';
 import { Ban, BellRing, Check, Pause, Play, ShieldAlert, Square, X } from 'lucide-react-native';
 import { playHaptic } from '@/lib/sound';
+import { LaneProgress, LaneProgressBadge } from '@/components/LaneProgressBadge';
 
 type LaneModalProps = {
   failureMessage: string;
   failureTitle: string;
   onComplete?: () => void;
   playerName?: string;
+  laneProgress?: LaneProgress;
   success: boolean;
   successMessage: string;
   successTitle: string;
@@ -27,6 +29,7 @@ export function LaneModal({
   failureTitle,
   onComplete,
   playerName,
+  laneProgress,
   success,
   successMessage,
   successTitle,
@@ -209,14 +212,22 @@ export function LaneModal({
             right: 0,
           }}
         >
-          {playerName && (
+          {laneProgress ? (
+            <LaneProgressBadge
+              addsCard={laneProgress.addsCard}
+              count={laneProgress.count}
+              dark={darkForeground}
+              label={laneProgress.label}
+              target={laneProgress.target}
+            />
+          ) : playerName ? (
             <Text
               className={`mb-5 text-center text-4xl font-black uppercase tracking-wider ${darkForeground ? 'text-neutral-950' : 'text-white'}`}
               numberOfLines={1}
             >
               {playerName}
             </Text>
-          )}
+          ) : null}
           <Pressable
             accessibilityLabel="Close"
             accessibilityRole="button"

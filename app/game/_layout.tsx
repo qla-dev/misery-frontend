@@ -59,6 +59,24 @@ export default function GameTabsLayout() {
   const isLocalLaneResult = Boolean(
     laneResultPlayerName && laneResultPlayerName === gameRuntime?.localPlayer?.name
   );
+  // Lane progress shown on the bottom of the lane-result overlay. The new card is
+  // only inserted into the lane after the overlay closes, so the current lane length
+  // reflects the count *before* this move; the badge animates the "+1" and counts up.
+  const laneResultPlayer =
+    gameRuntime?.players?.find((p: any) => p?.name === laneResultPlayerName) ??
+    (laneResultPlayerName && laneResultPlayerName === gameRuntime?.localPlayer?.name
+      ? gameRuntime?.localPlayer
+      : undefined);
+  const laneResultCardsAdded = Math.max(0, (laneResultPlayer?.lane?.length ?? 3) - 3);
+  const laneResultAddsCard = laneResult === 'success' || laneResult === 'steal';
+  const laneResultProgress = laneResultPlayerName
+    ? {
+        label: isBs ? `TRAKA IGRAČA ${laneResultPlayerName}` : `LANE OF ${laneResultPlayerName}`,
+        count: laneResultCardsAdded,
+        target: laneCardsNeeded,
+        addsCard: laneResultAddsCard,
+      }
+    : undefined;
   const laneSuccessMessage = isLocalLaneResult
     ? isBs ? 'DOGAĐAJ JE DODAN U TVOJU TRAKU' : 'EVENT ADDED TO YOUR LANE'
     : laneResultPlayerName
@@ -314,11 +332,7 @@ export default function GameTabsLayout() {
           setLaneResult(null);
           setLaneResultPlayerName(null);
         }}
-        playerName={laneResult === 'steal'
-          ? gameRuntime?.lastStealWasFromLocalPlayer
-            ? laneResultPlayerName ?? undefined
-            : undefined
-          : laneResultPlayerName ?? undefined}
+        laneProgress={laneResultProgress}
         success={laneResult !== 'failure'}
         successMessage={laneResult === 'steal' ? laneStealMessage : laneSuccessMessage}
         successTitle={laneResult === 'steal'

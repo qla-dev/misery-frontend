@@ -324,7 +324,11 @@ export default function TabLayout() {
         holding={debugOverlay === 'yellow'}
         neutral={debugOverlay === 'white'}
         onComplete={() => setDebugOverlay(null)}
-        playerName={debugOverlay === 'other-right' || debugOverlay === 'other-wrong' || debugOverlay === 'other-steal' ? 'ALEX' : undefined}
+        laneProgress={debugOverlay === 'other-right' || debugOverlay === 'other-steal'
+          ? { label: isBs ? 'TRAKA IGRAČA ALEX' : 'LANE OF ALEX', count: 3, target: 7, addsCard: true }
+          : debugOverlay === 'other-wrong'
+            ? { label: isBs ? 'TRAKA IGRAČA ALEX' : 'LANE OF ALEX', count: 3, target: 7, addsCard: false }
+            : undefined}
         success={debugOverlay !== 'wrong' && debugOverlay !== 'other-wrong'}
         successMessage={debugOverlay === 'yellow'
           ? 'YOUR CARD IS OFFERED TO THE NEXT PLAYER — WAIT FOR THEIR DECISION'

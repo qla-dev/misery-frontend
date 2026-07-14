@@ -849,7 +849,7 @@ export default function GameBoard({
       setIsTurnInactive(true);
       setInactivityWarningVisible(true);
       playSound('bell');
-    }, 10_000);
+    }, 20_000);
 
     return () => {
       clearTimeout(timer);

@@ -101,7 +101,7 @@ export function LaneModal({
       });
     };
     dismissRef.current = dismiss;
-    const timer = persistent ? null : setTimeout(dismiss, 2400);
+    const timer = persistent ? null : setTimeout(dismiss, 2000);
 
     return () => {
       if (timer) clearTimeout(timer);
@@ -112,6 +112,7 @@ export function LaneModal({
     inputRange: [-1, 1],
     outputRange: ['-45deg', '45deg'],
   });
+  const darkForeground = neutral || warning;
 
   return (
     <Modal
@@ -132,24 +133,24 @@ export function LaneModal({
           className="items-center"
           style={{ gap: 22, transform: [{ translateY: -31 }, { scale }, { rotate }] }}
         >
-          <View className={`h-40 w-40 items-center justify-center rounded-full border-[6px] ${neutral ? 'border-neutral-950 bg-neutral-950/5' : 'border-white bg-white/15'}`}>
+          <View className={`h-40 w-40 items-center justify-center rounded-full border-[6px] ${darkForeground ? 'border-neutral-950 bg-neutral-950/5' : 'border-white bg-white/15'}`}>
             {holding ? (
               <Pause
-                color={neutral ? '#0a0a0a' : '#ffffff'}
-                fill={neutral ? '#0a0a0a' : '#ffffff'}
+                color={darkForeground ? '#0a0a0a' : '#ffffff'}
+                fill={darkForeground ? '#0a0a0a' : '#ffffff'}
                 size={76}
                 strokeWidth={2.5}
               />
-            ) : neutral ? (
+            ) : darkForeground && !warning ? (
               ending
                 ? <Square color="#0a0a0a" fill="#0a0a0a" size={72} strokeWidth={2.5} />
                 : <Play color="#0a0a0a" fill="#0a0a0a" size={82} strokeWidth={2.5} />
             ) : bell ? (
-              <BellRing color="#ffffff" size={88} strokeWidth={3.5} />
+              <BellRing color={darkForeground ? '#0a0a0a' : '#ffffff'} size={88} strokeWidth={3.5} />
             ) : warning && score !== undefined ? (
               <View className="items-center justify-center" style={{ height: 126, width: 132 }}>
                 <Text
-                  className="font-black text-white"
+                  className="font-black text-neutral-950"
                   style={{
                     fontFamily: 'JetBrainsMono_700Bold',
                     fontSize: 44,
@@ -166,7 +167,7 @@ export function LaneModal({
                 </Text>
                 <Text
                   adjustsFontSizeToFit
-                  className="mt-1 text-center font-mono text-[9px] font-black uppercase tracking-[2px] text-white/75"
+                  className="mt-1 text-center font-mono text-[9px] font-black uppercase tracking-[2px] text-neutral-950/65"
                   minimumFontScale={0.72}
                   numberOfLines={1}
                   style={{ lineHeight: 14, width: 124 }}
@@ -175,7 +176,7 @@ export function LaneModal({
                 </Text>
               </View>
             ) : warning ? (
-              <ShieldAlert color="#ffffff" size={90} strokeWidth={3.5} />
+              <ShieldAlert color="#0a0a0a" size={90} strokeWidth={3.5} />
             ) : success ? (
               <Check color="#ffffff" size={94} strokeWidth={4} />
             ) : (
@@ -183,15 +184,10 @@ export function LaneModal({
             )}
           </View>
           <View className="items-center" style={{ gap: 8 }}>
-            {playerName && (
-              <Text className={`text-center text-base font-black uppercase tracking-widest ${neutral ? 'text-neutral-950/70' : 'text-white/90'}`}>
-                {playerName}
-              </Text>
-            )}
-            <Text className={`text-center text-4xl font-black uppercase tracking-wider ${neutral ? 'text-neutral-950' : 'text-white'}`}>
+            <Text className={`text-center text-4xl font-black uppercase tracking-wider ${darkForeground ? 'text-neutral-950' : 'text-white'}`}>
               {success ? successTitle : failureTitle}
             </Text>
-            <Text className={`text-center text-sm font-bold uppercase tracking-widest ${neutral ? 'text-neutral-950/65' : 'text-white/85'}`}>
+            <Text className={`text-center text-sm font-bold uppercase tracking-widest ${darkForeground ? 'text-neutral-950/65' : 'text-white/85'}`}>
               {success ? successMessage : failureMessage}
             </Text>
             {score !== undefined && !warning && (
@@ -213,6 +209,14 @@ export function LaneModal({
             right: 0,
           }}
         >
+          {playerName && (
+            <Text
+              className={`mb-5 text-center text-4xl font-black uppercase tracking-wider ${darkForeground ? 'text-neutral-950' : 'text-white'}`}
+              numberOfLines={1}
+            >
+              {playerName}
+            </Text>
+          )}
           <Pressable
             accessibilityLabel="Close"
             accessibilityRole="button"
@@ -230,7 +234,7 @@ export function LaneModal({
               width: 44,
             }}
           >
-            <X color={neutral ? '#171717' : '#ffffff'} size={22} strokeWidth={2.6} />
+            <X color={darkForeground ? '#171717' : '#ffffff'} size={22} strokeWidth={2.6} />
           </Pressable>
         </View>
       </Animated.View>

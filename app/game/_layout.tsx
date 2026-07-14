@@ -124,12 +124,12 @@ export default function GameTabsLayout() {
       setTurnNoticeReady(false);
       return;
     }
-    if (turnNotice?.type !== 'end') {
+    if (!turnNotice) {
       setTurnNoticeReady(true);
       return;
     }
     setTurnNoticeReady(false);
-    const timer = setTimeout(() => setTurnNoticeReady(true), 1000);
+    const timer = setTimeout(() => setTurnNoticeReady(true), turnNotice.type === 'end' ? 1000 : 500);
     return () => clearTimeout(timer);
   }, [laneResult, turnNotice?.id, turnNotice?.type]);
 
@@ -314,7 +314,11 @@ export default function GameTabsLayout() {
           setLaneResult(null);
           setLaneResultPlayerName(null);
         }}
-        playerName={laneResult === 'steal' ? undefined : laneResultPlayerName ?? undefined}
+        playerName={laneResult === 'steal'
+          ? gameRuntime?.lastStealWasFromLocalPlayer
+            ? laneResultPlayerName ?? undefined
+            : undefined
+          : laneResultPlayerName ?? undefined}
         success={laneResult !== 'failure'}
         successMessage={laneResult === 'steal' ? laneStealMessage : laneSuccessMessage}
         successTitle={laneResult === 'steal'

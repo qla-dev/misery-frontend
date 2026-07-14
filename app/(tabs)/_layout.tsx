@@ -22,7 +22,7 @@ import { API_BASE_URL, ApiCard } from '@/lib/api';
 import { CardLogo } from '@/components/GameBoard';
 import { CardBackDecoration } from '@/components/CardBackDecoration';
 
-type DebugOverlay = 'right' | 'wrong' | 'yellow' | 'white' | 'steal';
+type DebugOverlay = 'right' | 'wrong' | 'yellow' | 'white' | 'steal' | 'other-right' | 'other-wrong' | 'other-steal';
 
 // Keep the debug tools available in source so they can be enabled again later.
 const DEBUG_UI_ENABLED = true;
@@ -289,6 +289,15 @@ export default function TabLayout() {
           <ButtonTab category="button" onPress={() => showDebugOverlay('steal')} size="100" type="primary">
             CARD STOLEN + SCORE
           </ButtonTab>
+          <ButtonTab category="button" onPress={() => showDebugOverlay('other-right')} size="100" type="success">
+            OTHER PLAYER — CORRECT
+          </ButtonTab>
+          <ButtonTab category="button" onPress={() => showDebugOverlay('other-wrong')} size="100" type="danger">
+            OTHER PLAYER — WRONG
+          </ButtonTab>
+          <ButtonTab category="button" onPress={() => showDebugOverlay('other-steal')} size="100" type="primary">
+            OTHER PLAYER — STEAL
+          </ButtonTab>
           <ButtonTab category="button" onPress={() => void showRandomConnectedCard()} size="100" type="secondary">
             CARD — IMAGE
           </ButtonTab>
@@ -310,31 +319,35 @@ export default function TabLayout() {
         </ScrollView>
       </ConfirmModal>}
       {DEBUG_UI_ENABLED && <LaneModal
-        failureMessage="YOUR GUESS WAS TOO HIGH OR TOO LOW"
+        failureMessage={debugOverlay === 'other-wrong' ? "ALEX'S GUESS WAS TOO HIGH OR TOO LOW" : 'YOUR GUESS WAS TOO HIGH OR TOO LOW'}
         failureTitle="INCORRECT"
         holding={debugOverlay === 'yellow'}
         neutral={debugOverlay === 'white'}
         onComplete={() => setDebugOverlay(null)}
-        persistent
-        success={debugOverlay !== 'wrong'}
+        playerName={debugOverlay === 'other-right' || debugOverlay === 'other-wrong' || debugOverlay === 'other-steal' ? 'ALEX' : undefined}
+        success={debugOverlay !== 'wrong' && debugOverlay !== 'other-wrong'}
         successMessage={debugOverlay === 'yellow'
           ? 'YOUR CARD IS OFFERED TO THE NEXT PLAYER — WAIT FOR THEIR DECISION'
           : debugOverlay === 'white'
             ? 'TAP THE CARD TO PLAY'
             : debugOverlay === 'steal'
               ? 'YOU SUCCESSFULLY STOLE THE CARD AND IT WAS ADDED TO YOUR LANE'
+            : debugOverlay === 'other-steal'
+              ? 'ALEX SUCCESSFULLY STOLE THE CARD AND IT WAS ADDED TO THEIR LANE'
+            : debugOverlay === 'other-right'
+              ? "EVENT ADDED TO ALEX'S LANE"
             : 'EVENT ADDED TO YOUR LANE'}
         successTitle={debugOverlay === 'yellow'
           ? "YOU'RE ON HOLD"
           : debugOverlay === 'white'
             ? 'YOUR TURN STARTED'
-            : debugOverlay === 'steal'
+            : debugOverlay === 'steal' || debugOverlay === 'other-steal'
               ? 'CARD STOLEN'
             : 'CORRECT'}
-        score={debugOverlay === 'steal' ? DEBUG_CARD.index : undefined}
+        score={debugOverlay === 'steal' || debugOverlay === 'other-steal' ? DEBUG_CARD.index : undefined}
         scoreLabel="MISERY RATE"
         visible={debugOverlay !== null}
-        warning={debugOverlay === 'yellow' || debugOverlay === 'steal'}
+        warning={debugOverlay === 'yellow' || debugOverlay === 'steal' || debugOverlay === 'other-steal'}
       />}
       {DEBUG_UI_ENABLED && <Modal
         animationType="slide"

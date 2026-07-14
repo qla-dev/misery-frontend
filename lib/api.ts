@@ -21,7 +21,7 @@ export interface ApiUser {
   revenuecat_product_id?: string | null;
   revenuecat_entitlement_id?: string | null;
 }
-export interface ApiCard { id: number; title: string; subtitle: string | null; score: number | string; image: string | null; deck: string }
+export interface ApiCard { id: number; title: string; title_bs?: string | null; subtitle: string | null; subtitle_bs?: string | null; score: number | string; image: string | null; deck: string }
 export interface ApiMove { id: number; player_id: number; correct: boolean; player: ApiUser; card: ApiCard | null; created_at: string }
 export interface ApiQuestion { id: number; question: string; answer: string; category: string; difficulty: number }
 export interface ApiGame { id: number; code: string; owner_id: number; started: boolean; host_in_lobby: boolean; stack_id: number | null; stack: 'normal' | 'spicy' | string | null; target_score: number; winner_id: number | null; current_player_id: number | null; turn_owner_id: number | null; awaiting_finish: boolean; is_steal_turn: boolean; ingame_polling_interval_ms: number; members: ApiUser[]; hands: Record<string, ApiCard[]>; current_card: ApiCard | null; moves: ApiMove[] }

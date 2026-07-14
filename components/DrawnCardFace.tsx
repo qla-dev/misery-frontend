@@ -42,7 +42,10 @@ export function DrawnCardFace({
     ? ['#5a1414', '#311616', '#171010', '#090909']
     : isCorrect
       ? ['#0c4430', '#173126', '#101713', '#090909']
-      : ['#1d1d1d', '#191919', '#101010', '#090909'];
+      : ['#242424', '#111111', '#000000', '#000000'];
+  const cardGradientLocations: [number, number, number, number] = isWrong || isCorrect
+    ? [0, 0.36, 0.7, 1]
+    : [0, 0.13, 0.3, 1];
 
   useEffect(() => setImageFailed(false), [card.image]);
   useEffect(() => staticScoreReveal.setValue(scoreRevealed ? 1 : 0), [scoreRevealed, staticScoreReveal]);
@@ -51,7 +54,7 @@ export function DrawnCardFace({
     <LinearGradient
       colors={cardGradient}
       end={{ x: 0.82, y: 1 }}
-      locations={[0, 0.36, 0.7, 1]}
+      locations={cardGradientLocations}
       start={{ x: 0.12, y: 0 }}
       style={{
         alignItems: 'center',
@@ -76,9 +79,9 @@ export function DrawnCardFace({
       </View>
       <View pointerEvents="none" className="absolute inset-0 items-center justify-center">
         <View
-          className="items-center justify-center overflow-hidden rounded-full"
+          className="items-center justify-center"
           style={{
-            backgroundColor: '#191919',
+            backgroundColor: '#000000',
             height: artworkSize,
             width: artworkSize,
           }}
@@ -89,7 +92,7 @@ export function DrawnCardFace({
               onError={() => setImageFailed(true)}
               resizeMode="cover"
               source={{ uri: card.image }}
-              style={{ height: '120%', width: '120%' }}
+              style={{ height: '100%', width: '100%' }}
             />
           ) : (
             <Image

@@ -18,11 +18,14 @@ import { DrawnCardFace } from '@/components/DrawnCardFace';
 import { WebAppCard } from '@/components/WebAppCard';
 import { Card } from '@/types';
 import { X } from 'lucide-react-native';
+import { API_BASE_URL, ApiCard } from '@/lib/api';
+import { CardLogo } from '@/components/GameBoard';
+import { CardBackDecoration } from '@/components/CardBackDecoration';
 
 type DebugOverlay = 'right' | 'wrong' | 'yellow' | 'white' | 'steal';
 
 // Keep the debug tools available in source so they can be enabled again later.
-const DEBUG_UI_ENABLED = false;
+const DEBUG_UI_ENABLED = true;
 
 const DEBUG_CARD: Card = {
   id: '1',
@@ -61,7 +64,6 @@ export default function TabLayout() {
     setLobbyView,
     setMusicMuted,
     setRoomExitWarningOpen,
-    toggleLanguage,
   } = useGame();
   const isBs = language === 'bs';
   const pathname = usePathname();
@@ -70,6 +72,7 @@ export default function TabLayout() {
   const [debugOverlay, setDebugOverlay] = useState<DebugOverlay | null>(null);
   const [debugCard, setDebugCard] = useState<Card | null>(null);
   const [debugWebCardVisible, setDebugWebCardVisible] = useState(false);
+  const [debugCardBackVisible, setDebugCardBackVisible] = useState(false);
   const debugCardWidth = Math.min(width - 32, 420);
   const debugCardHeight = Math.min(
     height - insets.top - insets.bottom - 72,
@@ -83,6 +86,33 @@ export default function TabLayout() {
   const showDebugCard = (card: Card) => {
     setDebugMenuOpen(false);
     requestAnimationFrame(() => setDebugCard(card));
+  };
+  const showRandomConnectedCard = async () => {
+    setDebugMenuOpen(false);
+    try {
+      const response = await fetch(`${API_BASE_URL}/cards`, { headers: { Accept: 'application/json' } });
+      if (!response.ok) throw new Error(`Cards request failed (${response.status})`);
+      const payload = await response.json();
+      const cards = (payload?.data ?? payload) as ApiCard[];
+      const connected = cards.filter((card) => card.image && card.image !== '0');
+      if (connected.length === 0) return showDebugCard(DEBUG_CARD_WITHOUT_IMAGE);
+      const selected = connected[Math.floor(Math.random() * connected.length)];
+      const image = selected.image!;
+      const imageUrl = image.startsWith('http://') || image.startsWith('https://')
+        ? image
+        : image.startsWith('/')
+          ? `${API_BASE_URL.replace(/\/api\/?$/, '')}${image}`
+          : `${API_BASE_URL.replace(/\/api\/?$/, '')}/storage/${image.replace(/^\/?(?:storage\/)?/, '')}`;
+      showDebugCard({
+        id: String(selected.id), titleEn: selected.title, titleBs: selected.title_bs || selected.title,
+        descriptionEn: selected.subtitle ?? undefined,
+        descriptionBs: selected.subtitle_bs || selected.subtitle || undefined,
+        illustrationType: 'general_misery', image: imageUrl, index: Number(selected.score),
+      });
+    } catch (error) {
+      console.error('[Debug] Failed to load connected card artwork', error);
+      showDebugCard(DEBUG_CARD);
+    }
   };
   const headerTitle =
     lobbyView === 'WELCOME'
@@ -133,29 +163,16 @@ export default function TabLayout() {
       {isPlayScreen && lobbyView === 'WELCOME' && (
         <Stack.Toolbar placement="left">
           <Stack.Toolbar.Button
-            accessibilityLabel={language === 'en' ? 'Switch to Bosnian' : 'Switch to English'}
+            accessibilityLabel="Open overlay debug menu"
             onPress={() => {
               playHaptic();
-              toggleLanguage();
+              setDebugMenuOpen(true);
             }}
             separateBackground
             tintColor="#fbbf24"
           >
-            {language === 'en' ? '🇬🇧' : '🇧🇦'}
+            LOGS
           </Stack.Toolbar.Button>
-          {DEBUG_UI_ENABLED && (
-            <Stack.Toolbar.Button
-              accessibilityLabel="Open overlay debug menu"
-              onPress={() => {
-                playHaptic();
-                setDebugMenuOpen(true);
-              }}
-              separateBackground
-              tintColor="#fbbf24"
-            >
-              LOGS
-            </Stack.Toolbar.Button>
-          )}
         </Stack.Toolbar>
       )}
       {isPlayScreen && lobbyView !== 'WELCOME' && (
@@ -272,8 +289,14 @@ export default function TabLayout() {
           <ButtonTab category="button" onPress={() => showDebugOverlay('steal')} size="100" type="primary">
             CARD STOLEN + SCORE
           </ButtonTab>
-          <ButtonTab category="button" onPress={() => showDebugCard(DEBUG_CARD)} size="100" type="secondary">
+          <ButtonTab category="button" onPress={() => void showRandomConnectedCard()} size="100" type="secondary">
             CARD — IMAGE
+          </ButtonTab>
+          <ButtonTab category="button" onPress={() => {
+            setDebugMenuOpen(false);
+            requestAnimationFrame(() => setDebugCardBackVisible(true));
+          }} size="100" type="secondary">
+            CARD — BACK
           </ButtonTab>
           <ButtonTab category="button" onPress={() => showDebugCard(DEBUG_CARD_WITHOUT_IMAGE)} size="100" type="secondary">
             CARD — DEFAULT IMAGE
@@ -355,6 +378,17 @@ export default function TabLayout() {
           >
             <X color="#ffffff" size={22} strokeWidth={2.6} />
           </Pressable>
+        </View>
+      </Modal>}
+      {DEBUG_UI_ENABLED && <Modal animationType="slide" onRequestClose={() => setDebugCardBackVisible(false)} presentationStyle="fullScreen" statusBarTranslucent visible={debugCardBackVisible}>
+        <View className="flex-1 items-center justify-center bg-neutral-950" style={{ paddingBottom: insets.bottom + 16, paddingTop: insets.top + 16 }}>
+          <View style={{ alignItems: 'center', backgroundColor: '#050505', borderColor: '#fbbf24', borderRadius: 16, borderWidth: 6, height: debugCardHeight, justifyContent: 'center', overflow: 'hidden', width: debugCardWidth }}>
+            <CardBackDecoration />
+            <View style={{ borderColor: 'rgba(251,191,36,0.55)', borderRadius: 10, borderWidth: 2, bottom: 12, left: 12, position: 'absolute', right: 12, top: 12 }} />
+            <CardLogo />
+            <Text className="absolute bottom-8 left-6 right-6 text-center font-mono text-[10px] font-black uppercase tracking-[3px] text-amber-400/70">TAP CARD TO REVEAL</Text>
+          </View>
+          <Pressable accessibilityLabel="Close card back preview" accessibilityRole="button" onPress={() => setDebugCardBackVisible(false)} style={{ alignItems: 'center', backgroundColor: 'rgba(64,64,64,0.9)', borderRadius: 22, height: 44, justifyContent: 'center', position: 'absolute', right: 18, top: insets.top + 12, width: 44 }}><X color="#ffffff" size={22} strokeWidth={2.6} /></Pressable>
         </View>
       </Modal>}
       {DEBUG_UI_ENABLED && <Modal

@@ -15,6 +15,7 @@ import { api, ApiCard, API_BASE_URL } from '@/lib/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VictoryConfetti } from './VictoryConfetti';
 import { DrawnCardFace } from './DrawnCardFace';
+import { CardBackDecoration } from './CardBackDecoration';
 
 const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
 
@@ -60,7 +61,7 @@ interface GameBoardProps {
   userId?: number;
 }
 
-function CardLogo({ compact = false }: { compact?: boolean }) {
+export function CardLogo({ compact = false }: { compact?: boolean }) {
   const fontSize = compact ? 32 : 54;
   const lineHeight = compact ? 32 : 54;
   return (
@@ -1112,10 +1113,7 @@ export default function GameBoard({
                       width: '100%',
                     }}
                   >
-                    <LinearGradient
-                      colors={['rgba(251,191,36,0.18)', 'rgba(10,10,10,0.98)', 'rgba(251,191,36,0.1)']}
-                      style={{ bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 }}
-                    />
+                    <CardBackDecoration />
                     <View style={{ borderColor: 'rgba(251,191,36,0.55)', borderRadius: 10, borderWidth: 2, bottom: 12, left: 12, position: 'absolute', right: 12, top: 12 }} />
                     <CardLogo />
                     <Animated.Text

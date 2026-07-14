@@ -21,13 +21,14 @@ import { X } from 'lucide-react-native';
 import { API_BASE_URL, ApiCard } from '@/lib/api';
 import { CardLogo } from '@/components/GameBoard';
 import { CardBackDecoration } from '@/components/CardBackDecoration';
+import { clearGameDiagnostics, getGameDiagnostics, subscribeToGameDiagnostics } from '@/lib/gameDiagnostics';
 
-type DebugOverlay = 'right' | 'wrong' | 'yellow' | 'white' | 'steal' | 'other-right' | 'other-wrong' | 'other-steal';
+type DebugOverlay = 'right' | 'wrong' | 'yellow' | 'white' | 'steal' | 'other-right' | 'other-right-long' | 'other-wrong' | 'other-steal';
 
 // Keep the debug tools available in source so they can be enabled again later.
 const DEBUG_UI_ENABLED = true;
-// The LOGS debug entry point is hidden on the welcome screen; flip to re-enable it.
-const SHOW_DEBUG_LOGS_BUTTON = false;
+const SHOW_DEBUG_LOGS_BUTTON = true;
+const SHOW_WELCOME_LANGUAGE_BUTTON = false;
 
 const DEBUG_CARD: Card = {
   id: '1',
@@ -61,6 +62,7 @@ export default function TabLayout() {
     language,
     lobbyView,
     musicMuted,
+    settingsRestored,
     setInfoModalOpen,
     setLobbyTransitionTarget,
     setLobbyView,
@@ -76,6 +78,7 @@ export default function TabLayout() {
   const [debugCard, setDebugCard] = useState<Card | null>(null);
   const [debugWebCardVisible, setDebugWebCardVisible] = useState(false);
   const [debugCardBackVisible, setDebugCardBackVisible] = useState(false);
+  const [debugLogs, setDebugLogs] = useState(getGameDiagnostics());
   const debugCardWidth = Math.min(width - 32, 420);
   const debugCardHeight = Math.min(
     height - insets.top - insets.bottom - 72,
@@ -85,6 +88,10 @@ export default function TabLayout() {
   const showDebugOverlay = (overlay: DebugOverlay) => {
     setDebugMenuOpen(false);
     requestAnimationFrame(() => setDebugOverlay(overlay));
+  };
+  const openDebugMenu = () => {
+    setDebugLogs(getGameDiagnostics());
+    setDebugMenuOpen(true);
   };
   const showDebugCard = (card: Card) => {
     setDebugMenuOpen(false);
@@ -131,13 +138,16 @@ export default function TabLayout() {
           : 'LOBBY';
 
   useEffect(() => {
+    if (!settingsRestored) return undefined;
+    setGameMusicMuted(musicMuted);
     setLobbyMusicActive(isPlayScreen);
     return () => setLobbyMusicActive(false);
-  }, [isPlayScreen]);
+  }, [isPlayScreen, musicMuted, settingsRestored]);
 
   useEffect(() => {
-    setGameMusicMuted(musicMuted);
-  }, [musicMuted]);
+    if (!debugMenuOpen) return undefined;
+    return subscribeToGameDiagnostics(setDebugLogs);
+  }, [debugMenuOpen]);
 
   return (
     <>
@@ -169,23 +179,25 @@ export default function TabLayout() {
       />
       {isPlayScreen && lobbyView === 'WELCOME' && (
         <Stack.Toolbar placement="left">
-          <Stack.Toolbar.Button
-            accessibilityLabel={isBs ? 'Promijeni jezik na engleski' : 'Switch language to Bosnian'}
-            onPress={() => {
-              playHaptic();
-              toggleLanguage();
-            }}
-            separateBackground
-            tintColor="#fbbf24"
-          >
-            {isBs ? '🇧🇦' : '🇬🇧'}
-          </Stack.Toolbar.Button>
+          {SHOW_WELCOME_LANGUAGE_BUTTON && (
+            <Stack.Toolbar.Button
+              accessibilityLabel={isBs ? 'Promijeni jezik na engleski' : 'Switch language to Bosnian'}
+              onPress={() => {
+                playHaptic();
+                toggleLanguage();
+              }}
+              separateBackground
+              tintColor="#fbbf24"
+            >
+              {isBs ? '🇧🇦' : '🇬🇧'}
+            </Stack.Toolbar.Button>
+          )}
           {SHOW_DEBUG_LOGS_BUTTON && (
             <Stack.Toolbar.Button
               accessibilityLabel="Open overlay debug menu"
               onPress={() => {
                 playHaptic();
-                setDebugMenuOpen(true);
+                openDebugMenu();
               }}
               separateBackground
               tintColor="#fbbf24"
@@ -298,6 +310,33 @@ export default function TabLayout() {
           <Text className="mb-1 text-center text-lg font-black uppercase tracking-wider text-amber-400">
             OVERLAY DEBUG
           </Text>
+          <View className="rounded-xl border border-neutral-700 bg-neutral-950 p-3" style={{ gap: 8 }}>
+            <View className="flex-row items-center justify-between">
+              <Text className="font-mono text-[10px] font-black uppercase tracking-wider text-amber-400">
+                GAME ACTION LOG · {debugLogs.length}
+              </Text>
+              <Pressable
+                onPress={() => {
+                  clearGameDiagnostics();
+                  setDebugLogs([]);
+                }}
+              >
+                <Text className="font-mono text-[9px] font-black uppercase text-neutral-400">CLEAR</Text>
+              </Pressable>
+            </View>
+            {debugLogs.length === 0 ? (
+              <Text className="text-xs text-neutral-500">Play a game to collect polling and action diagnostics.</Text>
+            ) : debugLogs.slice(0, 24).map((entry) => (
+              <View className="border-t border-neutral-800 pt-2" key={entry.id}>
+                <Text className="font-mono text-[10px] font-black text-neutral-200">
+                  {new Date(entry.timestamp).toLocaleTimeString()} · {entry.action}
+                </Text>
+                <Text className="mt-1 font-mono text-[9px] leading-4 text-neutral-500">
+                  {JSON.stringify(entry.details)}
+                </Text>
+              </View>
+            ))}
+          </View>
           <ButtonTab category="button" onPress={() => showDebugOverlay('right')} size="100" type="success">
             RIGHT
           </ButtonTab>
@@ -314,7 +353,10 @@ export default function TabLayout() {
             CARD STOLEN + SCORE
           </ButtonTab>
           <ButtonTab category="button" onPress={() => showDebugOverlay('other-right')} size="100" type="success">
-            OTHER PLAYER — CORRECT
+            CORRECT — SHORT NAME
+          </ButtonTab>
+          <ButtonTab category="button" onPress={() => showDebugOverlay('other-right-long')} size="100" type="success">
+            CORRECT — LONG NAME
           </ButtonTab>
           <ButtonTab category="button" onPress={() => showDebugOverlay('other-wrong')} size="100" type="danger">
             OTHER PLAYER — WRONG
@@ -348,18 +390,26 @@ export default function TabLayout() {
         holding={debugOverlay === 'yellow'}
         neutral={debugOverlay === 'white'}
         onComplete={() => setDebugOverlay(null)}
+        persistent
         laneProgress={debugOverlay === 'right' || debugOverlay === 'steal'
           ? { label: isBs ? 'TVOJA TRAKA' : 'YOUR LANE', count: 3, target: 7, addsCard: true }
           : debugOverlay === 'wrong'
             ? { label: isBs ? 'TVOJA TRAKA' : 'YOUR LANE', count: 3, target: 7, addsCard: false }
-            : debugOverlay === 'other-right' || debugOverlay === 'other-steal'
-              ? { label: isBs ? 'TRAKA IGRAČA ALEX' : 'LANE OF ALEX', count: 3, target: 7, addsCard: true }
+            : debugOverlay === 'other-right' || debugOverlay === 'other-right-long' || debugOverlay === 'other-steal'
+              ? {
+                  label: debugOverlay === 'other-right-long'
+                    ? (isBs ? 'TRAKA IGRAČA NEDIM KULASIN' : 'LANE OF NEDIM KULASIN')
+                    : (isBs ? 'TRAKA IGRAČA ALEX' : 'LANE OF ALEX'),
+                  count: 3,
+                  target: 7,
+                  addsCard: true,
+                }
               : debugOverlay === 'other-wrong'
                 ? { label: isBs ? 'TRAKA IGRAČA ALEX' : 'LANE OF ALEX', count: 3, target: 7, addsCard: false }
                 : undefined}
         success={debugOverlay !== 'wrong' && debugOverlay !== 'other-wrong'}
         successMessage={debugOverlay === 'yellow'
-          ? 'YOUR CARD IS OFFERED TO THE NEXT PLAYER — WAIT FOR THEIR DECISION'
+          ? 'YOUR CARD IS OFFERED TO THE NEXT PLAYER. WAIT FOR THEIR DECISION'
           : debugOverlay === 'white'
             ? 'TAP THE CARD TO PLAY'
             : debugOverlay === 'steal'
@@ -368,6 +418,8 @@ export default function TabLayout() {
               ? 'ALEX SUCCESSFULLY STOLE THE CARD AND IT WAS ADDED TO THEIR LANE'
             : debugOverlay === 'other-right'
               ? "EVENT ADDED TO ALEX'S LANE"
+            : debugOverlay === 'other-right-long'
+              ? "EVENT ADDED TO NEDIM KULASIN'S LANE"
             : 'EVENT ADDED TO YOUR LANE'}
         successTitle={debugOverlay === 'yellow'
           ? "YOU'RE ON HOLD"
@@ -394,7 +446,7 @@ export default function TabLayout() {
         >
           <View style={{ width: debugCardWidth }}>
             <DrawnCardFace
-              artworkSize={Math.min(220, debugCardHeight * 0.39)}
+              artworkSize={Math.min(300, debugCardHeight * 0.52)}
               card={debugCard ?? DEBUG_CARD_WITHOUT_IMAGE}
               height={debugCardHeight}
               language={language}

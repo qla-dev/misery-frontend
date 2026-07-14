@@ -14,6 +14,7 @@ export type LaneProgress = {
 
 type LaneProgressBadgeProps = LaneProgress & {
   dark?: boolean;
+  emphasized?: boolean;
 };
 
 /**
@@ -21,7 +22,7 @@ type LaneProgressBadgeProps = LaneProgress & {
  * When a card is added it animates a "+1" that fades in above the count digit,
  * then blends down into it while the count ticks up (0 -> 1).
  */
-export function LaneProgressBadge({ label, count, target, addsCard, dark = false }: LaneProgressBadgeProps) {
+export function LaneProgressBadge({ label, count, target, addsCard, dark = false, emphasized = false }: LaneProgressBadgeProps) {
   const [displayCount, setDisplayCount] = useState(count);
   const plusOpacity = useRef(new Animated.Value(0)).current;
   const plusTranslate = useRef(new Animated.Value(0)).current;
@@ -97,22 +98,23 @@ export function LaneProgressBadge({ label, count, target, addsCard, dark = false
   }, [addsCard, count, countScale, label, plusOpacity, plusTranslate, target]);
 
   const color = dark ? '#0a0a0a' : '#ffffff';
+  const labelParts = label.match(/^(LANE OF|TRAKA IGRAČA)\s+(.+)$/i);
+  const shouldWrapLabel = emphasized && label.length > 16 && labelParts !== null;
+  const emphasizedStyle = emphasized
+    ? { fontFamily: 'BebasNeue_400Regular', fontSize: 48, includeFontPadding: false, letterSpacing: 1.2, lineHeight: 50 }
+    : undefined;
+  const emphasizedLabelStyle = emphasized
+    ? { fontFamily: 'BebasNeue_400Regular', fontSize: 48, includeFontPadding: false, letterSpacing: 1.2, lineHeight: 50 }
+    : undefined;
 
-  return (
-    <View className="flex-row items-center justify-center">
-      <Text
-        className="text-4xl font-black uppercase tracking-wider"
-        numberOfLines={1}
-        style={{ color }}
-      >
-        {label}{' '}
-      </Text>
+  const counter = (
+    <>
       {/* Count digit gets its own container so the "+1" can float directly above it. */}
       <View className="items-center">
         <Animated.Text
           className="text-4xl font-black uppercase tracking-wider"
           numberOfLines={1}
-          style={{ color, transform: [{ scale: countScale }] }}
+          style={[{ color, transform: [{ scale: countScale }] }, emphasizedStyle]}
         >
           {displayCount}
         </Animated.Text>
@@ -126,6 +128,8 @@ export function LaneProgressBadge({ label, count, target, addsCard, dark = false
               className="text-2xl font-black uppercase tracking-wider"
               style={{
                 color,
+                fontFamily: emphasized ? 'BebasNeue_400Regular' : undefined,
+                fontSize: emphasized ? 30 : undefined,
                 opacity: plusOpacity,
                 textAlign: 'center',
                 transform: [{ translateY: plusTranslate }],
@@ -140,10 +144,47 @@ export function LaneProgressBadge({ label, count, target, addsCard, dark = false
       <Text
         className="text-4xl font-black uppercase tracking-wider"
         numberOfLines={1}
-        style={{ color }}
+        style={[{ color }, emphasizedStyle]}
       >
         /{target}
       </Text>
+    </>
+  );
+
+  return (
+    <View style={{ marginTop: 14, minHeight: 50, paddingHorizontal: 8, width: '100%' }}>
+      {shouldWrapLabel ? (
+        <View className="items-center justify-center">
+          <Text
+            className="text-center text-4xl font-black uppercase tracking-wider"
+            numberOfLines={1}
+            style={[{ color }, emphasizedLabelStyle]}
+          >
+            {labelParts?.[1]}
+          </Text>
+          <View className="flex-row items-end justify-center">
+            <Text
+              className="text-4xl font-black uppercase tracking-wider"
+              numberOfLines={1}
+              style={[{ color, marginRight: 8 }, emphasizedLabelStyle]}
+            >
+              {labelParts?.[2]}
+            </Text>
+            {counter}
+          </View>
+        </View>
+      ) : (
+        <View className="flex-row items-end justify-center">
+          <Text
+            className="text-4xl font-black uppercase tracking-wider"
+            numberOfLines={1}
+            style={[{ color, flexShrink: 1, marginRight: 8, textAlign: 'right' }, emphasizedLabelStyle]}
+          >
+            {label}
+          </Text>
+          {counter}
+        </View>
+      )}
     </View>
   );
 }

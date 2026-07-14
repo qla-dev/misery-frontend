@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VictoryConfetti } from './VictoryConfetti';
 import { DrawnCardFace } from './DrawnCardFace';
 import { CardBackDecoration } from './CardBackDecoration';
+import { logGameAction } from '@/lib/gameDiagnostics';
 
 const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
 
@@ -125,7 +126,7 @@ export default function GameBoard({
   const cardTopPadding = 12;
   const drawnCardHeight = height - cardTopOffset - cardTopPadding - 105;
   const cardAreaHeight = drawnCardHeight + cardTopPadding;
-  const dummyArtworkSize = Math.min(220, drawnCardHeight * 0.39);
+  const dummyArtworkSize = Math.min(300, drawnCardHeight * 0.52);
   const cardFlip = useRef(new Animated.Value(0)).current;
   const cardFloat = useRef(new Animated.Value(0)).current;
   const cardPromptFloat = useRef(new Animated.Value(0)).current;
@@ -142,11 +143,14 @@ export default function GameBoard({
   const winnerCelebratedRef = useRef(false);
   const finishedExitInProgressRef = useRef(false);
   const consecutivePollFailuresRef = useRef(0);
+  const pollCountRef = useRef(0);
+  const lastPollSignatureRef = useRef('');
   const pendingTurnCardRef = useRef<Card | null>(null);
   const holdingTurnCardRef = useRef(false);
   const laneResultRef = useRef<'success' | 'failure' | 'steal' | null>(laneResult);
   const queuedLaneResultsRef = useRef<QueuedLaneResult[]>([]);
   const laneResultGapRef = useRef(false);
+  const laneCollapseInFlightRef = useRef(false);
   const finishTurnInFlightRef = useRef(false);
   const isAwaitingTurnFinishRef = useRef(false);
   const serverCurrentPlayerIdRef = useRef<number | null>(null);
@@ -154,6 +158,7 @@ export default function GameBoard({
   // result must never appear before the hold notice it belongs to, so the lane-result
   // queue waits for this to clear.
   const hasPendingHoldRef = useRef(false);
+  const [pendingHoldNotice, setPendingHoldNotice] = useState<{ playerName?: string } | null>(null);
 
   const [gameState, setGameState] = useState<GameState>({
     mode,
@@ -173,14 +178,13 @@ export default function GameBoard({
   const [connectionWarningVisible, setConnectionWarningVisible] = useState(false);
   const [shakeCard, setShakeCard] = useState(false);
   const [isLaneSheetOpen, setIsLaneSheetOpen] = useState(false);
-  const [isDrawnCardFlipped, setIsDrawnCardFlipped] = useState(false);
+  const [flippedCardId, setFlippedCardId] = useState<string | null>(null);
   const [lastInsertedCardId, setLastInsertedCardId] = useState<string | null>(null);
   const [isServerTurnReady, setIsServerTurnReady] = useState(!gameId);
   const [isAwaitingTurnFinish, setIsAwaitingTurnFinish] = useState(false);
   const [isSubmittingMove, setIsSubmittingMove] = useState(false);
   const [lastResultCardScore, setLastResultCardScore] = useState<number | null>(null);
   const [revealedScoreCardId, setRevealedScoreCardId] = useState<string | null>(null);
-  const laneNavigationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [serverCurrentPlayerId, setServerCurrentPlayerId] = useState<number | null>(null);
   const [serverTurnOwnerId, setServerTurnOwnerId] = useState<number | null>(null);
   const [serverWinnerId, setServerWinnerId] = useState<number | null>(null);
@@ -255,18 +259,24 @@ export default function GameBoard({
   }, [laneResult]);
 
   useEffect(() => {
-    hasPendingHoldRef.current = turnNotices.some((notice) => notice.type === 'hold');
-  }, [turnNotices]);
+    hasPendingHoldRef.current = Boolean(pendingHoldNotice) || turnNotices.some((notice) => notice.type === 'hold');
+  }, [pendingHoldNotice, turnNotices]);
 
   useEffect(() => {
     cardFlip.setValue(0);
     scoreReveal.setValue(0);
-    setIsDrawnCardFlipped(false);
+    setFlippedCardId(null);
     setRevealedScoreCardId(null);
   }, [cardFlip, gameState.drawnCard?.id, scoreReveal]);
 
+  const isDrawnCardFlipped = Boolean(
+    gameState.drawnCard && flippedCardId === gameState.drawnCard.id
+  );
+
   const isDrawnCardScoreRevealed = Boolean(
-    gameState.drawnCard && revealedScoreCardId === gameState.drawnCard.id
+    gameState.drawnCard &&
+    revealedScoreCardId === gameState.drawnCard.id &&
+    gameState.phase !== 'STEAL_DECISION'
   );
 
   useEffect(() => {
@@ -274,6 +284,7 @@ export default function GameBoard({
     laneResultRef.current = null;
     laneResultGapRef.current = false;
     queuedLaneResultsRef.current = [];
+    setPendingHoldNotice(null);
     setTurnNotices([]);
   }, [gameId, setTurnNotices]);
 
@@ -324,17 +335,34 @@ export default function GameBoard({
   }, [laneResult]);
 
   const flipDrawnCard = () => {
-    if (isDrawnCardFlipped && !canReflipWhileStealPending) return;
+    if (hasPendingLocalTurnStartNotice) {
+      logGameAction('card.flip.blocked', { reason: 'turn-start-notice-pending', phase: gameState.phase });
+      return;
+    }
+    if (isDrawnCardFlipped && !canReflipWhileStealPending) {
+      logGameAction('card.flip.blocked', { reason: 'already-flipped', phase: gameState.phase });
+      return;
+    }
     if (
       gameId &&
       !canReflipWhileStealPending &&
       (!isServerTurnReady ||
         isAwaitingTurnFinish ||
         Number(serverCurrentPlayerId) !== Number(userId))
-    ) return;
+    ) {
+      logGameAction('card.flip.blocked', {
+        awaitingFinish: isAwaitingTurnFinish,
+        localUserId: userId,
+        reason: 'server-turn-gate',
+        serverPlayerId: serverCurrentPlayerId,
+        serverReady: isServerTurnReady,
+      });
+      return;
+    }
     playSound('shuffle');
     const nextFlipped = !isDrawnCardFlipped;
-    setIsDrawnCardFlipped(nextFlipped);
+    logGameAction('card.flip', { cardId: gameState.drawnCard?.id, flipped: nextFlipped, phase: gameState.phase });
+    setFlippedCardId(nextFlipped ? gameState.drawnCard?.id ?? null : null);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Animated.timing(cardFlip, {
       toValue: nextFlipped ? 1 : 0,
@@ -343,19 +371,20 @@ export default function GameBoard({
       useNativeDriver: true,
     }).start(({ finished }) => {
       if (!finished || canReflipWhileStealPending || !nextFlipped) return;
-      if (laneNavigationTimerRef.current) clearTimeout(laneNavigationTimerRef.current);
-      laneNavigationTimerRef.current = setTimeout(() => {
-        router.navigate('/game/lane');
-      }, 500);
+      logGameAction('navigation.lane.after-flip', { cardId: gameState.drawnCard?.id });
+      router.navigate('/game/lane');
     });
   };
 
-  useEffect(() => () => {
-    if (laneNavigationTimerRef.current) clearTimeout(laneNavigationTimerRef.current);
-  }, []);
-
   useEffect(() => {
     const shuffledDeck = shuffleCards(cardsForDeck(deckType));
+    logGameAction('game.initialize', {
+      gameId: gameId ?? 'local',
+      mode,
+      playerCount: initialPlayers.length,
+      targetScore,
+      userId: userId ?? 'local',
+    });
 
     const colors = [
       'border-yellow-400 bg-yellow-400/5 text-yellow-400',
@@ -421,20 +450,47 @@ export default function GameBoard({
 
   const handleSlotSelect = (slotIdx: number) => {
     const { players, currentPlayerIndex, drawnCard, phase, activeStealerIndex } = gameState;
-    if (!drawnCard || phase !== 'PLAYING') return;
-    if (gameId && (!isServerTurnReady || isAwaitingTurnFinish || Number(serverCurrentPlayerId) !== Number(userId))) return;
+    if (!drawnCard || phase !== 'PLAYING') {
+      logGameAction('slot.select.blocked', { hasCard: Boolean(drawnCard), phase, reason: 'local-phase-gate', slotIdx });
+      return;
+    }
+    if (gameId && (!isServerTurnReady || isAwaitingTurnFinish || Number(serverCurrentPlayerId) !== Number(userId))) {
+      logGameAction('slot.select.blocked', {
+        awaitingFinish: isAwaitingTurnFinish,
+        localUserId: userId,
+        reason: 'server-turn-gate',
+        serverPlayerId: serverCurrentPlayerId,
+        serverReady: isServerTurnReady,
+        slotIdx,
+      });
+      return;
+    }
     triggerSound('click');
     const actingPlayerIndex = activeStealerIndex !== undefined ? activeStealerIndex : currentPlayerIndex;
     const actingPlayer = players[actingPlayerIndex];
     const isCorrect = verifySlotChoice(actingPlayer.lane, drawnCard, slotIdx);
+    logGameAction('slot.select', {
+      cardId: drawnCard.id,
+      isCorrect,
+      laneLength: actingPlayer.lane.length,
+      playerId: actingPlayer.id,
+      slotIdx,
+    });
     setLastResultCardScore(drawnCard.index);
     setRevealedScoreCardId(drawnCard.id);
     setSelectedSlotIndex(slotIdx);
     setSelectedSlotResult(isCorrect ? 'success' : 'failure');
     if (gameId && userId) {
       setIsSubmittingMove(true);
+      const submitStartedAt = Date.now();
+      logGameAction('move.submit.start', { gameId, isCorrect, playerId: userId });
       void api.submitMove(gameId, userId, isCorrect)
         .then(({ game }) => {
+          logGameAction('move.submit.success', {
+            awaitingFinish: game.awaiting_finish,
+            durationMs: Date.now() - submitStartedAt,
+            nextPlayerId: game.current_player_id,
+          });
           const nextIndex = players.findIndex((player) => Number(player.id) === Number(game.current_player_id));
           setServerCurrentPlayerId(game.current_player_id);
           setServerTurnOwnerId(game.turn_owner_id);
@@ -455,7 +511,13 @@ export default function GameBoard({
                 : 'PLAYING',
           }));
         })
-        .catch(() => setIsAwaitingTurnFinish(false))
+        .catch((error) => {
+          logGameAction('move.submit.failure', {
+            durationMs: Date.now() - submitStartedAt,
+            message: error instanceof Error ? error.message : String(error),
+          });
+          setIsAwaitingTurnFinish(false);
+        })
         .finally(() => setIsSubmittingMove(false));
     }
 
@@ -525,10 +587,12 @@ export default function GameBoard({
 
   useEffect(() => {
     if (!gameId) return;
+    logGameAction('poll.start', { gameId, userId });
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const poll = async () => {
       const pollStartedAt = Date.now();
+      const pollNumber = ++pollCountRef.current;
       let nextPollDelay = 3000;
       const pollController = new AbortController();
       const pollTimeout = setTimeout(() => pollController.abort(), 8000);
@@ -547,6 +611,30 @@ export default function GameBoard({
         setServerWinnerId(game.winner_id);
         nextPollDelay = Math.max(250, Number(game.ingame_polling_interval_ms) || 3000);
         const latestMove = game.moves[0];
+        const handCardCount = Object.values(game.hands).reduce((total, hand) => total + hand.length, 0);
+        const pollSignature = [
+          game.current_player_id,
+          game.turn_owner_id,
+          game.current_card?.id ?? 0,
+          game.awaiting_finish ? 1 : 0,
+          game.is_steal_turn ? 1 : 0,
+          game.winner_id ?? 0,
+          latestMove?.id ?? 0,
+          handCardCount,
+        ].join(':');
+        const stateChanged = pollSignature !== lastPollSignatureRef.current;
+        lastPollSignatureRef.current = pollSignature;
+        const pollDuration = Date.now() - pollStartedAt;
+        if (stateChanged || pollDuration >= 750 || pollNumber % 5 === 0) {
+          logGameAction('poll.success', {
+            durationMs: pollDuration,
+            handCardCount,
+            intervalMs: nextPollDelay,
+            moveCount: game.moves.length,
+            pollNumber,
+            stateChanged,
+          });
+        }
         if (lastObservedMoveIdRef.current === null) {
           lastObservedMoveIdRef.current = latestMove?.id ?? 0;
         } else if (latestMove && latestMove.id !== lastObservedMoveIdRef.current) {
@@ -566,47 +654,56 @@ export default function GameBoard({
         }
         const incomingCard = game.current_card ? toLocalCard(game.current_card) : null;
         const isIncomingLocalTurn = Number(game.current_player_id) === Number(userId);
-        setGameState((prev) => {
-          const cardChanged = Boolean(incomingCard && incomingCard.id !== prev.drawnCard?.id);
-          if (cardChanged && isIncomingLocalTurn) {
-            pendingTurnCardRef.current = incomingCard;
-            holdingTurnCardRef.current = true;
-          }
-          return {
-            ...prev,
-            currentPlayerIndex: safeServerPlayerIndex,
-            activeStealerIndex: game.is_steal_turn ? safeServerPlayerIndex : undefined,
-            phase: game.winner_id
-              ? 'VICTORY'
-              : game.is_steal_turn && !game.awaiting_finish
-              ? acceptedStealCardIdRef.current === String(game.current_card?.id) ? 'PLAYING' : 'STEAL_DECISION'
-              : game.awaiting_finish ? prev.phase : 'PLAYING',
-            drawnCard: holdingTurnCardRef.current ? prev.drawnCard : incomingCard ?? prev.drawnCard,
-            players: prev.players.map((player) => {
-              const hand = game.hands[player.id];
-              if (!hand) return player;
-              const pendingCardId = pendingPlacementRef.current?.card.id;
-              const serverLane = hand.map(toLocalCard).filter((card) => card.id !== pendingCardId);
-              const serverCardIds = new Set(serverLane.map((card) => card.id));
-              const pendingCards = (optimisticLaneCardsRef.current[player.id] ?? [])
-                .filter((card) => !serverCardIds.has(card.id));
-              optimisticLaneCardsRef.current[player.id] = pendingCards;
-              const lane = [...serverLane, ...pendingCards].sort((a, b) => a.index - b.index);
-              return { ...player, lane, score: pointsFromLane(lane) };
-            }),
-            guessHistory: game.moves.map((move) => ({
-              playerName: move.player.name,
-              cardTitle: move.card?.title ?? '',
-              cardScore: move.card ? Number(move.card.score) : undefined,
-              guessIndex: -1,
-              correctIndex: -1,
-              success: move.correct,
-            })),
-          };
-        });
+        if (stateChanged) {
+          setGameState((prev) => {
+            const cardChanged = Boolean(incomingCard && incomingCard.id !== prev.drawnCard?.id);
+            if (cardChanged && isIncomingLocalTurn) {
+              pendingTurnCardRef.current = incomingCard;
+              holdingTurnCardRef.current = true;
+            }
+            return {
+              ...prev,
+              currentPlayerIndex: safeServerPlayerIndex,
+              activeStealerIndex: game.is_steal_turn ? safeServerPlayerIndex : undefined,
+              phase: game.winner_id
+                ? 'VICTORY'
+                : game.is_steal_turn && !game.awaiting_finish
+                ? acceptedStealCardIdRef.current === String(game.current_card?.id) ? 'PLAYING' : 'STEAL_DECISION'
+                : game.awaiting_finish ? prev.phase : 'PLAYING',
+              drawnCard: holdingTurnCardRef.current ? prev.drawnCard : incomingCard ?? prev.drawnCard,
+              players: prev.players.map((player) => {
+                const hand = game.hands[player.id];
+                if (!hand) return player;
+                const pendingCardId = pendingPlacementRef.current?.card.id;
+                const serverLane = hand.map(toLocalCard).filter((card) => card.id !== pendingCardId);
+                const serverCardIds = new Set(serverLane.map((card) => card.id));
+                const pendingCards = (optimisticLaneCardsRef.current[player.id] ?? [])
+                  .filter((card) => !serverCardIds.has(card.id));
+                optimisticLaneCardsRef.current[player.id] = pendingCards;
+                const lane = [...serverLane, ...pendingCards].sort((a, b) => a.index - b.index);
+                return { ...player, lane, score: pointsFromLane(lane) };
+              }),
+              guessHistory: game.moves.map((move) => ({
+                playerName: move.player.name,
+                cardTitle: move.card?.title ?? '',
+                cardScore: move.card ? Number(move.card.score) : undefined,
+                guessIndex: -1,
+                correctIndex: -1,
+                success: move.correct,
+              })),
+            };
+          });
+        }
       } catch (error) {
         consecutivePollFailuresRef.current += 1;
         const timedOut = error instanceof Error && error.name === 'AbortError';
+        logGameAction('poll.failure', {
+          durationMs: Date.now() - pollStartedAt,
+          failures: consecutivePollFailuresRef.current,
+          message: error instanceof Error ? error.message : String(error),
+          pollNumber,
+          timedOut,
+        });
         if (timedOut || consecutivePollFailuresRef.current >= 2) {
           setConnectionWarningVisible(true);
         }
@@ -620,6 +717,7 @@ export default function GameBoard({
     return () => {
       cancelled = true;
       if (timer) clearTimeout(timer);
+      logGameAction('poll.stop', { gameId, polls: pollCountRef.current });
     };
   }, [gameId]);
 
@@ -636,9 +734,16 @@ export default function GameBoard({
 
   const handleStealChoice = (accept: boolean) => {
     const { players, currentPlayerIndex, activeStealerIndex, drawnCard } = gameState;
-    if (activeStealerIndex === undefined || !drawnCard) return;
+    if (activeStealerIndex === undefined || !drawnCard) {
+      logGameAction('steal.choice.blocked', { accept, hasCard: Boolean(drawnCard), reason: 'missing-steal-state' });
+      return;
+    }
+    logGameAction('steal.choice', { accept, cardId: drawnCard.id, stealerId: players[activeStealerIndex]?.id });
     if (accept) {
       triggerSound('steal');
+      setFlippedCardId(null);
+      cardFlip.stopAnimation();
+      cardFlip.setValue(0);
       setRevealedScoreCardId(null);
       scoreReveal.stopAnimation();
       scoreReveal.setValue(0);
@@ -655,7 +760,13 @@ export default function GameBoard({
     } else {
       triggerSound('click');
       if (gameId && userId) {
-        api.passSteal(gameId, userId).catch(() => undefined);
+        const passStartedAt = Date.now();
+        api.passSteal(gameId, userId)
+          .then(() => logGameAction('steal.pass.success', { durationMs: Date.now() - passStartedAt }))
+          .catch((error) => logGameAction('steal.pass.failure', {
+            durationMs: Date.now() - passStartedAt,
+            message: error instanceof Error ? error.message : String(error),
+          }));
         acceptedStealCardIdRef.current = null;
         return;
       }
@@ -678,13 +789,29 @@ export default function GameBoard({
         hasPendingHoldRef.current ||
         !isAwaitingTurnFinishRef.current ||
         Number(serverCurrentPlayerIdRef.current) !== Number(userId)
-      ) return;
+      ) {
+        logGameAction('turn.finish.blocked', {
+          awaitingFinish: isAwaitingTurnFinishRef.current,
+          finishInFlight: finishTurnInFlightRef.current,
+          hasPendingHold: hasPendingHoldRef.current,
+          localUserId: userId,
+          serverPlayerId: serverCurrentPlayerIdRef.current,
+        });
+        return;
+      }
 
       finishTurnInFlightRef.current = true;
       triggerSound('click');
+      const finishStartedAt = Date.now();
+      logGameAction('turn.finish.start', { gameId, playerId: userId });
       try {
         const response = await api.finishTurn(gameId, userId);
         const game = response.game;
+        logGameAction('turn.finish.success', {
+          durationMs: Date.now() - finishStartedAt,
+          nextPlayerId: game.current_player_id,
+          stealTurn: game.is_steal_turn,
+        });
         acceptedStealCardIdRef.current = null;
         setIsAwaitingTurnFinish(game.awaiting_finish);
         setServerCurrentPlayerId(game.current_player_id);
@@ -701,7 +828,13 @@ export default function GameBoard({
           drawnCard: prev.drawnCard,
           phase: game.is_steal_turn ? 'STEAL_DECISION' : 'PLAYING',
         }));
-      } catch { /* Polling will restore authoritative turn state. */ }
+      } catch (error) {
+        logGameAction('turn.finish.failure', {
+          durationMs: Date.now() - finishStartedAt,
+          message: error instanceof Error ? error.message : String(error),
+        });
+        /* Polling will restore authoritative turn state. */
+      }
       finally {
         finishTurnInFlightRef.current = false;
       }
@@ -754,27 +887,47 @@ export default function GameBoard({
   };
 
   const handleLaneResultFadeComplete = () => {
-    if (isLaneCollapsing || selectedSlotResult === null) return;
+    if (laneCollapseInFlightRef.current || selectedSlotResult === null) return;
+    laneCollapseInFlightRef.current = true;
+    logGameAction('lane-animation.collapse-start', { durationMs: 260 });
     setIsLaneCollapsing(true);
+    const finishCollapse = () => {
+      if (!laneCollapseInFlightRef.current) return;
+      laneCollapseInFlightRef.current = false;
+      logGameAction('lane-animation.collapse-complete');
+      setIsLaneCollapsing(false);
+      if (
+        isAwaitingTurnFinishRef.current &&
+        Number(serverCurrentPlayerIdRef.current) === Number(userId) &&
+        !hasPendingHoldRef.current
+      ) void handleProceedNextRound();
+    };
     LayoutAnimation.configureNext(
       {
-        duration: 420,
+        duration: 260,
         create: { property: LayoutAnimation.Properties.opacity, type: LayoutAnimation.Types.easeInEaseOut },
         delete: { property: LayoutAnimation.Properties.opacity, type: LayoutAnimation.Types.easeInEaseOut },
         update: { type: LayoutAnimation.Types.easeInEaseOut },
       },
-      () => {
-        setIsLaneCollapsing(false);
-        if (
-          isAwaitingTurnFinishRef.current &&
-          Number(serverCurrentPlayerIdRef.current) === Number(userId) &&
-          !hasPendingHoldRef.current
-        ) void handleProceedNextRound();
-      }
+      finishCollapse
     );
+    setTimeout(finishCollapse, 320);
     setSelectedSlotIndex(null);
     setSelectedSlotResult(null);
   };
+
+  useEffect(() => {
+    if (laneResult !== null || selectedSlotResult === null || isLaneCollapsing) return;
+    logGameAction('lane-animation.fade-start', { durationMs: 850, result: selectedSlotResult });
+    const timer = setTimeout(() => {
+      logGameAction('lane-animation.fade-complete', { result: selectedSlotResult });
+      handleLaneResultFadeComplete();
+    }, 850);
+    return () => clearTimeout(timer);
+    // The timer is intentionally driven only by the lane animation state. Poll renders
+    // must not restart it while the same insertion marker is fading.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLaneCollapsing, laneResult, selectedSlotResult]);
 
   const handleRestartGame = () => {
     if (mode !== 'MULTIPLAYER' || !gameId || !userId) {
@@ -852,11 +1005,31 @@ export default function GameBoard({
   const isLocalServerTurn = Boolean(
     gameId && userId && Number(serverCurrentPlayerId) === Number(userId)
   );
+  const observedTurn = observedTurnRef.current;
+  const hasPendingLocalTurnStartNotice = Boolean(
+    turnNotices.some((notice) => notice.type === 'start') ||
+    (
+      gameId &&
+      userId &&
+      isLocalServerTurn &&
+      !isAwaitingTurnFinish &&
+      gameState.phase === 'PLAYING' &&
+      !activeStealer &&
+      (
+        !observedTurn ||
+        observedTurn.actorId !== Number(userId) ||
+        observedTurn.cardId !== String(gameState.drawnCard?.id) ||
+        observedTurn.isSteal ||
+        !observedTurn.announced
+      )
+    )
+  );
   const didLocalWin = Boolean(
     isVictoryPhase && (!gameId || (userId && Number(serverWinnerId) === Number(userId)))
   );
   const canFlipCard = Boolean(
     !isDrawnCardFlipped &&
+    !hasPendingLocalTurnStartNotice &&
     gameState.phase === 'PLAYING' &&
     (!gameId || (
       isServerTurnReady &&
@@ -887,32 +1060,30 @@ export default function GameBoard({
     isLocalServerTurn &&
     !isAwaitingTurnFinish &&
     !isSubmittingMove &&
+    !hasPendingLocalTurnStartNotice &&
     gameState.phase === 'PLAYING'
   );
 
   useEffect(() => {
-    setIsTurnInactive(false);
-    setInactivityWarningVisible(false);
-    if (!shouldWatchLocalInactivity) return;
+    if (!shouldWatchLocalInactivity) {
+      setIsTurnInactive(false);
+      setInactivityWarningVisible(false);
+      return;
+    }
+    if (inactivityWarningVisible) return;
 
     const timer = setTimeout(() => {
       setIsTurnInactive(true);
       setInactivityWarningVisible(true);
       playSound('bell');
-    }, 20_000);
+    }, 15_000);
 
     return () => {
       clearTimeout(timer);
     };
   }, [
     gameState.drawnCard?.id,
-    gameState.phase,
-    isDrawnCardFlipped,
-    isLocalServerTurn,
-    isServerTurnReady,
-    isSubmittingMove,
-    isAwaitingTurnFinish,
-    serverCurrentPlayerId,
+    inactivityWarningVisible,
     shouldWatchLocalInactivity,
   ]);
 
@@ -1016,14 +1187,13 @@ export default function GameBoard({
     observedTurnRef.current = currentTurn;
     const previousWasMine = previousTurn.actorId === Number(userId);
     const nextActorName = gameState.players.find((player) => Number(player.id) === currentTurn.actorId)?.name;
+    if (previousWasMine && previousTurn.announced && !previousTurn.isSteal && currentTurn.isSteal) {
+      setPendingHoldNotice({ playerName: nextActorName });
+      hasPendingHoldRef.current = true;
+      logGameAction('action-queue.hold-pending', { playerName: nextActorName });
+    }
     setTurnNotices((current) => {
       const next = [...current];
-      if (previousWasMine && previousTurn.announced && !previousTurn.isSteal && currentTurn.isSteal) next.push({
-        id: ++turnNoticeIdRef.current,
-        type: 'hold',
-        steal: true,
-        playerName: nextActorName,
-      });
       if (currentIsMine && !currentTurn.isSteal) {
         currentTurn.announced = true;
         next.push({ id: ++turnNoticeIdRef.current, type: 'start' });
@@ -1033,12 +1203,30 @@ export default function GameBoard({
   }, [activeStealer, gameId, gameState.drawnCard, isServerTurnReady, serverCurrentPlayerId, setTurnNotices, userId]);
 
   useEffect(() => {
+    if (laneResult !== null || selectedSlotResult !== null || isLaneCollapsing) return;
+    if (!pendingHoldNotice) return;
+    setPendingHoldNotice(null);
+    logGameAction('action-queue.hold-ready', { playerName: pendingHoldNotice.playerName });
+    setTurnNotices((current) => [...current, {
+      id: ++turnNoticeIdRef.current,
+      type: 'hold',
+      steal: true,
+      playerName: pendingHoldNotice.playerName,
+    }]);
+  }, [isLaneCollapsing, laneResult, pendingHoldNotice, selectedSlotResult, setTurnNotices]);
+
+  useEffect(() => {
     if (!gameId || !userId || serverTurnOwnerId === null) return;
     const previousOwnerId = observedTurnOwnerIdRef.current;
     observedTurnOwnerIdRef.current = Number(serverTurnOwnerId);
     if (previousOwnerId === null) return;
     if (previousOwnerId === Number(userId) && Number(serverTurnOwnerId) !== Number(userId)) {
-      setTurnNotices((current) => [...current.filter((notice) => notice.type !== 'hold'), {
+      logGameAction('action-queue.turn-owner-ended', {
+        nextOwnerId: Number(serverTurnOwnerId),
+        previousOwnerId,
+        preservingQueuedHold: true,
+      });
+      setTurnNotices((current) => [...current, {
         id: ++turnNoticeIdRef.current,
         type: 'end',
       }]);
@@ -1049,6 +1237,7 @@ export default function GameBoard({
     setGameRuntime({
       canPlaceCard:
         gameState.phase === 'PLAYING' &&
+        !hasPendingLocalTurnStartNotice &&
         isDrawnCardFlipped &&
         Boolean(currentActingPlayer) &&
         !currentActingPlayer?.isBot &&
@@ -1077,7 +1266,10 @@ export default function GameBoard({
       inactivityWarningVisible,
       connectionWarningVisible,
       isTurnInactive,
-      dismissInactivityWarning: () => setInactivityWarningVisible(false),
+      dismissInactivityWarning: () => {
+        setIsTurnInactive(false);
+        setInactivityWarningVisible(false);
+      },
       laneResult,
       selectedSlotIndex,
       selectedSlotResult,
@@ -1092,7 +1284,7 @@ export default function GameBoard({
         (!gameId || Number(activeStealer.id) === Number(userId))
       ),
     });
-  }, [connectionWarningVisible, currentActingPlayer, gameId, gameState, inactivityWarningVisible, isAwaitingTurnFinish, isDrawnCardFlipped, isDrawnCardScoreRevealed, isServerTurnReady, isSubmittingMove, isTurnInactive, laneResult, lastInsertedCardId, lastResultCardScore, lastStealWasFromLocalPlayer, localPlayer, selectedSlotIndex, selectedSlotResult, serverCurrentPlayerId, setGameRuntime, userId]);
+  }, [connectionWarningVisible, currentActingPlayer, gameId, gameState, hasPendingLocalTurnStartNotice, inactivityWarningVisible, isAwaitingTurnFinish, isDrawnCardFlipped, isDrawnCardScoreRevealed, isLaneCollapsing, isServerTurnReady, isSubmittingMove, isTurnInactive, laneResult, lastInsertedCardId, lastResultCardScore, lastStealWasFromLocalPlayer, localPlayer, selectedSlotIndex, selectedSlotResult, serverCurrentPlayerId, setGameRuntime, userId]);
 
   useEffect(() => {
     if (!didLocalWin || winnerCelebratedRef.current) return;

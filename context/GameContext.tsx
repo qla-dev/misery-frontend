@@ -80,6 +80,7 @@ interface GameContextValue {
   setSession: (session: GameSession | null) => void;
   musicMuted: boolean;
   setMusicMuted: (value: boolean) => void;
+  settingsRestored: boolean;
   showRules: boolean;
   setShowRules: (value: boolean) => void;
   turnNotices: TurnNotice[];
@@ -147,10 +148,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     void AsyncStorage.setItem(LANGUAGE_KEY, language).catch(() => undefined);
   }, [language, settingsRestored]);
 
-  useEffect(() => {
-    if (!settingsRestored) return;
-    void AsyncStorage.setItem(MUSIC_MUTED_KEY, String(musicMuted)).catch(() => undefined);
-  }, [musicMuted, settingsRestored]);
+  const updateMusicMuted = useCallback((value: boolean) => {
+    setMusicMuted(value);
+    void AsyncStorage.setItem(MUSIC_MUTED_KEY, String(value)).catch(() => undefined);
+  }, []);
 
   const applyPremiumStatus = useCallback((status: PremiumStatus) => {
     setIsPremium(status.active);
@@ -311,7 +312,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       session,
       setSession,
       musicMuted,
-      setMusicMuted,
+      setMusicMuted: updateMusicMuted,
+      settingsRestored,
       showRules,
       setShowRules,
       turnNotices,
@@ -352,8 +354,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       roomExitWarningOpen,
       session,
       musicMuted,
+      settingsRestored,
       showRules,
       turnNotices,
+      updateMusicMuted,
     ]
   );
 

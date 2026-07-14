@@ -1,6 +1,6 @@
 import { InfoModal } from '@/components/InfoModal';
 import { ConfirmModal } from '@/components/ConfirmModal';
-import { LaneModal } from '@/components/LaneModal';
+import { GameActionQueue } from '@/components/GameActionQueue';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { router, Stack } from 'expo-router';
 import { useGame } from '@/context/GameContext';
@@ -11,7 +11,7 @@ import HelpIcon from '@expo/material-symbols/help.xml';
 import VolumeOffIcon from '@expo/material-symbols/volume_off.xml';
 import VolumeUpIcon from '@expo/material-symbols/volume_up.xml';
 import { SFSymbol } from 'sf-symbols-typescript';
-import { ChevronLeft, ShieldAlert, WifiOff } from 'lucide-react-native';
+import { ChevronLeft, WifiOff } from 'lucide-react-native';
 
 function toolbarIcon(ios: SFSymbol, android: ImageSourcePropType) {
   return process.env.EXPO_OS === 'ios' ? ios : android;
@@ -36,6 +36,7 @@ export default function GameTabsLayout() {
     laneResult,
     laneResultPlayerName,
     musicMuted,
+    settingsRestored,
     setGameRuntime,
     setInfoModalOpen,
     setIsGameCountingDown,
@@ -49,7 +50,6 @@ export default function GameTabsLayout() {
     turnNotices,
   } = useGame();
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
-  const [turnNoticeReady, setTurnNoticeReady] = useState(true);
   const isBs = language === 'bs';
   const turnNotice = turnNotices[0];
   const activePlayerName = gameRuntime?.currentActingPlayer?.name ?? session?.players[0]?.name;
@@ -118,13 +118,11 @@ export default function GameTabsLayout() {
       : 'PLAYER TURN';
 
   useEffect(() => {
+    if (!settingsRestored) return undefined;
+    setGameMusicMuted(musicMuted);
     setGameMusicActive(true);
     return () => setGameMusicActive(false);
-  }, []);
-
-  useEffect(() => {
-    setGameMusicMuted(musicMuted);
-  }, [musicMuted]);
+  }, [musicMuted, settingsRestored]);
 
   useEffect(() => {
     if (!isGameFinished) return;
@@ -133,23 +131,13 @@ export default function GameTabsLayout() {
   }, [isGameFinished]);
 
   useEffect(() => {
-    if (turnNotice?.type !== 'start') return;
+    if (
+      turnNotice?.type !== 'start' ||
+      laneResult !== null ||
+      gameRuntime?.hasPendingLaneAnimation
+    ) return;
     router.navigate('/game');
-  }, [turnNotice?.id, turnNotice?.type]);
-
-  useEffect(() => {
-    if (laneResult !== null) {
-      setTurnNoticeReady(false);
-      return;
-    }
-    if (!turnNotice) {
-      setTurnNoticeReady(true);
-      return;
-    }
-    setTurnNoticeReady(false);
-    const timer = setTimeout(() => setTurnNoticeReady(true), turnNotice.type === 'end' ? 1000 : 500);
-    return () => clearTimeout(timer);
-  }, [laneResult, turnNotice?.id, turnNotice?.type]);
+  }, [gameRuntime?.hasPendingLaneAnimation, laneResult, turnNotice?.id, turnNotice?.type]);
 
   const returnToWelcome = () => {
     playHaptic();
@@ -305,92 +293,26 @@ export default function GameTabsLayout() {
           </Text>
         </View>
       )}
-      <ConfirmModal
-        cancelLabel={isBs ? 'PRESKOČI' : 'PASS'}
-        confirmLabel={isBs ? 'POKUŠAJ KRAĐU' : 'TRY TO STEAL'}
-        onCancel={() => gameRuntime?.handleStealChoice?.(false)}
-        onConfirm={() => gameRuntime?.handleStealChoice?.(true)}
-        onRequestClose={() => gameRuntime?.handleStealChoice?.(false)}
-        visible={Boolean(gameRuntime?.stealDecisionVisible)}
-      >
-        <View className="items-center" style={{ gap: 10 }}>
-          <ShieldAlert size={38} color="#fbbf24" />
-          <Text className="text-center text-lg font-black uppercase tracking-wider text-amber-400">
-            {isBs ? 'MOGUĆNOST KRAĐE' : 'STEAL OPPORTUNITY'}
-          </Text>
-          <Text className="text-center text-sm leading-6 text-neutral-300">
-            {isBs
-              ? `${gameRuntime?.activeStealer?.name}, želiš li pokušati pravilno smjestiti kartu i ukrasti je?`
-              : `${gameRuntime?.activeStealer?.name}, do you want to place the card correctly and steal it?`}
-          </Text>
-        </View>
-      </ConfirmModal>
-      <LaneModal
-        failureMessage={laneFailureMessage}
-        failureTitle={isBs ? 'NETAČNO' : 'INCORRECT'}
-        onComplete={() => {
+      <GameActionQueue
+        activeStealerName={gameRuntime?.activeStealer?.name}
+        hasPendingLaneAnimation={Boolean(gameRuntime?.hasPendingLaneAnimation)}
+        inactivityWarningVisible={Boolean(gameRuntime?.inactivityWarningVisible)}
+        isBs={isBs}
+        laneFailureMessage={laneFailureMessage}
+        laneResult={laneResult}
+        laneResultProgress={laneResultProgress}
+        laneStealMessage={laneStealMessage}
+        laneSuccessMessage={laneSuccessMessage}
+        lastResultCardScore={gameRuntime?.lastResultCardScore}
+        onInactivityComplete={() => gameRuntime?.dismissInactivityWarning?.()}
+        onLaneResultComplete={() => {
           setLaneResult(null);
           setLaneResultPlayerName(null);
         }}
-        laneProgress={laneResultProgress}
-        success={laneResult !== 'failure'}
-        successMessage={laneResult === 'steal' ? laneStealMessage : laneSuccessMessage}
-        successTitle={laneResult === 'steal'
-          ? isBs ? 'KARTA UKRADENA' : 'CARD STOLEN'
-          : isBs ? 'TAČNO' : 'CORRECT'}
-        score={laneResult === 'steal' && gameRuntime?.lastResultCardScore !== null
-          ? gameRuntime?.lastResultCardScore
-          : undefined}
-        scoreLabel={isBs ? 'STOPA BIJEDE' : 'MISERY RATE'}
-        visible={laneResult !== null}
-        warning={laneResult === 'steal'}
-      />
-      <LaneModal
-        key={turnNotice?.id ?? 'no-turn-notice'}
-        ending={turnNotice?.type === 'end' || turnNotice?.type === 'finish'}
-        failureMessage=""
-        failureTitle=""
-        holding={turnNotice?.type === 'hold'}
-        neutral={turnNotice?.type !== 'hold'}
-        onComplete={() => setTurnNotices((current) => current.slice(1))}
-        success
-        successMessage={turnNotice?.type === 'finish'
-          ? isBs ? 'KONAČNI POREDAK JE SPREMAN' : 'YOUR FINAL STANDINGS ARE READY'
-          : turnNotice?.type === 'hold'
-            ? isBs
-              ? `TVOJA KARTA JE PONUĐENA IGRAČU ${turnNotice.playerName ?? 'SLJEDEĆEM IGRAČU'} — SAČEKAJ ODLUKU`
-              : `YOUR CARD IS OFFERED TO ${turnNotice.playerName ?? 'THE NEXT PLAYER'} — WAIT FOR THEIR DECISION`
-          : turnNotice?.type === 'end'
-          ? turnNotice.steal
-            ? isBs
-              ? `KARTA JE PONUĐENA IGRAČU ${turnNotice.playerName ?? ''} ZA KRAĐU`
-              : `THE CARD IS NOW OFFERED TO ${turnNotice.playerName ?? 'THE NEXT PLAYER'} TO STEAL`
-            : isBs ? 'ČEKAJ SLJEDEĆU PRILIKU' : 'WAITING FOR THE NEXT PLAYER'
-          : turnNotice?.steal
-            ? isBs ? 'DODIRNI KARTU I POKUŠAJ KRAĐU' : 'TAP THE CARD TO TRY TO STEAL'
-            : isBs ? 'DODIRNI KARTU ZA IGRU' : 'TAP THE CARD TO PLAY'}
-        successTitle={turnNotice?.type === 'finish'
-          ? isBs ? 'IGRA JE ZAVRŠENA' : 'GAME FINISHED'
-          : turnNotice?.type === 'hold'
-            ? isBs ? 'NA ČEKANJU SI' : `YOU'RE ON HOLD`
-          : turnNotice?.type === 'end'
-          ? isBs ? 'TVOJ POTEZ JE ZAVRŠEN' : 'YOUR TURN ENDED'
-          : turnNotice?.steal
-            ? isBs ? 'POKUŠAJ KRAĐE' : 'YOUR STEAL ATTEMPT'
-            : isBs ? 'TVOJ POTEZ JE POČEO' : 'YOUR TURN STARTED'}
-        visible={laneResult === null && !gameRuntime?.inactivityWarningVisible && turnNoticeReady && !gameRuntime?.hasPendingLaneAnimation && Boolean(turnNotice)}
-        warning={turnNotice?.type === 'hold'}
-      />
-      <LaneModal
-        bell
-        failureMessage=""
-        failureTitle=""
-        onComplete={() => gameRuntime?.dismissInactivityWarning?.()}
-        success
-        successMessage={isBs ? 'ODIGRAJ TRENUTNU KARTU DA SE IGRA NASTAVI' : 'PLAY THE CURRENT CARD TO KEEP THE GAME MOVING'}
-        successTitle={isBs ? 'TVOJ POTEZ ČEKA' : 'YOUR TURN IS WAITING'}
-        visible={laneResult === null && Boolean(gameRuntime?.inactivityWarningVisible)}
-        warning
+        onStealChoice={(accept) => gameRuntime?.handleStealChoice?.(accept)}
+        onTurnNoticeComplete={() => setTurnNotices((current) => current.slice(1))}
+        stealDecisionVisible={Boolean(gameRuntime?.stealDecisionVisible)}
+        turnNotice={turnNotice}
       />
       <ConfirmModal
         cancelLabel={isBs ? 'NAPUSTI IGRU' : 'LEAVE GAME'}

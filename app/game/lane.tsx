@@ -15,7 +15,7 @@ function SelectedInsertSlot({ isBs, onFadeComplete, result, shouldFade }: { isBs
   useEffect(() => {
     if (!shouldFade) return;
     const animation = Animated.timing(opacity, {
-      duration: 2400,
+      duration: 850,
       toValue: 0,
       useNativeDriver: true,
     });

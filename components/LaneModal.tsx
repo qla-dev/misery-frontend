@@ -116,6 +116,18 @@ export function LaneModal({
     outputRange: ['-45deg', '45deg'],
   });
   const darkForeground = neutral || warning;
+  const isScoredSteal = warning && score !== undefined;
+  const modalTitleStyle = {
+    fontFamily: 'BebasNeue_400Regular',
+    fontSize: 48,
+    letterSpacing: 1.2,
+    lineHeight: 50,
+  };
+  const modalMessageStyle = {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 15,
+    lineHeight: 20,
+  };
 
   return (
     <Modal
@@ -134,9 +146,9 @@ export function LaneModal({
       >
         <Animated.View
           className="items-center"
-          style={{ gap: 22, transform: [{ translateY: -31 }, { scale }, { rotate }] }}
+          style={{ gap: 14, transform: [{ translateY: -31 }, { scale }, { rotate }] }}
         >
-          <View className={`h-40 w-40 items-center justify-center rounded-full border-[6px] ${darkForeground ? 'border-neutral-950 bg-neutral-950/5' : 'border-white bg-white/15'}`}>
+          <View className={`${isScoredSteal ? 'h-44 w-44' : 'h-40 w-40'} items-center justify-center rounded-full border-[6px] ${darkForeground ? 'border-neutral-950 bg-neutral-950/5' : 'border-white bg-white/15'}`}>
             {holding ? (
               <Pause
                 color={darkForeground ? '#0a0a0a' : '#ffffff'}
@@ -149,31 +161,32 @@ export function LaneModal({
                 ? <Square color="#0a0a0a" fill="#0a0a0a" size={72} strokeWidth={2.5} />
                 : <Play color="#0a0a0a" fill="#0a0a0a" size={82} strokeWidth={2.5} />
             ) : bell ? (
-              <BellRing color={darkForeground ? '#0a0a0a' : '#ffffff'} size={88} strokeWidth={3.5} />
+              <BellRing color={darkForeground ? '#0a0a0a' : '#ffffff'} size={70} strokeWidth={2} />
             ) : warning && score !== undefined ? (
-              <View className="items-center justify-center" style={{ height: 126, width: 132 }}>
+              <View className="items-center justify-center" style={{ height: 142, width: 154 }}>
                 <Text
                   className="font-black text-neutral-950"
                   style={{
-                    fontFamily: 'JetBrainsMono_700Bold',
-                    fontSize: 44,
-                    height: 62,
+                    fontFamily: 'BebasNeue_400Regular',
+                    fontSize: 54,
+                    fontWeight: '400',
+                    height: 70,
                     includeFontPadding: false,
-                    lineHeight: 58,
+                    lineHeight: 66,
                     paddingTop: 3,
                     textAlign: 'center',
                     textAlignVertical: 'center',
-                    width: 132,
+                    width: 154,
                   }}
                 >
                   {score.toFixed(2)}
                 </Text>
                 <Text
                   adjustsFontSizeToFit
-                  className="mt-1 text-center font-mono text-[9px] font-black uppercase tracking-[2px] text-neutral-950/65"
+                  className="mt-1 text-center uppercase text-neutral-950/65"
                   minimumFontScale={0.72}
                   numberOfLines={1}
-                  style={{ lineHeight: 14, width: 124 }}
+                  style={{ fontFamily: 'BebasNeue_400Regular', fontSize: 15, letterSpacing: 1.2, lineHeight: 17, width: 144 }}
                 >
                   {scoreLabel}
                 </Text>
@@ -191,17 +204,24 @@ export function LaneModal({
               addsCard={laneProgress.addsCard}
               count={laneProgress.count}
               dark={darkForeground}
+              emphasized
               label={laneProgress.label}
               target={laneProgress.target}
             />
           )}
-          <View className="items-center" style={{ gap: 8 }}>
+          <View className="items-center" style={{ gap: 14, marginTop: laneProgress ? 0 : 14 }}>
             {!laneProgress && (
-              <Text className={`text-center text-4xl font-black uppercase tracking-wider ${darkForeground ? 'text-neutral-950' : 'text-white'}`}>
+              <Text
+                className={`text-center font-black uppercase ${darkForeground ? 'text-neutral-950' : 'text-white'}`}
+                style={modalTitleStyle}
+              >
                 {success ? successTitle : failureTitle}
               </Text>
             )}
-            <Text className={`text-center text-sm font-bold uppercase tracking-widest ${darkForeground ? 'text-neutral-950/65' : 'text-white/85'}`}>
+            <Text
+              className={`text-center font-bold uppercase tracking-widest ${darkForeground ? 'text-neutral-950/65' : 'text-white/85'}`}
+              style={modalMessageStyle}
+            >
               {success ? successMessage : failureMessage}
             </Text>
             {score !== undefined && !warning && (
@@ -217,7 +237,8 @@ export function LaneModal({
           pointerEvents="box-none"
           style={{
             alignItems: 'center',
-            bottom: 20,
+            bottom: 14,
+            gap: 0,
             left: 0,
             position: 'absolute',
             right: 0,
@@ -225,15 +246,17 @@ export function LaneModal({
         >
           {laneProgress ? (
             <Text
-              className={`mb-5 text-center text-4xl font-black uppercase tracking-wider ${darkForeground ? 'text-neutral-950' : 'text-white'}`}
+              className={`text-center font-black uppercase ${darkForeground ? 'text-neutral-950' : 'text-white'}`}
               numberOfLines={1}
+              style={[modalTitleStyle, { marginBottom: -2 }]}
             >
               {success ? successTitle : failureTitle}
             </Text>
           ) : playerName ? (
             <Text
-              className={`mb-5 text-center text-4xl font-black uppercase tracking-wider ${darkForeground ? 'text-neutral-950' : 'text-white'}`}
+              className={`text-center font-black uppercase ${darkForeground ? 'text-neutral-950' : 'text-white'}`}
               numberOfLines={1}
+              style={modalTitleStyle}
             >
               {playerName}
             </Text>

@@ -65,10 +65,6 @@ const GOOGLE_IOS_REVERSED_CLIENT_ID = GOOGLE_AUTH_CONFIG.iosClientId
 const GOOGLE_REDIRECT_URI = GOOGLE_IOS_REVERSED_CLIENT_ID
   ? `${GOOGLE_IOS_REVERSED_CLIENT_ID}:/oauthredirect`
   : undefined;
-const IS_WEB_INTERFACE = process.env.EXPO_OS
-  ? process.env.EXPO_OS === 'web'
-  : Platform.OS === 'web';
-
 WebBrowser.maybeCompleteAuthSession();
 
 function logLobbyTransition(event: string, details: Record<string, unknown> = {}) {
@@ -349,6 +345,8 @@ export default function Lobby() {
     setLobbyEntryFade,
     setupTab,
     setSetupTab,
+    pendingDeepLinkCode,
+    setPendingDeepLinkCode,
     userName,
     setUserName,
     selectedColor,
@@ -384,6 +382,7 @@ export default function Lobby() {
   const lobbyScrollRef = useRef<ScrollView>(null);
   const welcomeOpacity = useRef(new Animated.Value(lobbyView === 'WELCOME' ? 1 : 0)).current;
   const setupOpacity = useRef(new Animated.Value(lobbyView === 'SETUP' ? 1 : 0)).current;
+  const publicGamesOpacity = useRef(new Animated.Value(lobbyView === 'PUBLIC_GAMES' ? 1 : 0)).current;
   const roomOpacity = useRef(new Animated.Value(1)).current;
   const lobbyCrossfadeRef = useRef(false);
   const authButtonsOpacity = useRef(new Animated.Value(1)).current;
@@ -397,6 +396,7 @@ export default function Lobby() {
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
   const [isStartingGame, setIsStartingGame] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const [identityRestored, setIdentityRestored] = useState(false);
   const [signingInProvider, setSigningInProvider] = useState<'google' | 'apple' | null>(null);
   const [usernameModalOpen, setUsernameModalOpen] = useState(false);
   const [usernameDraft, setUsernameDraft] = useState('');
@@ -416,6 +416,7 @@ export default function Lobby() {
   const serverStartedRef = useRef(false);
   const processedGoogleTokenRef = useRef<string | null>(null);
   const observedLobbyPlayerIdsRef = useRef<Set<string> | null>(null);
+  const deepLinkAutoJoinAttemptedRef = useRef(false);
   const [, googleAuthResponse, promptGoogleSignIn] = Google.useIdTokenAuthRequest({
     ...GOOGLE_AUTH_REQUEST_CONFIG,
     redirectUri: GOOGLE_REDIRECT_URI,
@@ -436,9 +437,9 @@ export default function Lobby() {
   }, [lobbyView, roomPlayers]);
 
   useEffect(() => {
-    const canPrefetchAvailableGames = lobbyView === 'WELCOME' || lobbyView === 'SETUP';
-    if (!IS_WEB_INTERFACE || !canPrefetchAvailableGames) {
-      logLobbyTransition('available-games-disabled', { isWeb: IS_WEB_INTERFACE, lobbyView });
+    const canPrefetchAvailableGames = lobbyView === 'SETUP' || lobbyView === 'PUBLIC_GAMES';
+    if (!canPrefetchAvailableGames) {
+      logLobbyTransition('available-games-disabled', { lobbyView });
       return;
     }
     let cancelled = false;
@@ -446,7 +447,7 @@ export default function Lobby() {
       try {
         const games = await api.listAvailableGames();
         logLobbyTransition('available-games-received', { count: games.length, lobbyView });
-        if (!cancelled) setAvailableGames(games.filter((game) => !game.started && game.members.length < 8));
+        if (!cancelled) setAvailableGames(games.filter((game) => !game.started && game.members.length < 5));
       } catch { /* Retry on the next fixed lobby poll. */ }
     };
     void pollAvailableGames();
@@ -457,9 +458,9 @@ export default function Lobby() {
     };
   }, [lobbyView]);
 
-  const transitionLobbyView = (nextView: 'WELCOME' | 'SETUP', beforeSwap?: () => void) => {
+  const transitionLobbyView = (nextView: 'WELCOME' | 'SETUP' | 'PUBLIC_GAMES', beforeSwap?: () => void) => {
     if (lobbyCrossfadeRef.current || lobbyView === nextView) return;
-    const canCrossfade = lobbyView === 'WELCOME' || lobbyView === 'SETUP' || lobbyView === 'ROOM_CREATED' || lobbyView === 'ROOM_JOINED';
+    const canCrossfade = lobbyView === 'WELCOME' || lobbyView === 'SETUP' || lobbyView === 'PUBLIC_GAMES' || lobbyView === 'ROOM_CREATED' || lobbyView === 'ROOM_JOINED';
     if (!canCrossfade) {
       beforeSwap?.();
       setLobbyView(nextView);
@@ -472,8 +473,14 @@ export default function Lobby() {
       ? welcomeOpacity
       : lobbyView === 'SETUP'
         ? setupOpacity
-        : roomOpacity;
-    const incomingOpacity = nextView === 'WELCOME' ? welcomeOpacity : setupOpacity;
+        : lobbyView === 'PUBLIC_GAMES'
+          ? publicGamesOpacity
+          : roomOpacity;
+    const incomingOpacity = nextView === 'WELCOME'
+      ? welcomeOpacity
+      : nextView === 'SETUP'
+        ? setupOpacity
+        : publicGamesOpacity;
     incomingOpacity.setValue(0);
 
     Animated.timing(outgoingOpacity, {
@@ -508,8 +515,8 @@ export default function Lobby() {
   }, [lobbyView, roomOpacity]);
 
   useEffect(() => {
-    if (!lobbyEntryFade || (lobbyView !== 'WELCOME' && lobbyView !== 'SETUP')) return;
-    const incomingOpacity = lobbyView === 'WELCOME' ? welcomeOpacity : setupOpacity;
+    if (!lobbyEntryFade || (lobbyView !== 'WELCOME' && lobbyView !== 'SETUP' && lobbyView !== 'PUBLIC_GAMES')) return;
+    const incomingOpacity = lobbyView === 'WELCOME' ? welcomeOpacity : lobbyView === 'SETUP' ? setupOpacity : publicGamesOpacity;
     incomingOpacity.setValue(0);
     const frame = requestAnimationFrame(() => {
       Animated.timing(incomingOpacity, {
@@ -520,10 +527,10 @@ export default function Lobby() {
       }).start(() => setLobbyEntryFade(false));
     });
     return () => cancelAnimationFrame(frame);
-  }, [lobbyEntryFade, lobbyView, setLobbyEntryFade, setupOpacity, welcomeOpacity]);
+  }, [lobbyEntryFade, lobbyView, publicGamesOpacity, setLobbyEntryFade, setupOpacity, welcomeOpacity]);
 
   useEffect(() => {
-    if (lobbyTransitionTarget !== 'WELCOME' && lobbyTransitionTarget !== 'SETUP') return;
+    if (lobbyTransitionTarget !== 'WELCOME' && lobbyTransitionTarget !== 'SETUP' && lobbyTransitionTarget !== 'PUBLIC_GAMES') return;
     transitionLobbyView(lobbyTransitionTarget);
     setLobbyTransitionTarget(null);
   }, [lobbyTransitionTarget]);
@@ -556,7 +563,8 @@ export default function Lobby() {
           void setPremiumIdentity(null, null);
         }
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => setIdentityRestored(true));
   }, [setIsSocialUser, setPremiumIdentity, setSocialProvider, setUserName]);
 
   const handleGuestNameChange = (name: string) => {
@@ -670,6 +678,7 @@ export default function Lobby() {
       setJoinCodeErrorOpen(true);
       return;
     }
+    setPendingDeepLinkCode(null);
     joinPendingRef.current = true;
     setRoomCode(cleanCode);
     setLobbyView('ROOM_JOINING');
@@ -721,6 +730,18 @@ export default function Lobby() {
     }
   };
 
+  useEffect(() => {
+    if (!identityRestored || !pendingDeepLinkCode || deepLinkAutoJoinAttemptedRef.current) return;
+    deepLinkAutoJoinAttemptedRef.current = true;
+    setEnteredCode(pendingDeepLinkCode);
+    setSetupTab('JOIN');
+    setLobbyView('SETUP');
+    if (!isSocialUser && !userName.trim()) return;
+    const code = pendingDeepLinkCode;
+    setPendingDeepLinkCode(null);
+    void handleJoinWithCode(code);
+  }, [identityRestored, pendingDeepLinkCode]);
+
   const handleCopyRoomCode = async () => {
     if (!roomCode) return;
     playSound('click');
@@ -740,8 +761,8 @@ export default function Lobby() {
     try {
       await Share.share({
         message: isBs
-          ? `Pridruži se mojoj Misery Meter sobi pomoću koda ${roomCode}.`
-          : `Join my Misery Meter room with code ${roomCode}.`,
+          ? `Pridruži se mojoj Misery Meter sobi: https://misery.qla.dev/code/${roomCode}`
+          : `Join my Misery Meter room: https://misery.qla.dev/code/${roomCode}`,
         title: 'Misery Meter',
       });
     } catch {
@@ -1102,11 +1123,15 @@ export default function Lobby() {
   );
 
   const renderAvailableGames = () => {
-    if (!IS_WEB_INTERFACE || availableGames.length === 0) return null;
     return (
-      <Section titleEn="AVAILABLE GAMES" titleBs="DOSTUPNE IGRE">
-        <View style={{ gap: 10 }}>
-          {availableGames.slice(0, 5).map((game) => (
+      <View style={{ gap: 10 }}>
+          {availableGames.length === 0 ? (
+            <Card>
+              <Text className="py-3 text-center text-sm font-bold text-neutral-500">
+                {isBs ? 'Trenutno nema javnih igara. Provjeravamo ponovo...' : 'No public games right now. Checking again...'}
+              </Text>
+            </Card>
+          ) : availableGames.map((game) => (
             <Card key={game.id}>
               <View className="flex-row items-center justify-between" style={{ gap: 12 }}>
                 <View className="flex-1">
@@ -1114,17 +1139,16 @@ export default function Lobby() {
                     {game.members[0]?.name ?? (isBs ? 'Soba za igru' : 'Game room')}
                   </Text>
                   <Text className="mt-1 font-mono text-[10px] font-bold uppercase tracking-wider text-neutral-500">
-                    {game.code} • {game.members.length}/8 {isBs ? 'igrača' : 'players'}
+                    {game.code} • {game.members.length}/5 {isBs ? 'igrača' : 'players'}
                   </Text>
                 </View>
                 <ButtonTab category="button" type="primary" size="auto" onPress={() => void handleJoinWithCode(game.code)}>
-                  {isBs ? 'BRZI ULAZ' : 'QUICK JOIN'}
+                  {isBs ? 'PRIDRUŽI SE' : 'JOIN'}
                 </ButtonTab>
               </View>
             </Card>
           ))}
-        </View>
-      </Section>
+      </View>
     );
   };
 
@@ -1144,14 +1168,18 @@ export default function Lobby() {
         category="button"
         type="primary"
         size="100"
-        disabled={setupTab === 'CREATE' ? !hasPlayerIdentity : !hasPlayerIdentity || !hasValidRoomCode}
-        onPress={setupTab === 'CREATE' ? handleCreateRoom : () => void handleJoinWithCode()}
+        disabled={setupTab === 'CREATE' || setupTab === 'PUBLIC' ? !hasPlayerIdentity : !hasPlayerIdentity || !hasValidRoomCode}
+        onPress={setupTab === 'CREATE' ? handleCreateRoom : setupTab === 'PUBLIC' ? () => transitionLobbyView('PUBLIC_GAMES') : () => void handleJoinWithCode()}
       >
         {setupTab === 'CREATE'
           ? !hasPlayerIdentity
             ? isBs ? 'UNESI IME' : 'ENTER NAME'
             : isBs ? 'Započni igru' : 'Start Game'
-          : !hasPlayerIdentity
+          : setupTab === 'PUBLIC'
+            ? !hasPlayerIdentity
+              ? isBs ? 'UNESI IME' : 'ENTER NAME'
+              : isBs ? 'POGLEDAJ JAVNE IGRE' : 'SEE PUBLIC GAMES'
+            : !hasPlayerIdentity
             ? isBs ? 'UNESI IME' : 'ENTER NAME'
             : !hasValidRoomCode
               ? isBs ? 'UNESI CODE SOBE' : 'ENTER ROOM CODE'
@@ -1425,8 +1453,8 @@ export default function Lobby() {
             <Text className="text-[10px] text-neutral-600 font-mono">© 2026 Misery Meter</Text>
             <Text className="text-[10px] text-neutral-600 font-mono opacity-80">
               {isBs
-                ? 'Serveri aktivni • Multiplayer mode • Do 8 igrača'
-                : 'Servers active • Multiplayer mode • Up to 8 players'}
+                ? 'Serveri aktivni • Multiplayer mode • Do 5 igrača'
+                : 'Servers active • Multiplayer mode • Up to 5 players'}
             </Text>
           </View>
         </View>
@@ -1438,7 +1466,6 @@ export default function Lobby() {
         return (
           <View style={{ gap: 32 }}>
             {renderSetupTabs()}
-            {renderAvailableGames()}
 
             <Section titleEn="PLAYER PROFILE" titleBs="PROFIL IGRAČA">
               {isSocialUser ? (
@@ -1573,7 +1600,6 @@ export default function Lobby() {
         return (
           <View style={{ gap: 32 }}>
             {renderSetupTabs()}
-            {renderAvailableGames()}
 
             <Section titleEn="PLAYER PROFILE" titleBs="PROFIL IGRAČA">
               {isSocialUser ? (
@@ -1638,7 +1664,7 @@ export default function Lobby() {
               </View>
             </Section>
 
-            <Section titleEn="ENTER CODE TO JOIN" titleBs="UNESITE KOD ZA PRIDRUŽIVANJE">
+            {setupTab === 'JOIN' && <Section titleEn="ENTER CODE TO JOIN" titleBs="UNESITE KOD ZA PRIDRUŽIVANJE">
               <AppInput
                 autoCapitalize="characters"
                 autoCorrect={false}
@@ -1657,12 +1683,20 @@ export default function Lobby() {
                 className="w-full"
                 inputClassName="text-center font-mono font-black text-lg uppercase tracking-widest text-amber-400"
               />
-            </Section>
+            </Section>}
 
             {!isKeyboardVisible && renderSetupAction()}
           </View>
         );
       }
+    }
+
+    if (view === 'PUBLIC_GAMES') {
+      return (
+        <View style={{ gap: 10 }}>
+          {renderAvailableGames()}
+        </View>
+      );
     }
 
     if (view === 'ROOM_CREATED') {
@@ -1671,9 +1705,9 @@ export default function Lobby() {
           <View style={{ gap: 16 }}>
             <View className="flex-row items-center justify-between">
               <Text className="text-[10px] font-mono tracking-widest uppercase text-neutral-500 font-bold">
-                {isBs ? `IGRAČI U SOBI (${roomPlayers.length}/8)` : `PLAYERS IN LOBBY (${roomPlayers.length}/8)`}
+                {isBs ? `IGRAČI U SOBI (${roomPlayers.length}/5)` : `PLAYERS IN LOBBY (${roomPlayers.length}/5)`}
               </Text>
-              {roomPlayers.length < 8 && (
+              {roomPlayers.length < 5 && (
                 <Text className="text-[8px] font-mono text-amber-500/80 uppercase animate-pulse">
                   {isBs ? 'Čekanje igrača...' : 'Waiting for players...'}
                 </Text>
@@ -1763,7 +1797,7 @@ export default function Lobby() {
         className="flex-1 bg-neutral-950"
         enabled={lobbyView === 'SETUP'}
       >
-        {lobbyView === 'WELCOME' || lobbyView === 'SETUP' ? (
+        {lobbyView === 'WELCOME' || lobbyView === 'SETUP' || lobbyView === 'PUBLIC_GAMES' ? (
           <View className="flex-1">
             <Animated.View
               pointerEvents={lobbyView === 'WELCOME' ? 'auto' : 'none'}
@@ -1793,6 +1827,20 @@ export default function Lobby() {
                 {renderContent('SETUP')}
               </ScrollView>
               {lobbyView === 'SETUP' && isKeyboardVisible && renderSetupAction(true)}
+            </Animated.View>
+
+            <Animated.View
+              pointerEvents={lobbyView === 'PUBLIC_GAMES' ? 'auto' : 'none'}
+              style={{ bottom: 0, left: 0, opacity: publicGamesOpacity, position: 'absolute', right: 0, top: 0 }}
+            >
+              <ScrollView
+                className="flex-1 px-5"
+                contentContainerStyle={{ paddingBottom: 24, paddingTop: 100 }}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
+                {renderContent('PUBLIC_GAMES')}
+              </ScrollView>
             </Animated.View>
           </View>
         ) : (

@@ -1,7 +1,7 @@
 import { Host, Label, Picker } from '@expo/ui/swift-ui';
 import { controlSize, foregroundStyle, frame, labelStyle, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
 
-type SetupTab = 'CREATE' | 'JOIN';
+type SetupTab = 'CREATE' | 'JOIN' | 'PUBLIC';
 
 export function SetupTabs({
   isBs,
@@ -35,7 +35,16 @@ export function SetupTabs({
             foregroundStyle(value === 'JOIN' ? '#fbbf24' : '#a3a3a3'),
           ]}
           systemImage="rectangle.portrait.and.arrow.right"
-          title={isBs ? 'Unesi Code Sobe' : 'Enter Room Code'}
+          title={isBs ? 'Unesi Kod' : 'Enter Code'}
+        />
+        <Label
+          modifiers={[
+            tag('PUBLIC'),
+            labelStyle('titleAndIcon'),
+            foregroundStyle(value === 'PUBLIC' ? '#fbbf24' : '#a3a3a3'),
+          ]}
+          systemImage="globe"
+          title={isBs ? 'Javne Igre' : 'Public Games'}
         />
       </Picker>
     </Host>

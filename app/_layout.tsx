@@ -80,6 +80,7 @@ function RootStack() {
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: true }} />
+        <Stack.Screen name="code/[code]" options={{ headerShown: false }} />
         <Stack.Screen
           name="game"
           options={{

@@ -5,7 +5,7 @@ export interface PlayerInput {
   isBot?: boolean;
 }
 
-export type LobbyView = 'WELCOME' | 'SETUP' | 'ROOM_CREATED' | 'ROOM_JOINING' | 'ROOM_JOINED';
+export type LobbyView = 'WELCOME' | 'SETUP' | 'PUBLIC_GAMES' | 'ROOM_CREATED' | 'ROOM_JOINING' | 'ROOM_JOINED';
 
 export interface GameSession {
   mode: 'SOLO' | 'MULTIPLAYER';

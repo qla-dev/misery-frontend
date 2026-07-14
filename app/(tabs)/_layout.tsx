@@ -124,7 +124,11 @@ export default function TabLayout() {
         ? isBs
           ? 'POSTAVKE IGRE'
           : 'GAME SETTINGS'
-        : 'LOBBY';
+        : lobbyView === 'PUBLIC_GAMES'
+          ? isBs
+            ? 'JAVNE IGRE'
+            : 'PUBLIC GAMES'
+          : 'LOBBY';
 
   useEffect(() => {
     setLobbyMusicActive(isPlayScreen);
@@ -210,6 +214,10 @@ export default function TabLayout() {
                   return;
                 }
                 setLobbyTransitionTarget('WELCOME');
+                return;
+              }
+              if (lobbyView === 'PUBLIC_GAMES') {
+                setLobbyTransitionTarget('SETUP');
                 return;
               }
               if (!isPlayScreen) {

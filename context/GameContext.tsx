@@ -46,8 +46,10 @@ interface GameContextValue {
   setLobbyTransitionTarget: (view: LobbyView | null) => void;
   lobbyEntryFade: boolean;
   setLobbyEntryFade: (value: boolean) => void;
-  setupTab: 'CREATE' | 'JOIN';
-  setSetupTab: (tab: 'CREATE' | 'JOIN') => void;
+  setupTab: 'CREATE' | 'JOIN' | 'PUBLIC';
+  setSetupTab: (tab: 'CREATE' | 'JOIN' | 'PUBLIC') => void;
+  pendingDeepLinkCode: string | null;
+  setPendingDeepLinkCode: (code: string | null) => void;
   userName: string;
   setUserName: (name: string) => void;
   selectedColor: string;
@@ -102,7 +104,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [lobbyView, setLobbyView] = useState<LobbyView>('WELCOME');
   const [lobbyTransitionTarget, setLobbyTransitionTarget] = useState<LobbyView | null>(null);
   const [lobbyEntryFade, setLobbyEntryFade] = useState(false);
-  const [setupTab, setSetupTab] = useState<'CREATE' | 'JOIN'>('CREATE');
+  const [setupTab, setSetupTab] = useState<'CREATE' | 'JOIN' | 'PUBLIC'>('CREATE');
+  const [pendingDeepLinkCode, setPendingDeepLinkCode] = useState<string | null>(null);
   const [userName, setUserName] = useState('');
   const [selectedColor, setSelectedColor] = useState('yellow');
   const [targetScore, setTargetScore] = useState(7);
@@ -277,6 +280,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setLobbyEntryFade,
       setupTab,
       setSetupTab,
+      pendingDeepLinkCode,
+      setPendingDeepLinkCode,
       userName,
       setUserName,
       selectedColor,
@@ -331,6 +336,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       lobbyTransitionTarget,
       lobbyEntryFade,
       setupTab,
+      pendingDeepLinkCode,
       userName,
       selectedColor,
       targetScore,

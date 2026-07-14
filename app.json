@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "misery.qla.dev",
-      "buildNumber": "16",
+      "buildNumber": "17",
       "icon": "./assets/images/icon.png",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -20,7 +20,8 @@
           "NSAllowsArbitraryLoads": true,
           "NSAllowsLocalNetworking": true
         }
-      }
+      },
+      "associatedDomains": ["applinks:misery.qla.dev"]
     },
     "android": {
       "package": "misery.qla.dev",
@@ -32,7 +33,21 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "misery.qla.dev",
+              "pathPrefix": "/code/"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "bundler": "metro",

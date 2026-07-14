@@ -147,6 +147,13 @@ export default function GameBoard({
   const laneResultRef = useRef<'success' | 'failure' | 'steal' | null>(laneResult);
   const queuedLaneResultsRef = useRef<QueuedLaneResult[]>([]);
   const laneResultGapRef = useRef(false);
+  const finishTurnInFlightRef = useRef(false);
+  const isAwaitingTurnFinishRef = useRef(false);
+  const serverCurrentPlayerIdRef = useRef<number | null>(null);
+  // True while an "on hold" (YOU'RE ON HOLD) notice is queued or showing. A stolen-card
+  // result must never appear before the hold notice it belongs to, so the lane-result
+  // queue waits for this to clear.
+  const hasPendingHoldRef = useRef(false);
 
   const [gameState, setGameState] = useState<GameState>({
     mode,
@@ -180,6 +187,12 @@ export default function GameBoard({
   const [lastStealWasFromLocalPlayer, setLastStealWasFromLocalPlayer] = useState(false);
   const [isTurnInactive, setIsTurnInactive] = useState(false);
   const [inactivityWarningVisible, setInactivityWarningVisible] = useState(false);
+
+  useEffect(() => {
+    isAwaitingTurnFinishRef.current = isAwaitingTurnFinish;
+    serverCurrentPlayerIdRef.current = serverCurrentPlayerId;
+  }, [isAwaitingTurnFinish, serverCurrentPlayerId]);
+
   const toLocalCard = (card: ApiCard): Card => ({
     id: String(card.id),
     titleEn: card.title,
@@ -206,7 +219,11 @@ export default function GameBoard({
   };
 
   const enqueueLaneResult = (notice: QueuedLaneResult) => {
-    if (laneResultRef.current !== null || laneResultGapRef.current) {
+    if (
+      laneResultRef.current !== null ||
+      laneResultGapRef.current ||
+      hasPendingHoldRef.current
+    ) {
       queuedLaneResultsRef.current.push(notice);
       return;
     }
@@ -218,13 +235,28 @@ export default function GameBoard({
     laneResultRef.current = laneResult;
     if (laneResult !== null || previousResult === null) return;
     laneResultGapRef.current = true;
-    const timer = setTimeout(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const attemptPublish = () => {
+      // A "stolen from local player" result must wait until the "on hold" notice that
+      // precedes it has been shown and dismissed. Otherwise the steal can flash before
+      // the player is told they are on hold.
+      if (hasPendingHoldRef.current) {
+        timer = setTimeout(attemptPublish, 200);
+        return;
+      }
       laneResultGapRef.current = false;
       const next = queuedLaneResultsRef.current.shift();
       if (next) publishLaneResult(next);
-    }, 500);
-    return () => clearTimeout(timer);
+    };
+    timer = setTimeout(attemptPublish, 500);
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [laneResult]);
+
+  useEffect(() => {
+    hasPendingHoldRef.current = turnNotices.some((notice) => notice.type === 'hold');
+  }, [turnNotices]);
 
   useEffect(() => {
     cardFlip.setValue(0);
@@ -638,6 +670,17 @@ export default function GameBoard({
 
   const handleProceedNextRound = async () => {
     if (gameId && userId) {
+      // Animation callbacks can outlive the render that created them. Polling may have
+      // already handed the turn to a stealer, so only finish when the latest server
+      // snapshot still says this player owns a completed turn.
+      if (
+        finishTurnInFlightRef.current ||
+        hasPendingHoldRef.current ||
+        !isAwaitingTurnFinishRef.current ||
+        Number(serverCurrentPlayerIdRef.current) !== Number(userId)
+      ) return;
+
+      finishTurnInFlightRef.current = true;
       triggerSound('click');
       try {
         const response = await api.finishTurn(gameId, userId);
@@ -659,6 +702,9 @@ export default function GameBoard({
           phase: game.is_steal_turn ? 'STEAL_DECISION' : 'PLAYING',
         }));
       } catch { /* Polling will restore authoritative turn state. */ }
+      finally {
+        finishTurnInFlightRef.current = false;
+      }
       return;
     }
     const { deck, discardPile, players, currentPlayerIndex, drawnCard } = gameState;
@@ -719,7 +765,11 @@ export default function GameBoard({
       },
       () => {
         setIsLaneCollapsing(false);
-        if (isAwaitingTurnFinish) void handleProceedNextRound();
+        if (
+          isAwaitingTurnFinishRef.current &&
+          Number(serverCurrentPlayerIdRef.current) === Number(userId) &&
+          !hasPendingHoldRef.current
+        ) void handleProceedNextRound();
       }
     );
     setSelectedSlotIndex(null);

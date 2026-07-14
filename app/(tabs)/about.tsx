@@ -82,8 +82,8 @@ export default function AboutScreen() {
           <Text className="text-[10px] text-neutral-600 font-mono">© 2026 Misery Meter</Text>
           <Text className="text-[10px] text-neutral-600 font-mono opacity-80">
             {isBs
-              ? 'Serveri aktivni • Multiplayer mode • Do 8 igrača'
-              : 'Servers active • Multiplayer mode • Up to 8 players'}
+              ? 'Serveri aktivni • Multiplayer mode • Do 5 igrača'
+              : 'Servers active • Multiplayer mode • Up to 5 players'}
           </Text>
         </View>
 

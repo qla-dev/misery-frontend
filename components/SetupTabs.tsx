@@ -1,7 +1,7 @@
 import { Pressable, Text, View } from 'react-native';
-import { CirclePlus, LogIn } from 'lucide-react-native';
+import { CirclePlus, Globe2, LogIn } from 'lucide-react-native';
 
-type SetupTab = 'CREATE' | 'JOIN';
+type SetupTab = 'CREATE' | 'JOIN' | 'PUBLIC';
 
 export function SetupTabs({
   isBs,
@@ -26,7 +26,8 @@ export function SetupTabs({
     >
       {([
         ['CREATE', isBs ? 'Kreiraj Sobu' : 'Create Room', CirclePlus],
-        ['JOIN', isBs ? 'Unesi Code Sobe' : 'Enter Room Code', LogIn],
+        ['JOIN', isBs ? 'Unesi Kod' : 'Enter Code', LogIn],
+        ['PUBLIC', isBs ? 'Javne Igre' : 'Public Games', Globe2],
       ] as const).map(([tab, label, Icon]) => (
         <Pressable
           key={tab}
@@ -45,7 +46,7 @@ export function SetupTabs({
           })}
         >
           <Icon color={value === tab ? '#fbbf24' : '#a3a3a3'} size={15} strokeWidth={2.5} />
-          <Text style={{ color: value === tab ? '#fbbf24' : '#a3a3a3', fontSize: 12, fontWeight: '700' }}>
+          <Text numberOfLines={1} style={{ color: value === tab ? '#fbbf24' : '#a3a3a3', fontSize: 10, fontWeight: '700' }}>
             {label}
           </Text>
         </Pressable>

@@ -155,6 +155,17 @@ export default function GameTabsLayout() {
     router.replace('/');
   };
 
+  const returnToGameSettings = () => {
+    setGameRuntime(null);
+    setIsGameCountingDown(false);
+    setLaneResult(null);
+    setLaneResultPlayerName(null);
+    setTurnNotices([]);
+    setSession(null);
+    setLobbyView('SETUP');
+    requestAnimationFrame(() => router.replace('/'));
+  };
+
   return (
     <>
       <Stack.Screen
@@ -309,24 +320,25 @@ export default function GameTabsLayout() {
           setLaneResult(null);
           setLaneResultPlayerName(null);
         }}
+        onRoomExitComplete={returnToGameSettings}
         onStealChoice={(accept) => gameRuntime?.handleStealChoice?.(accept)}
         onTurnNoticeComplete={() => setTurnNotices((current) => current.slice(1))}
         stealDecisionVisible={Boolean(gameRuntime?.stealDecisionVisible)}
         turnNotice={turnNotice}
+        roomExitReason={gameRuntime?.roomExitReason}
       />
       <ConfirmModal
         cancelLabel={isBs ? 'NAPUSTI IGRU' : 'LEAVE GAME'}
         confirmLabel={isBs ? 'NASTAVI IGRU' : 'KEEP PLAYING'}
-        onCancel={() => {
+        onCancel={async () => {
           setIsExitConfirmOpen(false);
-          setGameRuntime(null);
-          setIsGameCountingDown(false);
-          setLaneResult(null);
-          setLaneResultPlayerName(null);
-          setTurnNotices([]);
-          setSession(null);
-          setLobbyView('SETUP');
-          requestAnimationFrame(() => router.replace('/'));
+          try {
+            const exitWillBeQueued = await gameRuntime?.leaveActiveGame?.();
+            if (!exitWillBeQueued) returnToGameSettings();
+          } catch (error) {
+            console.warn('[LeaveGame] Server leave failed; local exit will continue', error);
+            returnToGameSettings();
+          }
         }}
         onConfirm={() => setIsExitConfirmOpen(false)}
         onRequestClose={() => setIsExitConfirmOpen(false)}

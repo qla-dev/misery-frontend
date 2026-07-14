@@ -447,7 +447,7 @@ export default function Lobby() {
       try {
         const games = await api.listAvailableGames();
         logLobbyTransition('available-games-received', { count: games.length, lobbyView });
-        if (!cancelled) setAvailableGames(games.filter((game) => !game.started && game.members.length < 5));
+        if (!cancelled) setAvailableGames(games.filter((game) => !game.started && !game.terminated_at && game.members.length < 8));
       } catch { /* Retry on the next fixed lobby poll. */ }
     };
     void pollAvailableGames();
@@ -660,13 +660,9 @@ export default function Lobby() {
       setRoomPlayers([]);
     });
 
-    if (!gameId) return;
-    if (serverUserId && Number(serverUserId) === Number(serverOwnerId)) {
-      void api.setHostLobbyPresence(gameId, serverUserId, false).catch(() => undefined);
-    }
-    void api.getGame(gameId)
-      .then((game) => game.started ? undefined : api.deleteGame(gameId))
-      .catch((error) => console.warn('[LeaveRoom] Background room deletion failed', error));
+    if (!gameId || !serverUserId) return;
+    void api.leaveGame(gameId, serverUserId)
+      .catch((error) => console.warn('[LeaveRoom] Background room leave failed', error));
   };
 
   const handleJoinWithCode = async (codeOverride?: string) => {
@@ -1059,7 +1055,24 @@ export default function Lobby() {
     if (!serverGameId) return;
     const poll = async () => {
       try {
-        const game = await api.getGame(serverGameId);
+        const game = await api.getGame(serverGameId, serverUserId);
+        if (game.terminated_at || (serverUserId && !game.members.some((member) => Number(member.id) === Number(serverUserId)))) {
+          setStartModal({
+            visible: true,
+            title: game.termination_reason === 'host_inactive' ? 'ROOM CLOSED' : 'ROOM ENDED',
+            message: game.termination_reason === 'host_inactive'
+              ? 'The host was inactive for 60 seconds.'
+              : 'The host left the room.',
+          });
+          transitionLobbyView('SETUP', () => {
+            setServerGameId(null);
+            setServerUserId(null);
+            setServerOwnerId(null);
+            setRoomCode('');
+            setRoomPlayers([]);
+          });
+          return;
+        }
         applyServerGame(game);
         if (game.started && game.winner_id === null && !serverStartedRef.current) {
           serverStartedRef.current = true;
@@ -1139,7 +1152,7 @@ export default function Lobby() {
                     {game.members[0]?.name ?? (isBs ? 'Soba za igru' : 'Game room')}
                   </Text>
                   <Text className="mt-1 font-mono text-[10px] font-bold uppercase tracking-wider text-neutral-500">
-                    {game.code} • {game.members.length}/5 {isBs ? 'igrača' : 'players'}
+                    {game.code} • {game.members.length}/8 {isBs ? 'igrača' : 'players'}
                   </Text>
                 </View>
                 <ButtonTab category="button" type="primary" size="auto" onPress={() => void handleJoinWithCode(game.code)}>
@@ -1705,9 +1718,9 @@ export default function Lobby() {
           <View style={{ gap: 16 }}>
             <View className="flex-row items-center justify-between">
               <Text className="text-[10px] font-mono tracking-widest uppercase text-neutral-500 font-bold">
-                {isBs ? `IGRAČI U SOBI (${roomPlayers.length}/5)` : `PLAYERS IN LOBBY (${roomPlayers.length}/5)`}
+                  {isBs ? `IGRAČI U SOBI (${roomPlayers.length}/8)` : `PLAYERS IN LOBBY (${roomPlayers.length}/8)`}
               </Text>
-              {roomPlayers.length < 5 && (
+              {roomPlayers.length < 8 && (
                 <Text className="text-[8px] font-mono text-amber-500/80 uppercase animate-pulse">
                   {isBs ? 'Čekanje igrača...' : 'Waiting for players...'}
                 </Text>

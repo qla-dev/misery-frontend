@@ -191,6 +191,7 @@ export default function GameBoard({
   const [lastStealWasFromLocalPlayer, setLastStealWasFromLocalPlayer] = useState(false);
   const [isTurnInactive, setIsTurnInactive] = useState(false);
   const [inactivityWarningVisible, setInactivityWarningVisible] = useState(false);
+  const [roomExitReason, setRoomExitReason] = useState<string | null>(null);
 
   useEffect(() => {
     isAwaitingTurnFinishRef.current = isAwaitingTurnFinish;
@@ -597,9 +598,19 @@ export default function GameBoard({
       const pollController = new AbortController();
       const pollTimeout = setTimeout(() => pollController.abort(), 8000);
       try {
-        const game = await api.getGame(gameId, pollController.signal);
+        const game = await api.getGame(gameId, userId, pollController.signal);
         consecutivePollFailuresRef.current = 0;
         setConnectionWarningVisible(false);
+        const isStillMember = !userId || game.members.some((member) => Number(member.id) === Number(userId));
+        const exitReason = game.terminated_at
+          ? game.termination_reason ?? 'host_left'
+          : !isStillMember ? 'player_inactive' : null;
+        if (exitReason) {
+          setRoomExitReason(exitReason);
+          logGameAction('room.exit-detected', { gameId, reason: exitReason, userId });
+          cancelled = true;
+          return;
+        }
         const serverPlayerIndex = game.current_player_id === null
           ? 0
           : game.members.findIndex((player) => Number(player.id) === Number(game.current_player_id));
@@ -613,6 +624,7 @@ export default function GameBoard({
         const latestMove = game.moves[0];
         const handCardCount = Object.values(game.hands).reduce((total, hand) => total + hand.length, 0);
         const pollSignature = [
+          game.members.map((member) => member.id).join(','),
           game.current_player_id,
           game.turn_owner_id,
           game.current_card?.id ?? 0,
@@ -671,7 +683,9 @@ export default function GameBoard({
                 ? acceptedStealCardIdRef.current === String(game.current_card?.id) ? 'PLAYING' : 'STEAL_DECISION'
                 : game.awaiting_finish ? prev.phase : 'PLAYING',
               drawnCard: holdingTurnCardRef.current ? prev.drawnCard : incomingCard ?? prev.drawnCard,
-              players: prev.players.map((player) => {
+              players: game.members.map((member) => {
+                const player = prev.players.find((candidate) => Number(candidate.id) === Number(member.id));
+                if (!player) return null;
                 const hand = game.hands[player.id];
                 if (!hand) return player;
                 const pendingCardId = pendingPlacementRef.current?.card.id;
@@ -682,7 +696,7 @@ export default function GameBoard({
                 optimisticLaneCardsRef.current[player.id] = pendingCards;
                 const lane = [...serverLane, ...pendingCards].sort((a, b) => a.index - b.index);
                 return { ...player, lane, score: pointsFromLane(lane) };
-              }),
+              }).filter((player): player is Player => player !== null),
               guessHistory: game.moves.map((move) => ({
                 playerName: move.player.name,
                 cardTitle: move.card?.title ?? '',
@@ -884,6 +898,17 @@ export default function GameBoard({
       setLobbyView(destination);
       router.replace('/');
     });
+  };
+
+  const leaveActiveGame = async () => {
+    if (!gameId || !userId) return false;
+    logGameAction('room.leave-requested', { gameId, userId });
+    const game = await api.leaveGame(gameId, userId);
+    if (!game.terminated_at) return false;
+    const reason = game.termination_reason ?? 'host_left';
+    setRoomExitReason(reason);
+    logGameAction('room.exit-queued', { gameId, reason, userId });
+    return true;
   };
 
   const handleLaneResultFadeComplete = () => {
@@ -1258,12 +1283,14 @@ export default function GameBoard({
       handleProceedNextRound,
       handleStealChoice,
       leaveFinishedGame,
+      leaveActiveGame,
       lastInsertedCardId,
       lastResultCardScore,
       lastStealWasFromLocalPlayer,
       handleLaneResultFadeComplete,
       hasPendingLaneAnimation: selectedSlotResult !== null || isLaneCollapsing,
       inactivityWarningVisible,
+      roomExitReason,
       connectionWarningVisible,
       isTurnInactive,
       dismissInactivityWarning: () => {
@@ -1284,7 +1311,7 @@ export default function GameBoard({
         (!gameId || Number(activeStealer.id) === Number(userId))
       ),
     });
-  }, [connectionWarningVisible, currentActingPlayer, gameId, gameState, hasPendingLocalTurnStartNotice, inactivityWarningVisible, isAwaitingTurnFinish, isDrawnCardFlipped, isDrawnCardScoreRevealed, isLaneCollapsing, isServerTurnReady, isSubmittingMove, isTurnInactive, laneResult, lastInsertedCardId, lastResultCardScore, lastStealWasFromLocalPlayer, localPlayer, selectedSlotIndex, selectedSlotResult, serverCurrentPlayerId, setGameRuntime, userId]);
+  }, [connectionWarningVisible, currentActingPlayer, gameId, gameState, hasPendingLocalTurnStartNotice, inactivityWarningVisible, isAwaitingTurnFinish, isDrawnCardFlipped, isDrawnCardScoreRevealed, isLaneCollapsing, isServerTurnReady, isSubmittingMove, isTurnInactive, laneResult, lastInsertedCardId, lastResultCardScore, lastStealWasFromLocalPlayer, localPlayer, roomExitReason, selectedSlotIndex, selectedSlotResult, serverCurrentPlayerId, setGameRuntime, userId]);
 
   useEffect(() => {
     if (!didLocalWin || winnerCelebratedRef.current) return;

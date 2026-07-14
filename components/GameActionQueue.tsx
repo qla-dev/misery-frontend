@@ -7,7 +7,7 @@ import { LaneProgress } from '@/components/LaneProgressBadge';
 import { TurnNotice } from '@/context/GameContext';
 import { logGameAction } from '@/lib/gameDiagnostics';
 
-type ActionKind = 'lane-result' | 'turn-notice' | 'steal-decision' | 'inactivity';
+type ActionKind = 'room-exit' | 'lane-result' | 'turn-notice' | 'steal-decision' | 'inactivity';
 
 type GameActionQueueProps = {
   activeStealerName?: string;
@@ -22,10 +22,12 @@ type GameActionQueueProps = {
   lastResultCardScore?: number | null;
   onInactivityComplete: () => void;
   onLaneResultComplete: () => void;
+  onRoomExitComplete: () => void;
   onStealChoice: (accept: boolean) => void;
   onTurnNoticeComplete: () => void;
   stealDecisionVisible: boolean;
   turnNotice?: TurnNotice;
+  roomExitReason?: string | null;
 };
 
 export function GameActionQueue({
@@ -41,10 +43,12 @@ export function GameActionQueue({
   lastResultCardScore,
   onInactivityComplete,
   onLaneResultComplete,
+  onRoomExitComplete,
   onStealChoice,
   onTurnNoticeComplete,
   stealDecisionVisible,
   turnNotice,
+  roomExitReason,
 }: GameActionQueueProps) {
   const [activeAction, setActiveAction] = useState<ActionKind | null>(null);
   const [handledStealOffer, setHandledStealOffer] = useState(false);
@@ -52,6 +56,7 @@ export function GameActionQueue({
   const turnAvailable = Boolean(turnNotice && !hasPendingLaneAnimation);
   const stealAvailable = stealDecisionVisible && !handledStealOffer && !hasPendingLaneAnimation;
   const inactivityAvailable = inactivityWarningVisible && !hasPendingLaneAnimation;
+  const roomExitAvailable = Boolean(roomExitReason);
 
   useEffect(() => {
     if (!stealDecisionVisible) setHandledStealOffer(false);
@@ -66,11 +71,18 @@ export function GameActionQueue({
       stealAvailable,
       turnAvailable,
       turnNoticeType: turnNotice?.type ?? null,
+      roomExitReason: roomExitReason ?? null,
     });
-  }, [activeAction, hasPendingLaneAnimation, inactivityAvailable, laneAvailable, stealAvailable, turnAvailable, turnNotice?.type]);
+  }, [activeAction, hasPendingLaneAnimation, inactivityAvailable, laneAvailable, roomExitReason, stealAvailable, turnAvailable, turnNotice?.type]);
 
   useEffect(() => {
+    if (roomExitAvailable && activeAction !== 'room-exit') {
+      logGameAction('action-queue.preempt', { action: 'room-exit', previousAction: activeAction });
+      setActiveAction('room-exit');
+      return;
+    }
     const available: Record<ActionKind, boolean> = {
+      'room-exit': roomExitAvailable,
       'lane-result': laneAvailable,
       'turn-notice': turnAvailable,
       'steal-decision': stealAvailable,
@@ -83,12 +95,12 @@ export function GameActionQueue({
       return;
     }
 
-    const next = (['lane-result', 'turn-notice', 'steal-decision', 'inactivity'] as ActionKind[])
+    const next = (['room-exit', 'lane-result', 'turn-notice', 'steal-decision', 'inactivity'] as ActionKind[])
       .find((action) => available[action]);
     if (!next) return;
     logGameAction('action-queue.show', { action: next });
     setActiveAction(next);
-  }, [activeAction, inactivityAvailable, laneAvailable, stealAvailable, turnAvailable]);
+  }, [activeAction, inactivityAvailable, laneAvailable, roomExitAvailable, stealAvailable, turnAvailable]);
 
   const complete = (action: ActionKind, callback: () => void) => {
     logGameAction('action-queue.complete', { action });
@@ -99,6 +111,22 @@ export function GameActionQueue({
 
   return (
     <>
+      <LaneModal
+        failureMessage={roomExitReason === 'player_inactive'
+          ? isBs ? 'UKLONJEN SI NAKON 60 SEKUNDI NEAKTIVNOSTI' : 'YOU WERE REMOVED AFTER 60 SECONDS OF INACTIVITY'
+          : roomExitReason === 'host_inactive'
+            ? isBs ? 'DOMAĆIN JE BIO NEAKTIVAN. IGRA JE ZAVRŠENA' : 'THE HOST WAS INACTIVE. THE GAME HAS ENDED'
+            : isBs ? 'DOMAĆIN JE NAPUSTIO SOBU. IGRA JE ZAVRŠENA' : 'THE HOST LEFT THE ROOM. THE GAME HAS ENDED'}
+        failureTitle={roomExitReason === 'player_inactive'
+          ? isBs ? 'UKLONJEN SI' : 'YOU WERE REMOVED'
+          : isBs ? 'IGRA JE ZAVRŠENA' : 'GAME ENDED'}
+        onComplete={() => complete('room-exit', onRoomExitComplete)}
+        success={false}
+        successMessage=""
+        successTitle=""
+        visible={activeAction === 'room-exit'}
+      />
+
       <LaneModal
         failureMessage={laneFailureMessage}
         failureTitle={isBs ? 'NETAČNO' : 'INCORRECT'}

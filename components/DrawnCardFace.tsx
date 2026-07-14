@@ -151,7 +151,7 @@ export function DrawnCardFace({
               width: 100,
             }}
           >
-            ??.?
+            ?.??
           </Animated.Text>
           <Animated.Text
             className="text-neutral-950"
@@ -172,7 +172,7 @@ export function DrawnCardFace({
               width: 100,
             }}
           >
-            {card.index.toFixed(1)}
+            {card.index.toFixed(2)}
           </Animated.Text>
         </LinearGradient>
       </View>

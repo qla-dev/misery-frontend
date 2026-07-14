@@ -1442,8 +1442,8 @@ export default function GameBoard({
                           <Text className="font-extrabold text-amber-400">➕ <Text className="font-sans">{isBs ? 'Ubaci ovdje' : 'Insert Here'}</Text></Text>
                           <Text className="text-[11px] text-neutral-500">
                             {idx === 0
-                              ? isBs ? `(manje od ${card.index.toFixed(1)})` : `(less than ${card.index.toFixed(1)})`
-                              : isBs ? `između ${currentActingPlayer.lane[idx - 1].index.toFixed(1)} i ${card.index.toFixed(1)}` : `between ${currentActingPlayer.lane[idx - 1].index.toFixed(1)} and ${card.index.toFixed(1)}`}
+                              ? isBs ? `(manje od ${card.index.toFixed(2)})` : `(less than ${card.index.toFixed(2)})`
+                              : isBs ? `između ${currentActingPlayer.lane[idx - 1].index.toFixed(2)} i ${card.index.toFixed(2)}` : `between ${currentActingPlayer.lane[idx - 1].index.toFixed(2)} and ${card.index.toFixed(2)}`}
                           </Text>
                         </>
                       )}
@@ -1453,7 +1453,7 @@ export default function GameBoard({
                     <View className="absolute -left-[25px] w-2.5 h-2.5 rounded-full bg-amber-400 border border-neutral-950" />
                     <View className="flex-1 flex-row items-center gap-3.5 bg-neutral-900/40 p-3.5 rounded-xl border border-neutral-900">
                       <View className="w-12 h-8 rounded-lg bg-neutral-950 items-center justify-center border border-neutral-900">
-                        <Text className="font-mono text-amber-400 font-black text-xs">{card.index.toFixed(1)}</Text>
+                        <Text className="font-mono text-amber-400 font-black text-xs">{card.index.toFixed(2)}</Text>
                       </View>
                       <View className="flex-1">
                         <Text className="text-sm font-black uppercase tracking-wide text-neutral-200" numberOfLines={2}>{isBs ? card.titleBs : card.titleEn}</Text>
@@ -1478,7 +1478,7 @@ export default function GameBoard({
                   ) : (
                     <>
                       <Text className="font-extrabold text-amber-400">➕ <Text className="font-sans">{isBs ? 'Ubaci ovdje' : 'Insert Here'}</Text></Text>
-                      <Text className="text-[11px] text-neutral-500">{isBs ? `(više od ${currentActingPlayer.lane[currentActingPlayer.lane.length - 1].index.toFixed(1)})` : `(greater than ${currentActingPlayer.lane[currentActingPlayer.lane.length - 1].index.toFixed(1)})`}</Text>
+                      <Text className="text-[11px] text-neutral-500">{isBs ? `(više od ${currentActingPlayer.lane[currentActingPlayer.lane.length - 1].index.toFixed(2)})` : `(greater than ${currentActingPlayer.lane[currentActingPlayer.lane.length - 1].index.toFixed(2)})`}</Text>
                     </>
                   )}
                 </Pressable>

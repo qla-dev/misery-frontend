@@ -81,7 +81,7 @@ function LaneCard({ card, hiddenScore = false, isBs, isNew }: { card: any; hidde
       <Card>
         <View className="flex-row items-center gap-4">
           <Text className="font-mono text-xl font-black text-amber-400">
-            {hiddenScore ? '?.??' : card.index.toFixed(1)}
+            {hiddenScore ? '?.??' : card.index.toFixed(2)}
           </Text>
           <View className="flex-1">
             <Text className="text-base font-black uppercase leading-5 text-neutral-100">

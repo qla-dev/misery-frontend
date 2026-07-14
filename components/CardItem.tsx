@@ -171,7 +171,7 @@ export default function CardItem({
               {isBs ? 'INDEKS BIJEDE' : 'MISERY INDEX'}
             </Text>
             <Text style={{ fontSize: indexSize, lineHeight: indexSize }} className="text-neutral-950 font-mono font-black mt-1">
-              ?
+              ?.??
             </Text>
           </LinearGradient>
         ) : (
@@ -183,7 +183,7 @@ export default function CardItem({
               {isBs ? 'INDEKS BIJEDE' : 'MISERY INDEX'}
             </Text>
             <Text style={{ fontSize: indexSize, lineHeight: indexSize }} className="text-neutral-950 font-mono font-black mt-1">
-              {card.index.toFixed(1)}
+              {card.index.toFixed(2)}
             </Text>
           </LinearGradient>
         )}

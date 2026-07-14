@@ -147,7 +147,7 @@ export function WebAppCard({ card, height, language, scoreRevealed = false, widt
         }}
       >
         <Text style={{ color: '#090909', fontFamily: 'BebasNeue_400Regular', fontSize: 43, lineHeight: 45 }}>
-          {scoreRevealed ? card.index.toFixed(1) : '?'}
+          {scoreRevealed ? card.index.toFixed(2) : '?.??'}
         </Text>
         <Text style={{ color: '#090909', fontFamily: 'JetBrainsMono_700Bold', fontSize: 6, letterSpacing: 1.1 }}>
           MISERY RATE

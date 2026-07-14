@@ -166,7 +166,7 @@ export function LaneModal({
                     width: 132,
                   }}
                 >
-                  {score.toFixed(1)}
+                  {score.toFixed(2)}
                 </Text>
                 <Text
                   adjustsFontSizeToFit
@@ -207,7 +207,7 @@ export function LaneModal({
             {score !== undefined && !warning && (
               <View className={`mt-2 rounded-xl border px-5 py-2 ${neutral ? 'border-neutral-950/20 bg-neutral-950/5' : 'border-white/40 bg-white/15'}`}>
                 <Text className={`text-center font-mono text-[9px] font-black uppercase tracking-[2px] ${neutral ? 'text-neutral-950/60' : 'text-white/75'}`}>
-                  {`${scoreLabel}  •  ${score.toFixed(1)}`}
+                  {`${scoreLabel}  •  ${score.toFixed(2)}`}
                 </Text>
               </View>
             )}

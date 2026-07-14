@@ -99,7 +99,7 @@ export function LaneProgressBadge({ label, count, target, addsCard, dark = false
   const color = dark ? '#0a0a0a' : '#ffffff';
 
   return (
-    <View className="mb-5 flex-row items-center justify-center">
+    <View className="flex-row items-center justify-center">
       <Text
         className="text-4xl font-black uppercase tracking-wider"
         numberOfLines={1}

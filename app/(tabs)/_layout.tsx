@@ -26,6 +26,8 @@ type DebugOverlay = 'right' | 'wrong' | 'yellow' | 'white' | 'steal' | 'other-ri
 
 // Keep the debug tools available in source so they can be enabled again later.
 const DEBUG_UI_ENABLED = true;
+// The LOGS debug entry point is hidden on the welcome screen; flip to re-enable it.
+const SHOW_DEBUG_LOGS_BUTTON = false;
 
 const DEBUG_CARD: Card = {
   id: '1',
@@ -64,6 +66,7 @@ export default function TabLayout() {
     setLobbyView,
     setMusicMuted,
     setRoomExitWarningOpen,
+    toggleLanguage,
   } = useGame();
   const isBs = language === 'bs';
   const pathname = usePathname();
@@ -163,16 +166,29 @@ export default function TabLayout() {
       {isPlayScreen && lobbyView === 'WELCOME' && (
         <Stack.Toolbar placement="left">
           <Stack.Toolbar.Button
-            accessibilityLabel="Open overlay debug menu"
+            accessibilityLabel={isBs ? 'Promijeni jezik na engleski' : 'Switch language to Bosnian'}
             onPress={() => {
               playHaptic();
-              setDebugMenuOpen(true);
+              toggleLanguage();
             }}
             separateBackground
             tintColor="#fbbf24"
           >
-            LOGS
+            {isBs ? '🇧🇦' : '🇬🇧'}
           </Stack.Toolbar.Button>
+          {SHOW_DEBUG_LOGS_BUTTON && (
+            <Stack.Toolbar.Button
+              accessibilityLabel="Open overlay debug menu"
+              onPress={() => {
+                playHaptic();
+                setDebugMenuOpen(true);
+              }}
+              separateBackground
+              tintColor="#fbbf24"
+            >
+              LOGS
+            </Stack.Toolbar.Button>
+          )}
         </Stack.Toolbar>
       )}
       {isPlayScreen && lobbyView !== 'WELCOME' && (
@@ -324,11 +340,15 @@ export default function TabLayout() {
         holding={debugOverlay === 'yellow'}
         neutral={debugOverlay === 'white'}
         onComplete={() => setDebugOverlay(null)}
-        laneProgress={debugOverlay === 'other-right' || debugOverlay === 'other-steal'
-          ? { label: isBs ? 'TRAKA IGRAČA ALEX' : 'LANE OF ALEX', count: 3, target: 7, addsCard: true }
-          : debugOverlay === 'other-wrong'
-            ? { label: isBs ? 'TRAKA IGRAČA ALEX' : 'LANE OF ALEX', count: 3, target: 7, addsCard: false }
-            : undefined}
+        laneProgress={debugOverlay === 'right' || debugOverlay === 'steal'
+          ? { label: isBs ? 'TVOJA TRAKA' : 'YOUR LANE', count: 3, target: 7, addsCard: true }
+          : debugOverlay === 'wrong'
+            ? { label: isBs ? 'TVOJA TRAKA' : 'YOUR LANE', count: 3, target: 7, addsCard: false }
+            : debugOverlay === 'other-right' || debugOverlay === 'other-steal'
+              ? { label: isBs ? 'TRAKA IGRAČA ALEX' : 'LANE OF ALEX', count: 3, target: 7, addsCard: true }
+              : debugOverlay === 'other-wrong'
+                ? { label: isBs ? 'TRAKA IGRAČA ALEX' : 'LANE OF ALEX', count: 3, target: 7, addsCard: false }
+                : undefined}
         success={debugOverlay !== 'wrong' && debugOverlay !== 'other-wrong'}
         successMessage={debugOverlay === 'yellow'
           ? 'YOUR CARD IS OFFERED TO THE NEXT PLAYER — WAIT FOR THEIR DECISION'

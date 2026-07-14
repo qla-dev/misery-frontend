@@ -186,10 +186,21 @@ export function LaneModal({
               <Ban color="#ffffff" size={90} strokeWidth={3.5} />
             )}
           </View>
+          {laneProgress && (
+            <LaneProgressBadge
+              addsCard={laneProgress.addsCard}
+              count={laneProgress.count}
+              dark={darkForeground}
+              label={laneProgress.label}
+              target={laneProgress.target}
+            />
+          )}
           <View className="items-center" style={{ gap: 8 }}>
-            <Text className={`text-center text-4xl font-black uppercase tracking-wider ${darkForeground ? 'text-neutral-950' : 'text-white'}`}>
-              {success ? successTitle : failureTitle}
-            </Text>
+            {!laneProgress && (
+              <Text className={`text-center text-4xl font-black uppercase tracking-wider ${darkForeground ? 'text-neutral-950' : 'text-white'}`}>
+                {success ? successTitle : failureTitle}
+              </Text>
+            )}
             <Text className={`text-center text-sm font-bold uppercase tracking-widest ${darkForeground ? 'text-neutral-950/65' : 'text-white/85'}`}>
               {success ? successMessage : failureMessage}
             </Text>
@@ -213,13 +224,12 @@ export function LaneModal({
           }}
         >
           {laneProgress ? (
-            <LaneProgressBadge
-              addsCard={laneProgress.addsCard}
-              count={laneProgress.count}
-              dark={darkForeground}
-              label={laneProgress.label}
-              target={laneProgress.target}
-            />
+            <Text
+              className={`mb-5 text-center text-4xl font-black uppercase tracking-wider ${darkForeground ? 'text-neutral-950' : 'text-white'}`}
+              numberOfLines={1}
+            >
+              {success ? successTitle : failureTitle}
+            </Text>
           ) : playerName ? (
             <Text
               className={`mb-5 text-center text-4xl font-black uppercase tracking-wider ${darkForeground ? 'text-neutral-950' : 'text-white'}`}

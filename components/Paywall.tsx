@@ -144,7 +144,7 @@ export function Paywall() {
               {plan === 'monthly' && <View className="h-2 w-2 rounded-full bg-amber-400" />}
             </View>
             <Text className="text-xs font-black uppercase tracking-wider text-white">{isBs ? 'MJESEČNO' : 'MONTHLY'}</Text>
-            <Text className="mt-3 text-2xl font-black text-amber-400">{packages.monthly?.product.priceString ?? '—'}</Text>
+            <Text className="mt-3 text-2xl font-black text-amber-400">{packages.monthly?.product.priceString ?? '...'}</Text>
             <Text className="mt-1 text-[10px] font-bold text-neutral-500">{isBs ? 'svaki mjesec' : 'per month'}</Text>
             <Text className="mt-4 text-[10px] leading-4 text-neutral-400">{isBs ? 'Fleksibilno. Otkaži bilo kada.' : 'Flexible. Cancel anytime.'}</Text>
             </Card>
@@ -164,7 +164,7 @@ export function Paywall() {
               {plan === 'yearly' && <View className="h-2 w-2 rounded-full bg-amber-400" />}
             </View>
             <Text className="text-xs font-black uppercase tracking-wider text-white">{isBs ? 'GODIŠNJE' : 'YEARLY'}</Text>
-            <Text className="mt-3 text-2xl font-black text-amber-400">{packages.yearly?.product.priceString ?? '—'}</Text>
+            <Text className="mt-3 text-2xl font-black text-amber-400">{packages.yearly?.product.priceString ?? '...'}</Text>
             <Text className="mt-1 text-[10px] font-bold text-neutral-500">{isBs ? 'naplata godišnje' : 'billed yearly'}</Text>
             <Text className="mt-4 text-[10px] leading-4 text-neutral-400">{isBs ? 'Najbolja vrijednost.' : 'Best value. One payment.'}</Text>
             </Card>

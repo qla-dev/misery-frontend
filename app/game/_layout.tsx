@@ -72,7 +72,7 @@ export default function GameTabsLayout() {
   const laneResultAddsCard = laneResult === 'success' || laneResult === 'steal';
   const laneResultProgress = laneResultPlayerName
     ? {
-        label: isBs ? `STAZA IGRAČA ${laneResultPlayerName}` : `LANE OF ${laneResultPlayerName}`,
+        label: isBs ? `STAZA OD ${laneResultPlayerName}` : `LANE OF ${laneResultPlayerName}`,
         count: laneResultCardsAdded,
         target: laneCardsNeeded,
         addsCard: laneResultAddsCard,
@@ -305,7 +305,7 @@ export default function GameTabsLayout() {
         >
           <WifiOff color="#fbbf24" size={16} strokeWidth={2.4} />
           <Text style={{ color: '#d4d4d4', fontFamily: 'Outfit_700Bold', fontSize: 12 }}>
-            {isBs ? 'Slaba veza — pokušavamo ponovo…' : 'Weak connection — retrying…'}
+            {isBs ? 'Slaba veza, pokušavamo ponovo…' : 'Weak connection, retrying…'}
           </Text>
         </View>
       )}

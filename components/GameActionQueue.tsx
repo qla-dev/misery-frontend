@@ -144,7 +144,7 @@ export function GameActionQueue({
         score={laneResult === 'steal' && lastResultCardScore !== null
           ? lastResultCardScore
           : undefined}
-        scoreLabel={isBs ? 'STOPA BIJEDE' : 'MISERY RATE'}
+        scoreLabel={isBs ? 'STOPA PATNJE' : 'MISERY RATE'}
         visible={activeAction === 'lane-result'}
         warning={laneResult === 'steal'}
       />
@@ -215,8 +215,8 @@ export function GameActionQueue({
         success
         successMessage={inactivityWarningCount >= 3 && inactivitySecondsRemaining !== null
           ? isBs
-            ? `ODIGRAJ SADA — BIT ĆEŠ UKLONJEN ZA ${inactivitySecondsRemaining} SEKUNDI`
-            : `PLAY NOW — YOU WILL BE KICKED IN ${inactivitySecondsRemaining} SECONDS`
+            ? `ODIGRAJ SADA: BIT ĆEŠ UKLONJEN ZA ${inactivitySecondsRemaining} SEKUNDI`
+            : `PLAY NOW: YOU WILL BE KICKED IN ${inactivitySecondsRemaining} SECONDS`
           : isBs ? 'ODIGRAJ TRENUTNU KARTU DA SE IGRA NASTAVI' : 'PLAY THE CURRENT CARD TO KEEP THE GAME MOVING'}
         successTitle={isBs ? 'TVOJ POTEZ \u010CEKA' : 'YOUR TURN IS WAITING'}
         visible={activeAction === 'inactivity'}

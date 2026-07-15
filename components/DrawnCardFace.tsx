@@ -37,10 +37,10 @@ export function DrawnCardFace({
   const isCorrect = result === 'correct';
   const isWrong = result === 'wrong';
   const cardGradient: [string, string, string, string] = isWrong
-    ? ['#5a1414', '#311616', '#171010', '#090909']
+    ? ['rgba(90,20,20,0.78)', 'rgba(49,22,22,0.52)', 'rgba(23,16,16,0.18)', 'rgba(9,9,9,0)']
     : isCorrect
-      ? ['#0c4430', '#173126', '#101713', '#090909']
-      : ['#242424', '#111111', '#000000', '#000000'];
+      ? ['rgba(12,68,48,0.78)', 'rgba(23,49,38,0.52)', 'rgba(16,23,19,0.18)', 'rgba(9,9,9,0)']
+      : ['rgba(36,36,36,0.62)', 'rgba(17,17,17,0.34)', 'rgba(0,0,0,0.08)', 'rgba(0,0,0,0)'];
   const cardGradientLocations: [number, number, number, number] = isWrong || isCorrect
     ? [0, 0.36, 0.7, 1]
     : [0, 0.13, 0.3, 1];
@@ -51,13 +51,10 @@ export function DrawnCardFace({
   useEffect(() => staticScoreReveal.setValue(scoreRevealed ? 1 : 0), [scoreRevealed, staticScoreReveal]);
 
   return (
-    <LinearGradient
-      colors={cardGradient}
-      end={{ x: 0.82, y: 1 }}
-      locations={cardGradientLocations}
-      start={{ x: 0.12, y: 0 }}
+    <View
       style={{
         alignItems: 'center',
+        backgroundColor: '#000000',
         borderColor: isWrong ? '#ef4444' : isCorrect ? '#10b981' : '#facc15',
         borderRadius: 18,
         borderWidth: 5,
@@ -66,8 +63,19 @@ export function DrawnCardFace({
         width: '100%',
       }}
     >
-      <View style={{ borderColor: 'rgba(251,191,36,0.35)', borderRadius: 11, borderWidth: 2, bottom: 9, left: 9, position: 'absolute', right: 9, top: 9 }} />
-      <View className="w-full items-center px-3 pt-8" style={{ gap: 10, zIndex: 2 }}>
+      <LinearGradient
+        colors={cardGradient}
+        end={{ x: 0.82, y: 1 }}
+        locations={cardGradientLocations}
+        pointerEvents="none"
+        start={{ x: 0.12, y: 0 }}
+        style={{ bottom: 0, left: 0, position: 'absolute', right: 0, top: 0, zIndex: 3 }}
+      />
+      <View
+        pointerEvents="none"
+        style={{ borderColor: 'rgba(251,191,36,0.35)', borderRadius: 11, borderWidth: 2, bottom: 9, left: 9, position: 'absolute', right: 9, top: 9, zIndex: 5 }}
+      />
+      <View className="w-full items-center px-3 pt-8" style={{ zIndex: 2 }}>
         <Text
           adjustsFontSizeToFit
           minimumFontScale={0.72}
@@ -78,26 +86,30 @@ export function DrawnCardFace({
             fontSize: titleFontSize,
             letterSpacing: 0.7,
             lineHeight: titleFontSize + 1,
+            paddingHorizontal: 12,
             textAlign: 'center',
+            width: '100%',
           }}
         >
           {isBs ? card.titleBs : card.titleEn}
         </Text>
-        {(card.descriptionBs || card.descriptionEn) && (
-          <Text
-            numberOfLines={3}
-            style={{
-              color: '#8f8f8f',
-              fontFamily: 'Outfit_400Regular',
-              fontSize: 11,
-              lineHeight: 15,
-              maxWidth: '88%',
-              textAlign: 'center',
-            }}
-          >
-            {isBs ? card.descriptionBs : card.descriptionEn}
-          </Text>
-        )}
+        <View style={{ alignItems: 'center', height: 55, justifyContent: 'center', width: '100%' }}>
+          {(card.descriptionBs || card.descriptionEn) && (
+            <Text
+              numberOfLines={3}
+              style={{
+                color: '#8f8f8f',
+                fontFamily: 'Outfit_400Regular',
+                fontSize: 11,
+                lineHeight: 15,
+                maxWidth: '88%',
+                textAlign: 'center',
+              }}
+            >
+              {isBs ? card.descriptionBs : card.descriptionEn}
+            </Text>
+          )}
+        </View>
         <View
           className="items-center justify-center"
           pointerEvents="none"
@@ -128,14 +140,6 @@ export function DrawnCardFace({
               }}
             />
           )}
-          <LinearGradient
-            colors={['rgba(255,255,255,0.18)', 'rgba(255,255,255,0.055)', 'rgba(255,255,255,0)']}
-            end={{ x: 0.82, y: 0.82 }}
-            locations={[0, 0.28, 0.72]}
-            pointerEvents="none"
-            start={{ x: 0, y: 0 }}
-            style={{ bottom: 0, left: 0, position: 'absolute', right: 0, top: 0, zIndex: 3 }}
-          />
         </View>
       </View>
       {showFinishPrompt && (
@@ -149,28 +153,46 @@ export function DrawnCardFace({
         </Animated.Text>
       )}
       <View
+        pointerEvents="none"
+        style={{
+          backgroundColor: '#000000',
+          borderBottomLeftRadius: 18,
+          borderBottomRightRadius: 18,
+          bottom: 0,
+          height: 104,
+          left: 0,
+          position: 'absolute',
+          right: 0,
+          zIndex: 4,
+        }}
+      />
+      <View
         className="absolute items-center"
-        style={{ backgroundColor: '#000000', bottom: 12, left: 12, paddingTop: 8, right: 12, zIndex: 4 }}
+        style={{ bottom: 0, height: 104, left: 0, right: 0, zIndex: 6 }}
       >
-        <Text
-          adjustsFontSizeToFit
-          className="mb-1 uppercase text-amber-400"
-          minimumFontScale={0.65}
-          numberOfLines={1}
-          style={{
-            fontFamily: 'BebasNeue_400Regular',
-            fontSize: 15,
-            letterSpacing: 1.2,
-            lineHeight: 17,
-            textAlign: 'center',
-            width: scoreTabWidth,
-          }}
+        <View
+          style={{ alignItems: 'center', height: 34, justifyContent: 'center', left: 0, position: 'absolute', right: 0, top: 0 }}
         >
-          {isBs ? 'STOPA BIJEDE' : 'MISERY RATE'}
-        </Text>
+          <Text
+            adjustsFontSizeToFit
+            className="uppercase text-amber-400"
+            minimumFontScale={0.65}
+            numberOfLines={1}
+            style={{
+              fontFamily: 'BebasNeue_400Regular',
+              fontSize: 15,
+              letterSpacing: 1.2,
+              lineHeight: 17,
+              textAlign: 'center',
+              width: scoreTabWidth,
+            }}
+          >
+            {isBs ? 'STOPA PATNJE' : 'MISERY RATE'}
+          </Text>
+        </View>
         <LinearGradient
           colors={['#facc15', '#facc15']}
-          style={{ alignItems: 'center', height: 70, justifyContent: 'center', padding: 8, width: scoreTabWidth }}
+          style={{ alignItems: 'center', bottom: 0, height: 70, justifyContent: 'center', padding: 8, position: 'absolute', width: scoreTabWidth }}
         >
           <Animated.Text
             className="text-neutral-950"
@@ -216,6 +238,6 @@ export function DrawnCardFace({
           </Animated.Text>
         </LinearGradient>
       </View>
-    </LinearGradient>
+    </View>
   );
 }

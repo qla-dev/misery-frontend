@@ -98,7 +98,7 @@ export function LaneProgressBadge({ label, count, target, addsCard, dark = false
   }, [addsCard, count, countScale, label, plusOpacity, plusTranslate, target]);
 
   const color = dark ? '#0a0a0a' : '#ffffff';
-  const labelParts = label.match(/^(LANE OF|STAZA IGRAČA)\s+(.+)$/iu);
+  const labelParts = label.match(/^(LANE OF|STAZA OD)\s+(.+)$/iu);
   const shouldWrapLabel = emphasized && label.length > 16 && labelParts !== null;
   const emphasizedStyle = emphasized
     ? { fontFamily: 'BebasNeue_400Regular', fontSize: 48, includeFontPadding: false, letterSpacing: 1.2, lineHeight: 50 }
@@ -119,26 +119,25 @@ export function LaneProgressBadge({ label, count, target, addsCard, dark = false
           {displayCount}
         </Animated.Text>
         {addsCard && (
-          <View
-            className="items-center"
+          <Animated.Text
+            className="absolute text-center text-2xl font-black uppercase tracking-wider"
             pointerEvents="none"
-            style={{ bottom: '100%', left: 0, position: 'absolute', right: 0 }}
+            style={{
+              bottom: '100%',
+              color,
+              fontFamily: emphasized ? 'BebasNeue_400Regular' : undefined,
+              fontSize: emphasized ? 30 : undefined,
+              left: '50%',
+              marginLeft: -24,
+              opacity: plusOpacity,
+              position: 'absolute',
+              textAlign: 'center',
+              transform: [{ translateY: plusTranslate }],
+              width: 48,
+            }}
           >
-            <Animated.Text
-              className="text-2xl font-black uppercase tracking-wider"
-              style={{
-                color,
-                fontFamily: emphasized ? 'BebasNeue_400Regular' : undefined,
-                fontSize: emphasized ? 30 : undefined,
-                opacity: plusOpacity,
-                textAlign: 'center',
-                transform: [{ translateY: plusTranslate }],
-                width: 48,
-              }}
-            >
-              +1
-            </Animated.Text>
-          </View>
+            +1
+          </Animated.Text>
         )}
       </View>
       <Text
@@ -152,7 +151,7 @@ export function LaneProgressBadge({ label, count, target, addsCard, dark = false
   );
 
   return (
-    <View style={{ marginTop: 14, minHeight: 50, paddingHorizontal: 8, width: '100%' }}>
+    <View style={{ minHeight: 50, paddingHorizontal: 8, width: '100%' }}>
       {shouldWrapLabel ? (
         <View className="items-center justify-center" style={{ width: '100%' }}>
           <Text
@@ -164,17 +163,22 @@ export function LaneProgressBadge({ label, count, target, addsCard, dark = false
           >
             {labelParts?.[1]}
           </Text>
-          <View className="flex-row items-end justify-center" style={{ width: '100%' }}>
-            <Text
-              adjustsFontSizeToFit
-              className="text-4xl font-black uppercase tracking-wider"
-              minimumFontScale={0.55}
-              numberOfLines={1}
-              style={[{ color, flexShrink: 1, marginRight: 8, textAlign: 'right' }, emphasizedLabelStyle]}
+          <View className="items-center justify-center" style={{ width: '100%' }}>
+            <View
+              className="flex-row items-end justify-center"
+              style={{ alignSelf: 'center', maxWidth: '100%' }}
             >
-              {labelParts?.[2]}
-            </Text>
-            {counter}
+              <Text
+                adjustsFontSizeToFit
+                className="text-center text-4xl font-black uppercase tracking-wider"
+                minimumFontScale={0.55}
+                numberOfLines={1}
+                style={[{ color, flexShrink: 1, marginRight: 8, textAlign: 'center' }, emphasizedLabelStyle]}
+              >
+                {labelParts?.[2]}
+              </Text>
+              {counter}
+            </View>
           </View>
         </View>
       ) : (

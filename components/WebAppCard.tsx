@@ -150,7 +150,7 @@ export function WebAppCard({ card, height, language, scoreRevealed = false, widt
           {scoreRevealed ? card.index.toFixed(2) : '?.??'}
         </Text>
         <Text style={{ color: '#090909', fontFamily: 'JetBrainsMono_700Bold', fontSize: 6, letterSpacing: 1.1 }}>
-          MISERY RATE
+          {isBs ? 'STOPA PATNJE' : 'MISERY RATE'}
         </Text>
       </View>
     </LinearGradient>

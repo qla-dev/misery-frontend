@@ -1980,7 +1980,7 @@ export default function Lobby() {
               <Text className="font-black uppercase tracking-wider text-neutral-500">
                 {hostInLobby
                   ? isBs ? 'ČEKA SE DOMAĆIN' : 'WAITING FOR HOST'
-                  : isBs ? 'DOMAĆIN NIJE U SOBI — ČEKANJE' : 'NO HOST IN ROOM — WAITING'}
+                  : isBs ? 'DOMAĆIN NIJE U SOBI: ČEKANJE' : 'NO HOST IN ROOM: WAITING'}
               </Text>
             </View>
           </ButtonTab>

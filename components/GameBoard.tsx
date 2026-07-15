@@ -10,7 +10,6 @@ import Illustration from './Illustration';
 import { useGame } from '@/context/GameContext';
 import { playSound } from '@/lib/sound';
 import { ButtonTab } from './ButtonTab';
-import LottieView from 'lottie-react-native';
 import { api, ApiCard, API_BASE_URL } from '@/lib/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VictoryConfetti } from './VictoryConfetti';
@@ -19,7 +18,7 @@ import { CardBackDecoration } from './CardBackDecoration';
 import { InactivityKickCountdown } from './InactivityKickCountdown';
 import { logGameAction } from '@/lib/gameDiagnostics';
 
-const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
+import { MiseryLogo } from './MiseryLogo';
 const INACTIVITY_KICK_MS = 60_000;
 const INACTIVITY_WARNING_MS = 15_000;
 
@@ -71,34 +70,6 @@ type QueuedLaneResult = {
   score?: number | null;
   stolenFromLocal?: boolean;
 };
-
-export function CardLogo({ compact = false }: { compact?: boolean }) {
-  const fontSize = compact ? 32 : 54;
-  const lineHeight = compact ? 32 : 54;
-  return (
-    <View style={{ alignItems: 'center' }}>
-      <View style={{ alignItems: 'center', flexDirection: 'row', justifyContent: 'center' }}>
-        <Text style={{ color: '#fbbf24', fontFamily: 'Outfit_900Black', fontSize, letterSpacing: -2, lineHeight }}>M</Text>
-        <LottieView
-          autoPlay
-          loop
-          source={MASCOT_LOTTIE}
-          style={{
-            height: compact ? 48 : 78,
-            marginHorizontal: -3,
-            marginTop: compact ? -27 : -44,
-            transform: [{ translateX: compact ? 2 : 4 }],
-            width: compact ? 24 : 38,
-          }}
-        />
-        <Text style={{ color: '#fbbf24', fontFamily: 'Outfit_900Black', fontSize, letterSpacing: -2, lineHeight }}>SERY</Text>
-      </View>
-      <Text style={{ color: '#fff', fontFamily: 'Outfit_900Black', fontSize, letterSpacing: -2, lineHeight, marginTop: compact ? -8 : -13 }}>
-        METER
-      </Text>
-    </View>
-  );
-}
 
 export default function GameBoard({
   mode,
@@ -1531,7 +1502,7 @@ export default function GameBoard({
                   >
                     <CardBackDecoration />
                     <View style={{ borderColor: 'rgba(251,191,36,0.35)', borderRadius: 11, borderWidth: 2, bottom: 9, left: 9, position: 'absolute', right: 9, top: 9 }} />
-                    <CardLogo />
+                    <MiseryLogo />
                     <Animated.Text
                       adjustsFontSizeToFit
                       className="absolute bottom-8 left-6 right-6 text-center font-mono text-[10px] font-black uppercase tracking-[3px] text-amber-400/70"

@@ -48,7 +48,7 @@ export default function HistoryScreen() {
               <Text className="flex-1 text-sm leading-6 text-neutral-300">
                 <Text className="font-black text-white">{entry.playerName}</Text>{' '}
                 {isBs ? 'je odigrao/la' : 'played'}{' '}
-                <Text className="font-bold text-amber-400">{entry.cardTitle}</Text> —{' '}
+                <Text className="font-bold text-amber-400">{entry.cardTitle}</Text> ·{' '}
                 <Text className={entry.success ? 'font-black text-emerald-400' : 'font-black text-red-400'}>
                   {entry.success ? (isBs ? 'TAČNO' : 'CORRECT') : isBs ? 'NETAČNO' : 'WRONG'}
                 </Text>

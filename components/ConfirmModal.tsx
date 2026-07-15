@@ -12,6 +12,7 @@ type ConfirmModalProps = {
   onConfirm: () => void;
   onRequestClose?: () => void;
   visible: boolean;
+  maxWidth?: number;
 };
 
 export function ConfirmModal({
@@ -23,6 +24,7 @@ export function ConfirmModal({
   onConfirm,
   onRequestClose = onConfirm,
   visible,
+  maxWidth = 384,
 }: ConfirmModalProps) {
   const handleConfirm = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -45,7 +47,7 @@ export function ConfirmModal({
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1 items-center justify-center bg-black/85 p-4"
       >
-        <View className="w-full max-w-sm">
+        <View className="w-full" style={{ maxWidth }}>
           <View className="relative rounded-2xl border border-neutral-800 bg-neutral-900 p-6 shadow-2xl">
             {children}
             <View className="mt-4">

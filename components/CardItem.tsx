@@ -168,7 +168,7 @@ export default function CardItem({
             className={`${size === 'xl' ? 'py-5 rounded-b-[28px]' : 'py-2 rounded-b-xl'} items-center justify-center`}
           >
             <Text className="text-[7px] font-extrabold tracking-widest leading-none text-neutral-950 opacity-80 uppercase">
-              {isBs ? 'INDEKS BIJEDE' : 'MISERY INDEX'}
+              {isBs ? 'STOPA PATNJE' : 'MISERY INDEX'}
             </Text>
             <Text style={{ fontSize: indexSize, lineHeight: indexSize }} className="text-neutral-950 font-mono font-black mt-1">
               ?.??
@@ -180,7 +180,7 @@ export default function CardItem({
             className={`${size === 'xl' ? 'py-5 rounded-b-[28px]' : 'py-2 rounded-b-xl'} items-center justify-center`}
           >
             <Text className="text-[7px] font-extrabold tracking-widest leading-none text-neutral-950 opacity-80 uppercase">
-              {isBs ? 'INDEKS BIJEDE' : 'MISERY INDEX'}
+              {isBs ? 'STOPA PATNJE' : 'MISERY INDEX'}
             </Text>
             <Text style={{ fontSize: indexSize, lineHeight: indexSize }} className="text-neutral-950 font-mono font-black mt-1">
               {card.index.toFixed(2)}

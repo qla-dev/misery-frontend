@@ -212,7 +212,7 @@ export function LaneModal({
               target={laneProgress.target}
             />
           )}
-          <View className="items-center" style={{ gap: 14, marginTop: laneProgress ? 0 : 14 }}>
+          <View className="items-center" style={{ gap: 14 }}>
             {!laneProgress && (
               <Text
                 className={`text-center font-black uppercase ${darkForeground ? 'text-neutral-950' : 'text-white'}`}

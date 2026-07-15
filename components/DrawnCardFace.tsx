@@ -128,6 +128,14 @@ export function DrawnCardFace({
               }}
             />
           )}
+          <LinearGradient
+            colors={['rgba(255,255,255,0.18)', 'rgba(255,255,255,0.055)', 'rgba(255,255,255,0)']}
+            end={{ x: 0.82, y: 0.82 }}
+            locations={[0, 0.28, 0.72]}
+            pointerEvents="none"
+            start={{ x: 0, y: 0 }}
+            style={{ bottom: 0, left: 0, position: 'absolute', right: 0, top: 0, zIndex: 3 }}
+          />
         </View>
       </View>
       {showFinishPrompt && (

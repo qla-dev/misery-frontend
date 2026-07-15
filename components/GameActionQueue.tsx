@@ -176,12 +176,12 @@ export function GameActionQueue({
         successTitle={turnNotice?.type === 'finish'
           ? isBs ? 'IGRA JE ZAVRŠENA' : 'GAME FINISHED'
           : turnNotice?.type === 'hold'
-            ? isBs ? 'NA ČEKANJU SI' : `YOU'RE ON HOLD`
+            ? isBs ? 'NA \u010CEKANJU SI' : `YOU'RE ON HOLD`
           : turnNotice?.type === 'end'
             ? isBs ? 'TVOJ POTEZ JE ZAVRŠEN' : 'YOUR TURN ENDED'
             : turnNotice?.steal
-              ? isBs ? 'POKUŠAJ KRAĐE' : 'YOUR STEAL ATTEMPT'
-              : isBs ? 'TVOJ POTEZ JE POČEO' : 'YOUR TURN STARTED'}
+              ? isBs ? 'POKU\u0160AJ KRA\u0110E' : 'YOUR STEAL ATTEMPT'
+              : isBs ? 'TVOJ POTEZ JE PO\u010CEO' : 'YOUR TURN STARTED'}
         visible={activeAction === 'turn-notice'}
         warning={turnNotice?.type === 'hold'}
       />
@@ -218,7 +218,7 @@ export function GameActionQueue({
             ? `ODIGRAJ SADA — BIT ĆEŠ UKLONJEN ZA ${inactivitySecondsRemaining} SEKUNDI`
             : `PLAY NOW — YOU WILL BE KICKED IN ${inactivitySecondsRemaining} SECONDS`
           : isBs ? 'ODIGRAJ TRENUTNU KARTU DA SE IGRA NASTAVI' : 'PLAY THE CURRENT CARD TO KEEP THE GAME MOVING'}
-        successTitle={isBs ? 'TVOJ POTEZ ČEKA' : 'YOUR TURN IS WAITING'}
+        successTitle={isBs ? 'TVOJ POTEZ \u010CEKA' : 'YOUR TURN IS WAITING'}
         visible={activeAction === 'inactivity'}
         warning
       />

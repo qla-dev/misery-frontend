@@ -120,8 +120,11 @@ export function LaneModal({
   const modalTitleStyle = {
     fontFamily: 'BebasNeue_400Regular',
     fontSize: 48,
+    includeFontPadding: true,
     letterSpacing: 1.2,
-    lineHeight: 50,
+    lineHeight: 64,
+    paddingBottom: 2,
+    paddingTop: 8,
   };
   const modalMessageStyle = {
     fontFamily: 'Outfit_700Bold',

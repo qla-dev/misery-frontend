@@ -104,7 +104,7 @@ export function LaneProgressBadge({ label, count, target, addsCard, dark = false
     ? { fontFamily: 'BebasNeue_400Regular', fontSize: 48, includeFontPadding: false, letterSpacing: 1.2, lineHeight: 50 }
     : undefined;
   const emphasizedLabelStyle = emphasized
-    ? { fontFamily: 'BebasNeue_400Regular', fontSize: 48, includeFontPadding: false, letterSpacing: 1.2, lineHeight: 50 }
+    ? { fontFamily: 'BebasNeue_400Regular', fontSize: 48, includeFontPadding: true, letterSpacing: 1.2, lineHeight: 58 }
     : undefined;
 
   const counter = (

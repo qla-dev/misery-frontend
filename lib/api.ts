@@ -24,7 +24,7 @@ export interface ApiUser {
 export interface ApiCard { id: number; title: string; title_bs?: string | null; subtitle: string | null; subtitle_bs?: string | null; score: number | string; image: string | null; deck: string }
 export interface ApiMove { id: number; player_id: number; correct: boolean; player: ApiUser; card: ApiCard | null; created_at: string }
 export interface ApiQuestion { id: number; question: string; answer: string; category: string; difficulty: number }
-export interface ApiGame { id: number; code: string; owner_id: number; started: boolean; host_in_lobby: boolean; terminated_at: string | null; termination_reason: 'host_left' | 'host_inactive' | string | null; stack_id: number | null; stack: 'normal' | 'spicy' | string | null; target_score: number; winner_id: number | null; current_player_id: number | null; turn_owner_id: number | null; awaiting_finish: boolean; is_steal_turn: boolean; ingame_polling_interval_ms: number; members: ApiUser[]; hands: Record<string, ApiCard[]>; current_card: ApiCard | null; moves: ApiMove[] }
+export interface ApiGame { id: number; code: string; owner_id: number; started: boolean; host_in_lobby: boolean; is_private: boolean; terminated_at: string | null; termination_reason: 'host_left' | 'host_inactive' | string | null; stack_id: number | null; stack: 'normal' | 'spicy' | string | null; target_score: number; winner_id: number | null; current_player_id: number | null; turn_owner_id: number | null; awaiting_finish: boolean; is_steal_turn: boolean; ingame_polling_interval_ms: number; members: ApiUser[]; hands: Record<string, ApiCard[]>; current_card: ApiCard | null; moves: ApiMove[] }
 export interface SocialAuthResponse { token: string; user: ApiUser; is_new_user: boolean }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -86,6 +86,11 @@ export const api = {
   },
   getGame: (id: number, userId?: number | null, signal?: AbortSignal) => request<ApiGame>(`/games/${id}${userId ? `?user_id=${encodeURIComponent(String(userId))}` : ''}`, { signal }),
   setHostLobbyPresence: (id: number, userId: number, present: boolean) => request<ApiGame>(`/games/${id}/host-lobby-presence`, { method: 'POST', body: JSON.stringify({ user_id: userId, present }) }),
+  lockLobbyRoom: (id: number, userId: number, token: string) => request<ApiGame>(`/games/${id}/lock`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ user_id: userId }),
+  }),
   kickLobbyPlayer: (id: number, userId: number, playerId: number) => request<ApiGame>(`/games/${id}/kick`, { method: 'POST', body: JSON.stringify({ user_id: userId, player_id: playerId }) }),
   deleteGame: (id: number) => request<void>(`/games/${id}`, { method: 'DELETE' }),
   startGame: (id: number, userId: number, stack: 'normal' | 'spicy', targetScore: number) => request<ApiGame>(`/games/${id}/start`, { method: 'POST', body: JSON.stringify({ user_id: userId, stack, target_score: targetScore }) }),

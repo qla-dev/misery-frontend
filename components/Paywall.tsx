@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Check, Crown, Flame, Sparkles, Trophy, Zap } from 'lucide-react-native';
+import { Check, Crown, Flame, LockKeyhole, Sparkles, Trophy, Zap } from 'lucide-react-native';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import LottieView from 'lottie-react-native';
 import { useGame } from '@/context/GameContext';
@@ -12,6 +12,7 @@ type Plan = 'monthly' | 'yearly';
 const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
 
 const FEATURES = [
+  { icon: LockKeyhole, en: 'Private game rooms', bs: 'Privatne sobe za igru', detailEn: 'Create locked rooms hidden from Public Games.', detailBs: 'Kreiraj zaključane sobe koje nisu vidljive u Javnim igrama.' },
   { icon: Flame, en: 'Unlock the Spicy deck', bs: 'Otključaj Ljuti špil', detailEn: 'Extreme and bizarre misery cards.', detailBs: 'Ekstremne i bizarne karte nesreće.' },
   { icon: Sparkles, en: 'Every premium pack', bs: 'Svi premium špilovi', detailEn: 'New themed packs as they arrive.', detailBs: 'Novi tematski špilovi čim stignu.' },
   { icon: Trophy, en: 'Exclusive game content', bs: 'Ekskluzivni sadržaj', detailEn: 'More ways to make game night miserable.', detailBs: 'Još više načina za nesretnu noć igre.' },
@@ -102,7 +103,7 @@ export function Paywall() {
             className="px-2 text-center text-2xl font-handwritten uppercase leading-7 tracking-[1px] text-neutral-400"
             style={{ paddingBottom: 24, paddingTop: 0 }}
           >
-            {isBs ? 'Više karata. Više bijede. ' : 'More cards. More misery. '}
+            {isBs ? 'Više karata. Više patnje. ' : 'More cards. More misery. '}
             <Text className="text-amber-400">{isBs ? 'Odaberi ponudu.' : 'Choose your offer.'}</Text>
           </Text>
           <LinearGradient
@@ -120,7 +121,7 @@ export function Paywall() {
             </View>
           </View>
           <Text className="hidden">
-            {isBs ? 'VIŠE KARATA.\nVIŠE BIJEDE.' : 'MORE CARDS.\nMORE MISERY.'}
+            {isBs ? 'VIŠE KARATA.\nVIŠE PATNJE.' : 'MORE CARDS.\nMORE MISERY.'}
           </Text>
           <Text className="hidden">
             {isBs

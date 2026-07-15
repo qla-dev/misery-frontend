@@ -6,7 +6,7 @@ const GAME_BACKGROUND_AUDIO = require('../assets/audio/game-bg.mp3');
 const LOBBY_BACKGROUND_AUDIO = require('../assets/audio/lobby.mp3');
 const BELL_AUDIO = require('../assets/audio/bell-ring.mp3');
 const APPLAUSE_AUDIO = require('../assets/audio/applause.mp3');
-const COUNTDOWN_AUDIO = require('../assets/audio/countdown-beep.mp3');
+const COUNTDOWN_AUDIO = require('../assets/audio/connect.mp3');
 
 export type SoundType = 'correct' | 'wrong' | 'victory' | 'click' | 'steal' | 'shuffle' | 'bell' | 'applause' | 'countdown';
 

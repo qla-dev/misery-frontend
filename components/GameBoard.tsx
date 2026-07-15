@@ -198,6 +198,7 @@ export default function GameBoard({
   const [inactivityWarningCount, setInactivityWarningCount] = useState(0);
   const [inactivitySecondsRemaining, setInactivitySecondsRemaining] = useState<number | null>(null);
   const [inactivityFinalCountdown, setInactivityFinalCountdown] = useState<number | null>(null);
+  const [inactivityResetKey, setInactivityResetKey] = useState(0);
   const [roomExitReason, setRoomExitReason] = useState<string | null>(null);
 
   useEffect(() => {
@@ -1167,7 +1168,19 @@ export default function GameBoard({
       clearInterval(countdownTimer);
       clearTimeout(kickTimer);
     };
-  }, [gameId, inactivityTurnKey, userId]);
+  }, [gameId, inactivityResetKey, inactivityTurnKey, userId]);
+
+  const handleInactivityCountdownDismiss = () => {
+    logGameAction('inactivity.countdown.dismissed', { gameId, playerId: userId });
+    inactivityWarningCountRef.current = 0;
+    inactivityKickInFlightRef.current = false;
+    setIsTurnInactive(false);
+    setInactivityWarningVisible(false);
+    setInactivityWarningCount(0);
+    setInactivitySecondsRemaining(null);
+    setInactivityFinalCountdown(null);
+    setInactivityResetKey((current) => current + 1);
+  };
 
   const faceDownPrompt = gameId && !isLocalServerTurn
     ? !isAwaitingTurnFinish && currentActingPlayer?.name
@@ -1400,7 +1413,11 @@ export default function GameBoard({
 
   return (
     <Animated.View className="flex-1 bg-neutral-950" style={{ opacity: finishedScreenOpacity }}>
-      <InactivityKickCountdown isBs={isBs} value={inactivityFinalCountdown} />
+      <InactivityKickCountdown
+        isBs={isBs}
+        onDismiss={handleInactivityCountdownDismiss}
+        value={inactivityFinalCountdown}
+      />
       <VictoryConfetti visible={didLocalWin} />
       {(isVictoryPhase || isGameOverPhase) && (
         <LinearGradient

@@ -1,12 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { router } from 'expo-router';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Google from 'expo-auth-session/providers/google';
 import * as Haptics from 'expo-haptics';
 import * as WebBrowser from 'expo-web-browser';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Check, Copy, Crown, Flame, Loader2, Share2, ShieldAlert, Sparkles, User, X } from 'lucide-react-native';
+import { Check, Copy, Crown, Flame, Loader2, LockKeyhole, Share2, ShieldAlert, Sparkles, User, X } from 'lucide-react-native';
 import LottieView from 'lottie-react-native';
 import { ActivityIndicator, Animated, BackHandler, Easing, Keyboard, KeyboardAvoidingView, LayoutAnimation, Platform, Pressable, ScrollView, Share, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -24,6 +24,7 @@ import { ConfirmModal } from './ConfirmModal';
 import { LoadingState } from './LoadingState';
 import { LoadingOverlay } from './LoadingOverlay';
 import { LobbyOpeningOverlay } from './LobbyOpeningOverlay';
+import { LaneModal } from './LaneModal';
 import { SetupTabs } from './SetupTabs';
 import { WelcomeSilhouetteRow } from './WelcomeSilhouetteRow';
 import { api, ApiGame, ApiUser } from '@/lib/api';
@@ -194,7 +195,10 @@ function PlayerCard({
               className="h-8 w-8 items-center justify-center rounded-full bg-red-500/15"
               disabled={isRemoving}
               hitSlop={8}
-              onPress={onRemove}
+              onPress={() => {
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onRemove();
+              }}
             >
               {isRemoving ? <ActivityIndicator color="#ef4444" size="small" /> : <X color="#ef4444" size={17} strokeWidth={3} />}
             </Pressable>
@@ -209,15 +213,35 @@ function RoomCodeCard({
   code,
   isBs,
   isCopied,
+  isLocking = false,
+  isPrivate = false,
   onCopy,
+  onLock,
   onShare,
 }: {
   code: string;
   isBs: boolean;
   isCopied: boolean;
+  isLocking?: boolean;
+  isPrivate?: boolean;
   onCopy: () => void;
+  onLock?: () => void;
   onShare: () => void;
 }) {
+  const [glassRefreshKey, setGlassRefreshKey] = useState(0);
+  useFocusEffect(useCallback(() => {
+    setGlassRefreshKey((current) => current + 1);
+  }, []));
+  const glassButtonStyle = {
+    backgroundColor: 'rgba(255,255,255,0.055)',
+    borderColor: 'rgba(255,255,255,0.09)',
+    borderRadius: 12,
+    borderWidth: 1,
+    height: 40,
+    overflow: 'hidden' as const,
+    width: 40,
+  };
+
   return (
     <Card>
       <View className="flex-row items-center justify-between">
@@ -230,11 +254,37 @@ function RoomCodeCard({
           </Text>
         </View>
         <View className="flex-row items-center" style={{ gap: 8 }}>
+          {onLock ? (
+            <GlassView
+              key={`lock-${glassRefreshKey}`}
+              colorScheme={isPrivate ? 'light' : 'dark'}
+              glassEffectStyle="regular"
+              isInteractive
+              style={[glassButtonStyle, isPrivate ? { backgroundColor: '#facc15', borderColor: '#facc15' } : undefined]}
+              tintColor={isPrivate ? '#facc15' : 'rgba(255,255,255,0.08)'}
+            >
+              <Pressable
+                accessibilityLabel={isPrivate
+                  ? isBs ? 'Soba je privatna' : 'Room is private'
+                  : isBs ? 'Zaklju\u010daj sobu' : 'Lock room'}
+                accessibilityRole="button"
+                className="h-full w-full items-center justify-center"
+                disabled={isLocking || isPrivate}
+                onPress={onLock}
+                style={{ opacity: isLocking ? 0.55 : 1 }}
+              >
+                {isLocking
+                  ? <ActivityIndicator color="#facc15" size="small" />
+                  : <LockKeyhole color={isPrivate ? '#0a0a0a' : '#d4d4d4'} size={18} strokeWidth={2.5} />}
+              </Pressable>
+            </GlassView>
+          ) : null}
           <GlassView
+            key={`copy-${glassRefreshKey}`}
             colorScheme="dark"
             glassEffectStyle="regular"
             isInteractive
-            style={{ borderRadius: 12, height: 40, overflow: 'hidden', width: 40 }}
+            style={glassButtonStyle}
             tintColor="rgba(255,255,255,0.08)"
           >
             <Pressable
@@ -247,10 +297,11 @@ function RoomCodeCard({
             </Pressable>
           </GlassView>
           <GlassView
+            key={`share-${glassRefreshKey}`}
             colorScheme="dark"
             glassEffectStyle="regular"
             isInteractive
-            style={{ borderRadius: 12, height: 40, overflow: 'hidden', width: 40 }}
+            style={glassButtonStyle}
             tintColor="rgba(255,255,255,0.08)"
           >
             <Pressable
@@ -424,6 +475,9 @@ export default function Lobby() {
   const [isSavingUsername, setIsSavingUsername] = useState(false);
   const [removingPlayerId, setRemovingPlayerId] = useState<number | null>(null);
   const [playerToRemove, setPlayerToRemove] = useState<{ id: number; name: string } | null>(null);
+  const [isLockingRoom, setIsLockingRoom] = useState(false);
+  const [isRoomPrivate, setIsRoomPrivate] = useState(false);
+  const [roomLockedOverlayVisible, setRoomLockedOverlayVisible] = useState(false);
   const [lobbyOpening, setLobbyOpening] = useState({ changed: false, color: AVAILABLE_COLORS[0].hex, visible: false });
   const [serverGameId, setServerGameId] = useState<number | null>(session?.gameId ?? null);
   const [serverUserId, setServerUserId] = useState<number | null>(session?.userId ?? null);
@@ -617,6 +671,7 @@ export default function Lobby() {
     setRoomCode(game.code);
     setServerOwnerId(game.owner_id);
     setHostInLobby(game.host_in_lobby ?? true);
+    setIsRoomPrivate(Boolean(game.is_private));
     setRoomPlayers(game.members.map((member, index) => ({
       id: member.id,
       name: member.name,
@@ -719,6 +774,43 @@ export default function Lobby() {
     } finally {
       setRemovingPlayerId(null);
       setPlayerToRemove(null);
+    }
+  };
+
+  const handleLockRoom = async () => {
+    if (isLockingRoom || isRoomPrivate || !serverGameId || !serverUserId) return;
+    playSound('click');
+    if (!isPremium) {
+      router.navigate('/pro');
+      return;
+    }
+
+    const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+    if (!token) {
+      setStartModal({
+        visible: true,
+        title: isBs ? 'PRIJAVA JE POTREBNA' : 'SIGN IN REQUIRED',
+        message: isBs
+          ? 'Prijavi se na svoj PRO ra\u010dun da zaklju\u010da\u0161 sobu.'
+          : 'Sign in to your PRO account to lock this room.',
+      });
+      return;
+    }
+
+    setIsLockingRoom(true);
+    try {
+      const game = await api.lockLobbyRoom(serverGameId, serverUserId, token);
+      applyServerGame(game);
+      setRoomLockedOverlayVisible(true);
+    } catch (error) {
+      playSound('wrong');
+      setStartModal({
+        visible: true,
+        title: isBs ? 'SOBA NIJE ZAKLJU\u010cANA' : 'ROOM NOT LOCKED',
+        message: error instanceof Error ? error.message : isBs ? 'Poku\u0161aj ponovo.' : 'Please try again.',
+      });
+    } finally {
+      setIsLockingRoom(false);
     }
   };
 
@@ -1284,7 +1376,7 @@ export default function Lobby() {
             style={{ gap: 22 }}
           >
             <View className="items-center" style={{ gap: 10 }}>
-              <View className="items-center">
+              <View className="items-center" style={{ transform: [{ translateY: 10 }] }}>
                 <View className="flex-row items-center justify-center">
                   <Text className="text-center text-[66px] font-black uppercase leading-[66px] tracking-tight text-amber-400">
                     M
@@ -1551,8 +1643,8 @@ export default function Lobby() {
             <Text className="text-[10px] text-neutral-600 font-mono">© 2026 Misery Meter</Text>
             <Text className="text-[10px] text-neutral-600 font-mono opacity-80">
               {isBs
-                ? 'Serveri aktivni • Multiplayer mode • Do 5 igrača'
-                : 'Servers active • Multiplayer mode • Up to 5 players'}
+                ? 'Serveri aktivni • Multiplayer mode • Do 8 igrača'
+                : 'Servers active • Multiplayer mode • Up to 8 players'}
             </Text>
           </View>
         </View>
@@ -1815,7 +1907,10 @@ export default function Lobby() {
               code={roomCode}
               isBs={isBs}
               isCopied={isCopied}
+              isLocking={isLockingRoom}
+              isPrivate={isRoomPrivate}
               onCopy={handleCopyRoomCode}
+              onLock={() => void handleLockRoom()}
               onShare={handleShareRoomCode}
             />
             <View style={{ gap: 16 }}>
@@ -2063,6 +2158,15 @@ export default function Lobby() {
       </ConfirmModal>
       <LoadingOverlay isBs={isBs} visible={isCreatingRoom} />
       <LoadingOverlay isBs={isBs} mode="start" visible={isStartingGame} />
+      <LaneModal
+        failureMessage=""
+        failureTitle=""
+        onComplete={() => setRoomLockedOverlayVisible(false)}
+        success
+        successMessage={isBs ? 'SOBA VI\u0160E NIJE VIDLJIVA U JAVNIM IGRAMA' : 'THIS ROOM IS NO LONGER VISIBLE IN PUBLIC GAMES'}
+        successTitle={isBs ? 'SOBA JE ZAKLJU\u010cANA' : 'ROOM LOCKED'}
+        visible={roomLockedOverlayVisible}
+      />
       <LobbyOpeningOverlay
         changed={lobbyOpening.changed}
         color={lobbyOpening.color}

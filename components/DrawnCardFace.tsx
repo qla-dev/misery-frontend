@@ -47,7 +47,6 @@ export function DrawnCardFace({
     ? [0, 0.36, 0.7, 1]
     : [0, 0.13, 0.3, 1];
   const titleFontSize = Math.min(30, Math.max(25, height * 0.052));
-  const artworkTop = Math.max(112, height * 0.2);
   const scoreTabWidth = 112;
 
   useEffect(() => setImageFailed(false), [card.image]);
@@ -70,7 +69,7 @@ export function DrawnCardFace({
       }}
     >
       <View style={{ borderColor: 'rgba(251,191,36,0.35)', borderRadius: 10, borderWidth: 2, bottom: 12, left: 12, position: 'absolute', right: 12, top: 12 }} />
-      <View className="w-full items-center px-6 pt-9" style={{ zIndex: 2 }}>
+      <View className="w-full items-center px-6 pt-8" style={{ gap: 10, zIndex: 2 }}>
         <Text
           adjustsFontSizeToFit
           minimumFontScale={0.72}
@@ -94,7 +93,6 @@ export function DrawnCardFace({
               fontFamily: 'Outfit_400Regular',
               fontSize: 11,
               lineHeight: 15,
-              marginTop: 7,
               maxWidth: '88%',
               textAlign: 'center',
             }}
@@ -102,13 +100,9 @@ export function DrawnCardFace({
             {isBs ? card.descriptionBs : card.descriptionEn}
           </Text>
         )}
-      </View>
-      <View
-        pointerEvents="none"
-        style={{ alignItems: 'center', left: 0, position: 'absolute', right: 0, top: artworkTop, zIndex: 1 }}
-      >
         <View
           className="items-center justify-center"
+          pointerEvents="none"
           style={{
             backgroundColor: '#000000',
             height: artworkSize,

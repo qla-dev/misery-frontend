@@ -3,6 +3,7 @@ import { Card, Language } from '@/types';
 import Illustration from './Illustration';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image, Pressable, Text, View } from 'react-native';
+import { cardDescription, cardTitle } from '@/lib/cardText';
 
 interface CardItemProps {
   card: Card;
@@ -24,8 +25,8 @@ export default function CardItem({
   fluidHeight,
 }: CardItemProps) {
   const isBs = language === 'bs';
-  const title = isBs ? card.titleBs : card.titleEn;
-  const description = isBs ? card.descriptionBs : card.descriptionEn;
+  const title = cardTitle(card, language);
+  const description = cardDescription(card, language);
   const [imageFailed, setImageFailed] = useState(false);
 
   useEffect(() => setImageFailed(false), [card.image]);

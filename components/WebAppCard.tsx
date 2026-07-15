@@ -3,6 +3,7 @@ import LottieView from 'lottie-react-native';
 import { useEffect, useState } from 'react';
 import { Image, Text, View } from 'react-native';
 import { Card, Language } from '@/types';
+import { cardDescription, cardTitle } from '@/lib/cardText';
 
 const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
 
@@ -17,8 +18,8 @@ type WebAppCardProps = {
 export function WebAppCard({ card, height, language, scoreRevealed = false, width }: WebAppCardProps) {
   const [imageFailed, setImageFailed] = useState(false);
   const isBs = language === 'bs';
-  const title = isBs ? card.titleBs : card.titleEn;
-  const description = isBs ? card.descriptionBs : card.descriptionEn;
+  const title = cardTitle(card, language);
+  const description = cardDescription(card, language);
   const artworkSize = Math.min(width * 0.76, height * 0.39);
   const scoreSize = Math.min(112, width * 0.31);
 

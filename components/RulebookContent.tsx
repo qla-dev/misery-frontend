@@ -6,6 +6,7 @@ import { API_BASE_URL, ApiCard, api } from '@/lib/api';
 import { CARD_DECK } from '@/data/cards';
 import { Card } from '@/types';
 import { MiseryLogo } from './MiseryLogo';
+import { cardTitle } from '@/lib/cardText';
 
 const DEFAULT_CARD_IMAGE = require('../assets/images/def-card.png');
 const RULEBOOK_SPECTRUM_IMAGE = require('../assets/images/rulebook-misery-spectrum.jpg');
@@ -33,7 +34,7 @@ function toLocalCard(card: ApiCard): Card {
 
 function RulebookGameCard({ card, hidden = false, isBs, width }: { card: Card; hidden?: boolean; isBs: boolean; width: number }) {
   const [imageFailed, setImageFailed] = useState(false);
-  const title = isBs ? card.titleBs : card.titleEn;
+  const title = cardTitle(card, isBs ? 'bs' : 'en');
   const compact = width < 80;
   const height = Math.round(width * 1.58);
 
@@ -137,7 +138,7 @@ function ScoreScale({ cards, isBs }: { cards: Card[]; isBs: boolean }) {
             <View style={{ borderBottomColor: '#171717', borderBottomWidth: 9, borderLeftColor: 'transparent', borderLeftWidth: 10, borderRightColor: 'transparent', borderRightWidth: 10, height: 0, width: 0 }} />
             <View className="min-h-[48px] w-full items-center justify-center bg-neutral-900 px-1 py-2">
               <Text adjustsFontSizeToFit className="text-center font-mono text-[7px] font-black uppercase leading-[9px] text-white" minimumFontScale={0.65} numberOfLines={3}>
-                {isBs ? card.titleBs : card.titleEn}
+                {cardTitle(card, isBs ? 'bs' : 'en')}
               </Text>
             </View>
           </View>

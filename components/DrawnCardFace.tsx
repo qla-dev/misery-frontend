@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Image, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Card, Language } from '@/types';
+import { cardDescription, cardTitle } from '@/lib/cardText';
 
 const DEFAULT_CARD_IMAGE = require('../assets/images/def-card.png');
 
@@ -29,6 +30,8 @@ export function DrawnCardFace({
   showFinishPrompt = false,
 }: DrawnCardFaceProps) {
   const isBs = language === 'bs';
+  const localizedTitle = cardTitle(card, language);
+  const localizedDescription = cardDescription(card, language);
   const [imageFailed, setImageFailed] = useState(false);
   const staticScoreReveal = useRef(new Animated.Value(scoreRevealed ? 1 : 0)).current;
   const staticPromptFloat = useRef(new Animated.Value(0)).current;
@@ -91,10 +94,10 @@ export function DrawnCardFace({
             width: '100%',
           }}
         >
-          {isBs ? card.titleBs : card.titleEn}
+          {localizedTitle}
         </Text>
         <View style={{ alignItems: 'center', height: 55, justifyContent: 'center', width: '100%' }}>
-          {(card.descriptionBs || card.descriptionEn) && (
+          {localizedDescription && (
             <Text
               numberOfLines={3}
               style={{
@@ -106,7 +109,7 @@ export function DrawnCardFace({
                 textAlign: 'center',
               }}
             >
-              {isBs ? card.descriptionBs : card.descriptionEn}
+              {localizedDescription}
             </Text>
           )}
         </View>
@@ -122,7 +125,7 @@ export function DrawnCardFace({
         >
           {card.image && !imageFailed ? (
             <Image
-              accessibilityLabel={isBs ? card.titleBs : card.titleEn}
+              accessibilityLabel={localizedTitle}
               onError={() => setImageFailed(true)}
               resizeMode="cover"
               source={{ uri: card.image }}

@@ -2,7 +2,7 @@ import { InfoModal } from '@/components/InfoModal';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { GameActionQueue } from '@/components/GameActionQueue';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { router, Stack } from 'expo-router';
+import { router, Stack, usePathname } from 'expo-router';
 import { useGame } from '@/context/GameContext';
 import { playHaptic, setGameMusicActive, setGameMusicMuted, setLobbyMusicActive } from '@/lib/sound';
 import { ImageSourcePropType, Pressable, Text, View } from 'react-native';
@@ -29,6 +29,7 @@ function playerColor(value?: string) {
 }
 
 export default function GameTabsLayout() {
+  const pathname = usePathname();
   const {
     gameRuntime,
     isGameCountingDown,
@@ -52,6 +53,7 @@ export default function GameTabsLayout() {
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
   const returningToGameSettingsRef = useRef(false);
   const isBs = language === 'bs';
+  const isChatOpen = pathname.endsWith('/chat');
   const turnNotice = turnNotices[0];
   const activePlayerName = gameRuntime?.currentActingPlayer?.name ?? session?.players[0]?.name;
   const activePlayerColor = playerColor(gameRuntime?.currentActingPlayer?.color ?? session?.players[0]?.color);
@@ -180,7 +182,20 @@ export default function GameTabsLayout() {
           headerShown: !isGameCountingDown,
           headerShadowVisible: false,
           headerStyle: { backgroundColor: 'transparent' },
-          headerLeft: () => isGameFinished ? (
+          headerLeft: () => isChatOpen ? (
+            <Pressable
+              accessibilityLabel={isBs ? 'Nazad u igru' : 'Back to game'}
+              accessibilityRole="button"
+              hitSlop={10}
+              onPress={() => {
+                playHaptic();
+                router.replace('/game');
+              }}
+              style={{ alignItems: 'center', height: 36, justifyContent: 'center', width: 36 }}
+            >
+              <ChevronLeft color="#ffffff" size={29} strokeWidth={2.4} />
+            </Pressable>
+          ) : isGameFinished ? (
             <Pressable
               accessibilityLabel={isBs ? 'Nazad na početni ekran' : 'Back to welcome'}
               accessibilityRole="button"
@@ -209,7 +224,7 @@ export default function GameTabsLayout() {
               }}
             />
           ),
-          headerTitle: () => (
+          headerTitle: () => isChatOpen ? null : (
             <Text
               numberOfLines={1}
               style={{
@@ -229,7 +244,7 @@ export default function GameTabsLayout() {
           headerTransparent: true,
         }}
       />
-      {!isGameCountingDown && (
+      {!isGameCountingDown && !isChatOpen && (
         <>
           <Stack.Toolbar placement="right">
             <Stack.Toolbar.Button
@@ -257,7 +272,7 @@ export default function GameTabsLayout() {
       )}
       <NativeTabs
         disableTransparentOnScrollEdge
-        hidden={isGameCountingDown || isGameFinished}
+        hidden={isGameCountingDown || isGameFinished || isChatOpen}
         screenListeners={{ tabPress: () => playHaptic() }}
         iconColor={{ default: '#737373', selected: '#fbbf24' }}
         labelStyle={{
@@ -280,6 +295,10 @@ export default function GameTabsLayout() {
         <NativeTabs.Trigger name="history" contentStyle={{ backgroundColor: '#0a0a0a' }}>
           <NativeTabs.Trigger.Icon sf={{ default: 'clock.arrow.circlepath', selected: 'clock.arrow.circlepath' } as any} md="history" />
           <NativeTabs.Trigger.Label>{isBs ? 'Historija' : 'History'}</NativeTabs.Trigger.Label>
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="chat" contentStyle={{ backgroundColor: '#0a0a0a' }}>
+          <NativeTabs.Trigger.Icon sf={{ default: 'message', selected: 'message.fill' } as any} md="chat" />
+          <NativeTabs.Trigger.Label>{isBs ? 'Razgovor' : 'Chat'}</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
       </NativeTabs>
       <InfoModal onLeaveGame={() => setIsExitConfirmOpen(true)} />

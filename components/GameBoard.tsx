@@ -10,13 +10,14 @@ import Illustration from './Illustration';
 import { useGame } from '@/context/GameContext';
 import { playSound } from '@/lib/sound';
 import { ButtonTab } from './ButtonTab';
-import { api, ApiCard, API_BASE_URL } from '@/lib/api';
+import { api, ApiCard, ApiChatMessage, API_BASE_URL } from '@/lib/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VictoryConfetti } from './VictoryConfetti';
 import { DrawnCardFace } from './DrawnCardFace';
 import { CardBackDecoration } from './CardBackDecoration';
 import { InactivityKickCountdown } from './InactivityKickCountdown';
 import { logGameAction } from '@/lib/gameDiagnostics';
+import { cardDescription, cardTitle } from '@/lib/cardText';
 
 import { MiseryLogo } from './MiseryLogo';
 const INACTIVITY_KICK_MS = 60_000;
@@ -151,6 +152,7 @@ export default function GameBoard({
   const [selectedSlotResult, setSelectedSlotResult] = useState<'success' | 'failure' | null>(null);
   const [isLaneCollapsing, setIsLaneCollapsing] = useState(false);
   const [connectionWarningVisible, setConnectionWarningVisible] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ApiChatMessage[]>([]);
   const [shakeCard, setShakeCard] = useState(false);
   const [isLaneSheetOpen, setIsLaneSheetOpen] = useState(false);
   const [flippedCardId, setFlippedCardId] = useState<string | null>(null);
@@ -511,7 +513,9 @@ export default function GameBoard({
       });
       const historyLog = {
         playerName: actingPlayer.name,
-        cardTitle: isBs ? drawnCard.titleBs : drawnCard.titleEn,
+        cardTitle: cardTitle(drawnCard, language),
+        cardTitleEn: drawnCard.titleEn,
+        cardTitleBs: drawnCard.titleBs?.trim() || drawnCard.titleEn,
         cardScore: drawnCard.index,
         guessIndex: slotIdx,
         correctIndex: slotIdx,
@@ -531,7 +535,9 @@ export default function GameBoard({
       setTimeout(() => setShakeCard(false), 600);
       const historyLog = {
         playerName: actingPlayer.name,
-        cardTitle: isBs ? drawnCard.titleBs : drawnCard.titleEn,
+        cardTitle: cardTitle(drawnCard, language),
+        cardTitleEn: drawnCard.titleEn,
+        cardTitleBs: drawnCard.titleBs?.trim() || drawnCard.titleEn,
         cardScore: drawnCard.index,
         guessIndex: slotIdx,
         correctIndex: -1,
@@ -599,6 +605,7 @@ export default function GameBoard({
         setServerCurrentPlayerId(game.current_player_id);
         setServerTurnOwnerId(game.turn_owner_id);
         setServerWinnerId(game.winner_id);
+        setChatMessages([...(game.chat_messages ?? [])].sort((a, b) => a.id - b.id));
         nextPollDelay = Math.max(250, Number(game.ingame_polling_interval_ms) || 3000);
         const latestMove = game.moves[0];
         const handCardCount = Object.values(game.hands).reduce((total, hand) => total + hand.length, 0);
@@ -611,6 +618,7 @@ export default function GameBoard({
           game.is_steal_turn ? 1 : 0,
           game.winner_id ?? 0,
           latestMove?.id ?? 0,
+          game.chat_messages?.at(-1)?.id ?? 0,
           handCardCount,
         ].join(':');
         const stateChanged = pollSignature !== lastPollSignatureRef.current;
@@ -682,6 +690,8 @@ export default function GameBoard({
               guessHistory: game.moves.map((move) => ({
                 playerName: move.player.name,
                 cardTitle: move.card?.title ?? '',
+                cardTitleEn: move.card?.title ?? '',
+                cardTitleBs: move.card?.title_bs?.trim() || move.card?.title || '',
                 cardScore: move.card ? Number(move.card.score) : undefined,
                 guessIndex: -1,
                 correctIndex: -1,
@@ -716,6 +726,16 @@ export default function GameBoard({
       logGameAction('poll.stop', { gameId, polls: pollCountRef.current });
     };
   }, [gameId]);
+
+  const sendChatMessage = useCallback(async (rawMessage: string) => {
+    const message = rawMessage.trim().slice(0, 20);
+    if (!gameId || !userId || !message) return;
+
+    const sent = await api.sendChatMessage(gameId, userId, message);
+    setChatMessages((current) => current.some((item) => item.id === sent.id)
+      ? current
+      : [...current, sent].sort((a, b) => a.id - b.id));
+  }, [gameId, userId]);
 
   useEffect(() => {
     if (!holdingTurnCardRef.current || !pendingTurnCardRef.current || turnNotices.length === 0) return;
@@ -1320,6 +1340,8 @@ export default function GameBoard({
       isDrawnCardFlipped,
       isDrawnCardScoreRevealed,
       guessHistory: gameState.guessHistory,
+      chatMessages,
+      sendChatMessage,
       handleSlotSelect,
       handleProceedNextRound,
       handleStealChoice,
@@ -1354,7 +1376,7 @@ export default function GameBoard({
         (!gameId || Number(activeStealer.id) === Number(userId))
       ),
     });
-  }, [connectionWarningVisible, currentActingPlayer, gameId, gameState, hasPendingLocalTurnStartNotice, inactivitySecondsRemaining, inactivityWarningCount, inactivityWarningVisible, isAwaitingTurnFinish, isDrawnCardFlipped, isDrawnCardScoreRevealed, isLaneCollapsing, isServerTurnReady, isSubmittingMove, isTurnInactive, laneResult, lastInsertedCardId, lastResultCardScore, lastStealWasFromLocalPlayer, localPlayer, roomExitReason, selectedSlotIndex, selectedSlotResult, serverCurrentPlayerId, setGameRuntime, userId]);
+  }, [chatMessages, connectionWarningVisible, currentActingPlayer, gameId, gameState, hasPendingLocalTurnStartNotice, inactivitySecondsRemaining, inactivityWarningCount, inactivityWarningVisible, isAwaitingTurnFinish, isDrawnCardFlipped, isDrawnCardScoreRevealed, isLaneCollapsing, isServerTurnReady, isSubmittingMove, isTurnInactive, laneResult, lastInsertedCardId, lastResultCardScore, lastStealWasFromLocalPlayer, localPlayer, roomExitReason, selectedSlotIndex, selectedSlotResult, sendChatMessage, serverCurrentPlayerId, setGameRuntime, userId]);
 
   useEffect(() => {
     if (!didLocalWin || winnerCelebratedRef.current) return;
@@ -1722,8 +1744,8 @@ export default function GameBoard({
                         <Text className="font-mono text-amber-400 font-black text-xs">{card.index.toFixed(2)}</Text>
                       </View>
                       <View className="flex-1">
-                        <Text className="text-sm font-black uppercase tracking-wide text-neutral-200" numberOfLines={2}>{isBs ? card.titleBs : card.titleEn}</Text>
-                        {(card.descriptionBs || card.descriptionEn) && <Text className="text-[11px] text-neutral-500" numberOfLines={2}>{isBs ? card.descriptionBs : card.descriptionEn}</Text>}
+                        <Text className="text-sm font-black uppercase tracking-wide text-neutral-200" numberOfLines={2}>{cardTitle(card, language)}</Text>
+                        {cardDescription(card, language) && <Text className="text-[11px] text-neutral-500" numberOfLines={2}>{cardDescription(card, language)}</Text>}
                       </View>
                       <View className="w-8 h-8 opacity-45 items-center justify-center">
                         <Illustration type={card.illustrationType} className="w-7 h-7" />

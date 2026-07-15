@@ -38,6 +38,9 @@ export default function HistoryScreen() {
       <View style={{ gap: 12 }}>
         {history.map((entry: any, index: number) => {
           const player = gameRuntime?.players?.find((candidate: any) => candidate.name === entry.playerName);
+          const localizedCardTitle = isBs
+            ? entry.cardTitleBs?.trim() || entry.cardTitleEn || entry.cardTitle
+            : entry.cardTitleEn || entry.cardTitle;
           return (
           <Card key={`${entry.playerName}-${index}`}>
             <View className="flex-row items-center gap-3">
@@ -48,7 +51,7 @@ export default function HistoryScreen() {
               <Text className="flex-1 text-sm leading-6 text-neutral-300">
                 <Text className="font-black text-white">{entry.playerName}</Text>{' '}
                 {isBs ? 'je odigrao/la' : 'played'}{' '}
-                <Text className="font-bold text-amber-400">{entry.cardTitle}</Text> ·{' '}
+                <Text className="font-bold text-amber-400">{localizedCardTitle}</Text> ·{' '}
                 <Text className={entry.success ? 'font-black text-emerald-400' : 'font-black text-red-400'}>
                   {entry.success ? (isBs ? 'TAČNO' : 'CORRECT') : isBs ? 'NETAČNO' : 'WRONG'}
                 </Text>

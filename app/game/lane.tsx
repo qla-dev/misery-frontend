@@ -3,6 +3,7 @@ import { Card } from '@/components/Card';
 import { useEffect, useRef } from 'react';
 import { Animated, Pressable, ScrollView, Text, View } from 'react-native';
 import { TabFadeView } from '@/components/TabFadeView';
+import { cardDescription, cardTitle } from '@/lib/cardText';
 
 function SelectedInsertSlot({ isBs, onFadeComplete, result, shouldFade }: { isBs: boolean; onFadeComplete?: () => void; result: 'success' | 'failure'; shouldFade: boolean }) {
   const opacity = useRef(new Animated.Value(1)).current;
@@ -85,11 +86,11 @@ function LaneCard({ card, hiddenScore = false, isBs, isNew }: { card: any; hidde
           </Text>
           <View className="flex-1">
             <Text className="text-base font-black uppercase leading-5 text-neutral-100">
-              {isBs ? card.titleBs : card.titleEn}
+              {cardTitle(card, isBs ? 'bs' : 'en')}
             </Text>
-            {(card.descriptionBs || card.descriptionEn) && (
+            {cardDescription(card, isBs ? 'bs' : 'en') && (
               <Text className="mt-1 text-xs leading-5 text-neutral-500">
-                {isBs ? card.descriptionBs : card.descriptionEn}
+                {cardDescription(card, isBs ? 'bs' : 'en')}
               </Text>
             )}
           </View>

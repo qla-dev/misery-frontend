@@ -38,6 +38,7 @@ export interface ApiMove { id: number; player_id: number; correct: boolean; play
 export interface ApiChatMessage { id: number; game_id: number; user_id: number; message: string; user: ApiUser; created_at: string }
 export interface ApiQuestion { id: number; question: string; answer: string; category: string; difficulty: number }
 export interface ApiGame { id: number; code: string; owner_id: number; started: boolean; host_in_lobby: boolean; is_private: boolean; terminated_at: string | null; termination_reason: 'host_left' | 'host_inactive' | string | null; stack_id: number | null; stack: 'normal' | 'spicy' | string | null; target_score: number; winner_id: number | null; current_player_id: number | null; turn_owner_id: number | null; awaiting_finish: boolean; is_steal_turn: boolean; ingame_polling_interval_ms: number; members: ApiUser[]; hands: Record<string, ApiCard[]>; current_card: ApiCard | null; moves: ApiMove[]; chat_messages: ApiChatMessage[] }
+export interface ApiStack { id: number; name: string; slug: string; color: string; icon_key: string; description: string | null; description_bs: string | null; is_premium: boolean }
 export interface SocialAuthResponse { token: string; user: ApiUser; is_new_user: boolean }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -94,7 +95,8 @@ export const api = {
     const suffix = query.toString();
     return request<ApiQuestion[]>(`/questions${suffix ? `?${suffix}` : ''}`);
   },
-  createGame: (name: string, color: string, stack: 'normal' | 'spicy') => request<{ game: ApiGame; user: ApiUser }>('/games', {
+  listStacks: () => request<ApiStack[]>('/stacks'),
+  createGame: (name: string, color: string, stack: string) => request<{ game: ApiGame; user: ApiUser }>('/games', {
     method: 'POST',
     body: JSON.stringify({ name, color, stack }),
   }),
@@ -112,7 +114,7 @@ export const api = {
   }),
   kickLobbyPlayer: (id: number, userId: number, playerId: number) => request<ApiGame>(`/games/${id}/kick`, { method: 'POST', body: JSON.stringify({ user_id: userId, player_id: playerId }) }),
   deleteGame: (id: number) => request<void>(`/games/${id}`, { method: 'DELETE' }),
-  startGame: (id: number, userId: number, stack: 'normal' | 'spicy', targetScore: number) => request<ApiGame>(`/games/${id}/start`, { method: 'POST', body: JSON.stringify({ user_id: userId, stack, target_score: targetScore }) }),
+  startGame: (id: number, userId: number, stack: string, targetScore: number) => request<ApiGame>(`/games/${id}/start`, { method: 'POST', body: JSON.stringify({ user_id: userId, stack, target_score: targetScore }) }),
   submitMove: (id: number, playerId: number, correct: boolean) => request<{ game: ApiGame }>(`/games/${id}/moves`, { method: 'POST', body: JSON.stringify({ player_id: playerId, correct }) }),
   sendChatMessage: (id: number, userId: number, message: string) => request<ApiChatMessage>(`/games/${id}/messages`, { method: 'POST', body: JSON.stringify({ user_id: userId, message }) }),
   finishTurn: (id: number, playerId: number) => request<{ game: ApiGame }>(`/games/${id}/finish-turn`, { method: 'POST', body: JSON.stringify({ player_id: playerId }) }),

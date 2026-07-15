@@ -1,6 +1,6 @@
 import { Send } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Keyboard, Pressable, Text, TextInput, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import { playHaptic } from '@/lib/sound';
 
 interface ChatComposerProps {
@@ -11,18 +11,8 @@ interface ChatComposerProps {
 export function ChatComposer({ isBs, onSend }: ChatComposerProps) {
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const trimmed = message.trim();
-  const composerHeight = keyboardVisible ? 36 : 40;
-
-  useEffect(() => {
-    const showSubscription = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
-    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
-    return () => {
-      showSubscription.remove();
-      hideSubscription.remove();
-    };
-  }, []);
+  const composerHeight = 42;
 
   const submit = async () => {
     if (!trimmed || sending) return;
@@ -37,7 +27,7 @@ export function ChatComposer({ isBs, onSend }: ChatComposerProps) {
   };
 
   return (
-    <View style={{ backgroundColor: '#09090b', borderTopColor: '#262626', borderTopWidth: 1, flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingVertical: keyboardVisible ? 5 : 7 }}>
+    <View style={{ flexDirection: 'row', gap: 10, height: composerHeight, width: '100%' }}>
       <View style={{ backgroundColor: '#18181b', borderColor: '#333333', borderRadius: composerHeight / 2, borderWidth: 1, flex: 1, height: composerHeight, justifyContent: 'center' }}>
         <TextInput
           accessibilityLabel={isBs ? 'Poruka' : 'Message'}

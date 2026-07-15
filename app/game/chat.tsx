@@ -2,8 +2,9 @@ import { ChatComposer } from '@/components/ChatComposer';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { useGame } from '@/context/GameContext';
 import { ApiChatMessage } from '@/lib/api';
+import { playHaptic } from '@/lib/sound';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, FlatList, Keyboard, KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
+import { Alert, FlatList, Keyboard, KeyboardAvoidingView, Platform, Pressable, Text, TouchableWithoutFeedback, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Flag } from 'lucide-react-native';
 
@@ -44,6 +45,11 @@ export default function ChatScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!keyboardVisible) return;
+    requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+  }, [keyboardVisible]);
+
   const send = async (message: string) => {
     try {
       if (!gameRuntime?.sendChatMessage) throw new Error(isBs ? 'Chat još nije spreman.' : 'Chat is not ready yet.');
@@ -76,21 +82,27 @@ export default function ChatScreen() {
       keyboardVerticalOffset={0}
       style={{ backgroundColor: '#09090b', flex: 1 }}
     >
-      <FlatList
-        ref={listRef}
-        contentContainerStyle={{ flexGrow: 1, justifyContent: messages.length ? 'flex-end' : 'center', paddingBottom: 12, paddingHorizontal: 16, paddingTop: insets.top + 56 }}
-        data={messages}
-        keyExtractor={(item) => String(item.id)}
-        ListEmptyComponent={(
-          <View style={{ alignItems: 'center', paddingHorizontal: 32 }}>
-            <Text style={{ color: '#737373', fontFamily: 'Outfit_600SemiBold', fontSize: 14, textAlign: 'center' }}>
-              {isBs ? 'Još nema poruka. Započni razgovor.' : 'No messages yet. Start the conversation.'}
-            </Text>
-          </View>
-        )}
-        onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: messages.length > 1 })}
-        onLayout={() => listRef.current?.scrollToEnd({ animated: false })}
-        renderItem={({ item, index }) => {
+      <TouchableWithoutFeedback accessible={false} onPress={Keyboard.dismiss}>
+        <FlatList
+          ref={listRef}
+          contentContainerStyle={{ flexGrow: 1, justifyContent: messages.length ? 'flex-end' : 'center', paddingBottom: keyboardVisible ? 8 : 62 + Math.max(insets.bottom, 16), paddingHorizontal: 16, paddingTop: insets.top + 56 }}
+          data={messages}
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          keyboardShouldPersistTaps="never"
+          keyExtractor={(item) => String(item.id)}
+          ListEmptyComponent={(
+            <View style={{ alignItems: 'center', paddingHorizontal: 32 }}>
+              <Text style={{ color: '#737373', fontFamily: 'Outfit_600SemiBold', fontSize: 14, textAlign: 'center' }}>
+                {isBs ? 'Još nema poruka. Započni razgovor.' : 'No messages yet. Start the conversation.'}
+              </Text>
+            </View>
+          )}
+          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: messages.length > 1 })}
+          onLayout={() => listRef.current?.scrollToEnd({ animated: false })}
+          onTouchStart={() => {
+            if (keyboardVisible) Keyboard.dismiss();
+          }}
+          renderItem={({ item, index }) => {
           const own = Number(item.user_id) === Number(currentUserId);
           const previous = messages[index - 1];
           const next = messages[index + 1];
@@ -103,7 +115,10 @@ export default function ChatScreen() {
                 accessibilityRole={!own ? 'button' : undefined}
                 disabled={own}
                 delayLongPress={350}
-                onLongPress={() => setSelectedMessage(item)}
+                onLongPress={() => {
+                  playHaptic('click');
+                  setSelectedMessage(item);
+                }}
                 style={{
                   backgroundColor: own ? '#facc15' : '#18181b',
                   borderColor: own ? '#facc15' : '#333333',
@@ -134,10 +149,24 @@ export default function ChatScreen() {
               </Pressable>
             </View>
           );
+          }}
+          showsVerticalScrollIndicator={false}
+        />
+      </TouchableWithoutFeedback>
+      <View
+        style={{
+          backgroundColor: '#000000',
+          bottom: keyboardVisible ? undefined : 0,
+          left: keyboardVisible ? undefined : 0,
+          paddingBottom: keyboardVisible ? 16 : Math.max(insets.bottom, 16),
+          paddingHorizontal: 20,
+          paddingTop: 16,
+          position: keyboardVisible ? 'relative' : 'absolute',
+          right: keyboardVisible ? undefined : 0,
+          width: '100%',
+          zIndex: 30,
         }}
-        showsVerticalScrollIndicator={false}
-      />
-      <View style={{ paddingBottom: keyboardVisible ? 0 : Math.max(insets.bottom, 5) }}>
+      >
         <ChatComposer isBs={isBs} onSend={send} />
       </View>
       <ConfirmModal

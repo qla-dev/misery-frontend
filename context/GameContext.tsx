@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Language } from '@/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { GameSession, LobbyView, PlayerInput } from './game-types';
+import { DeckType, GameSession, LobbyView, PlayerInput } from './game-types';
 import { AppState } from 'react-native';
 import {
   addRevenueCatStatusListener,
@@ -56,8 +56,8 @@ interface GameContextValue {
   setSelectedColor: (color: string) => void;
   targetScore: number;
   setTargetScore: (score: number) => void;
-  selectedDeck: 'NORMAL' | 'SPICY';
-  setSelectedDeck: (deck: 'NORMAL' | 'SPICY') => void;
+  selectedDeck: DeckType;
+  setSelectedDeck: (deck: DeckType) => void;
   isSocialUser: boolean;
   setIsSocialUser: (value: boolean) => void;
   socialProvider: 'google' | 'apple' | null;
@@ -110,7 +110,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [userName, setUserName] = useState('');
   const [selectedColor, setSelectedColor] = useState('yellow');
   const [targetScore, setTargetScore] = useState(7);
-  const [selectedDeck, setSelectedDeck] = useState<'NORMAL' | 'SPICY'>('NORMAL');
+  const [selectedDeck, setSelectedDeck] = useState<DeckType>('normal');
   const [isSocialUser, setIsSocialUser] = useState(false);
   const [socialProvider, setSocialProvider] = useState<'google' | 'apple' | null>(null);
   const [roomCode, setRoomCode] = useState('');

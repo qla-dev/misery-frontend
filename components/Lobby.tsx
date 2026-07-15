@@ -6,7 +6,7 @@ import * as Google from 'expo-auth-session/providers/google';
 import * as Haptics from 'expo-haptics';
 import * as WebBrowser from 'expo-web-browser';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Check, Copy, Crown, Flame, Loader2, LockKeyhole, Share2, ShieldAlert, Sparkles, User, X } from 'lucide-react-native';
+import { Check, Copy, Crown, Flame, Heart, Laugh, Loader2, LockKeyhole, PartyPopper, Share2, ShieldAlert, Skull, Sparkles, User, X, Zap } from 'lucide-react-native';
 import LottieView from 'lottie-react-native';
 import { ActivityIndicator, Animated, BackHandler, Easing, Keyboard, KeyboardAvoidingView, LayoutAnimation, Platform, Pressable, ScrollView, Share, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -27,7 +27,8 @@ import { LobbyOpeningOverlay } from './LobbyOpeningOverlay';
 import { LaneModal } from './LaneModal';
 import { SetupTabs } from './SetupTabs';
 import { WelcomeSilhouetteRow } from './WelcomeSilhouetteRow';
-import { api, ApiError, ApiGame, ApiUser } from '@/lib/api';
+import { api, ApiError, ApiGame, ApiStack, ApiUser } from '@/lib/api';
+import { DeckType } from '@/context/game-types';
 
 const AVAILABLE_COLORS = [
   { id: 'yellow', hex: '#facc15', nameEn: 'Amber Gold', nameBs: 'Zlatni Ćilibar', bgClass: 'bg-yellow-400', borderClass: 'border-yellow-400 bg-yellow-400/5 text-yellow-400' },
@@ -39,6 +40,32 @@ const AVAILABLE_COLORS = [
   { id: 'brown', hex: '#8B5A2B', nameEn: 'Earth Brown', nameBs: 'Zemljano Smeđa', bgClass: 'bg-[#8B5A2B]', borderClass: 'border-[#8B5A2B] bg-[#8B5A2B]/5 text-[#8B5A2B]' },
   { id: 'silver', hex: '#d4d4d4', nameEn: 'Moon Silver', nameBs: 'Mjesečevo Srebrna', bgClass: 'bg-neutral-300', borderClass: 'border-neutral-300 bg-neutral-300/5 text-neutral-300' },
 ];
+
+const FALLBACK_STACKS: ApiStack[] = [
+  { id: 1, name: 'Normal', slug: 'normal', color: '#facc15', icon_key: 'sparkles', description: 'Funny and awkward situations', description_bs: 'Smiješne i čudne situacije', is_premium: false },
+  { id: 2, name: 'Spicy', slug: 'spicy', color: '#fb7185', icon_key: 'flame', description: 'Friendly, absurd and wildly unfortunate', description_bs: 'Prijateljski, apsurdno i divlje', is_premium: true },
+  { id: 3, name: '18+', slug: '18-plus', color: '#ef4444', icon_key: 'shield-alert', description: 'Explicit sexual situations for adults only', description_bs: 'Eksplicitne seksualne situacije samo za odrasle', is_premium: true },
+];
+
+function iconForStack(iconKey: string, color: string) {
+  const props = { color, size: 18 };
+  if (iconKey === 'flame') return <Flame {...props} />;
+  if (iconKey === 'shield-alert') return <ShieldAlert {...props} />;
+  if (iconKey === 'zap') return <Zap {...props} />;
+  if (iconKey === 'heart') return <Heart {...props} />;
+  if (iconKey === 'laugh') return <Laugh {...props} />;
+  if (iconKey === 'party-popper') return <PartyPopper {...props} />;
+  if (iconKey === 'skull') return <Skull {...props} />;
+  return <Sparkles {...props} />;
+}
+
+function deckToStack(deck: DeckType) {
+  return deck || 'normal';
+}
+
+function deckLabel(deck: DeckType, stacks: ApiStack[]) {
+  return stacks.find((stack) => stack.slug === deck)?.name?.toUpperCase() ?? deck.toUpperCase();
+}
 
 const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
 const ROOM_CODE_REGEX = /^(?=(?:.*[A-Z]){4})(?=(?:.*\d){4})[A-Z\d]{8}$/;
@@ -455,6 +482,8 @@ export default function Lobby() {
   const isBs = language === 'bs';
   const hasActiveProPlan = Boolean(isPremium && premiumPlan);
   const lobbyScrollRef = useRef<ScrollView>(null);
+  const deckScrollRef = useRef<ScrollView>(null);
+  const lastDeckSnapIndexRef = useRef(0);
   const welcomeOpacity = useRef(new Animated.Value(lobbyView === 'WELCOME' ? 1 : 0)).current;
   const setupOpacity = useRef(new Animated.Value(lobbyView === 'SETUP' ? 1 : 0)).current;
   const publicGamesOpacity = useRef(new Animated.Value(lobbyView === 'PUBLIC_GAMES' ? 1 : 0)).current;
@@ -467,6 +496,8 @@ export default function Lobby() {
   const copyResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lobbyOpeningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [deckChooserWidth, setDeckChooserWidth] = useState(0);
+  const [deckOptions, setDeckOptions] = useState<ApiStack[]>(FALLBACK_STACKS);
   const [joinCodeErrorOpen, setJoinCodeErrorOpen] = useState(false);
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
   const [isStartingGame, setIsStartingGame] = useState(false);
@@ -493,6 +524,8 @@ export default function Lobby() {
     title: '',
     message: '',
   });
+  const deckCardWidth = deckChooserWidth ? Math.max(196, Math.min(224, deckChooserWidth * 0.68)) : 220;
+  const deckSnapInterval = deckCardWidth + 10;
   const serverStartedRef = useRef(false);
   const processedGoogleTokenRef = useRef<string | null>(null);
   const observedLobbyPlayerIdsRef = useRef<Set<string> | null>(null);
@@ -502,6 +535,38 @@ export default function Lobby() {
     redirectUri: GOOGLE_REDIRECT_URI,
     selectAccount: true,
   });
+
+  const selectDeckAtIndex = useCallback((index: number) => {
+    const option = deckOptions[Math.max(0, Math.min(index, deckOptions.length - 1))];
+    if (!option) return;
+    if (lastDeckSnapIndexRef.current !== index) void Haptics.selectionAsync();
+    lastDeckSnapIndexRef.current = index;
+    if (option.is_premium && !isPremium) {
+      router.navigate('/pro');
+      const selectedIndex = Math.max(0, deckOptions.findIndex((item) => item.slug === selectedDeck));
+      lastDeckSnapIndexRef.current = selectedIndex;
+      requestAnimationFrame(() => deckScrollRef.current?.scrollTo({ animated: true, x: selectedIndex * deckSnapInterval }));
+      return;
+    }
+    setSelectedDeck(option.slug);
+  }, [deckOptions, deckSnapInterval, isPremium, selectedDeck, setSelectedDeck]);
+
+  useEffect(() => {
+    if (!deckChooserWidth) return;
+    const index = Math.max(0, deckOptions.findIndex((option) => option.slug === selectedDeck));
+    lastDeckSnapIndexRef.current = index;
+    requestAnimationFrame(() => deckScrollRef.current?.scrollTo({ animated: false, x: index * deckSnapInterval }));
+  }, [deckChooserWidth, deckOptions, deckSnapInterval, selectedDeck]);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.listStacks().then((stacks) => {
+      if (cancelled || stacks.length === 0) return;
+      setDeckOptions(stacks);
+      if (!stacks.some((stack) => stack.slug === selectedDeck)) setSelectedDeck(stacks[0].slug);
+    }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     if (Platform.OS === 'web' || (lobbyView !== 'ROOM_CREATED' && lobbyView !== 'ROOM_JOINED')) {
@@ -676,7 +741,7 @@ export default function Lobby() {
     setServerOwnerId(game.owner_id);
     setHostInLobby(game.host_in_lobby ?? true);
     setIsRoomPrivate(Boolean(game.is_private));
-    setSelectedDeck(game.stack === 'spicy' ? 'SPICY' : 'NORMAL');
+    setSelectedDeck(game.stack ?? 'normal');
     setRoomPlayers(game.members.map((member, index) => ({
       id: member.id,
       name: member.name,
@@ -724,7 +789,7 @@ export default function Lobby() {
     const finalName = userName.trim() || (isBs ? 'Igrač 1' : 'Player 1');
     try {
       if (!isSocialUser) void AsyncStorage.setItem(LAST_GUEST_USERNAME_KEY, finalName).catch(() => undefined);
-      const result = await api.createGame(finalName, selectedColor, selectedDeck.toLowerCase() as 'normal' | 'spicy');
+      const result = await api.createGame(finalName, selectedColor, deckToStack(selectedDeck));
       setServerGameId(result.game.id);
       setServerUserId(result.user.id);
       applyServerGame(result.game);
@@ -1173,7 +1238,7 @@ export default function Lobby() {
     mode: 'SOLO' | 'MULTIPLAYER',
     players: { name: string; color: string }[],
     tScore: number,
-    deck: 'NORMAL' | 'SPICY'
+    deck: DeckType
   ) => {
     if (isStartingGame) return;
     setIsStartingGame(true);
@@ -1188,7 +1253,7 @@ export default function Lobby() {
     let ownerId: number | undefined;
     if (serverGameId && serverUserId) {
       try {
-        const stack = deck === 'SPICY' ? 'spicy' : 'normal';
+        const stack = deckToStack(deck);
         const game = await api.startGame(serverGameId, serverUserId, stack, tScore);
         ownerId = game.owner_id;
         console.log('[StartGame] API success', {
@@ -1356,8 +1421,18 @@ export default function Lobby() {
       <View style={{ gap: 10 }}>
           {availableGames.map((game) => (
             <Card key={game.id}>
+              {(game.stack ?? 'normal') !== 'normal' && (
+                <View
+                  accessibilityLabel={isBs ? 'Potreban je Misery PRO' : 'Misery PRO required'}
+                  className="absolute left-2 top-2"
+                  pointerEvents="none"
+                  style={{ zIndex: 2 }}
+                >
+                  <Crown color="#facc15" fill="#facc15" size={14} strokeWidth={2.2} />
+                </View>
+              )}
               <View className="flex-row items-center justify-between" style={{ gap: 12 }}>
-                <View className="flex-1">
+                <View className="flex-1" style={{ paddingLeft: (game.stack ?? 'normal') !== 'normal' ? 14 : 0 }}>
                   <Text className="text-sm font-black uppercase text-neutral-100">
                     {game.members[0]?.name ?? (isBs ? 'Soba za igru' : 'Game room')}
                   </Text>
@@ -1791,46 +1866,59 @@ export default function Lobby() {
             </Section>
 
             <Section titleEn="CHOOSE THE CARD DECK" titleBs="ODABERITE ŠPIL KARTICA">
-              <View className="flex-row gap-3">
-                <Pressable
-                  onPress={() => {
-                    playSound('click');
-                    setSelectedDeck('NORMAL');
+              <View
+                onLayout={(event) => setDeckChooserWidth(Math.round(event.nativeEvent.layout.width))}
+                style={{ overflow: 'hidden' }}
+              >
+                <ScrollView
+                  contentContainerStyle={{ gap: 10, paddingRight: Math.max(0, deckChooserWidth - deckCardWidth) }}
+                  decelerationRate="fast"
+                  horizontal
+                  onMomentumScrollEnd={(event) => {
+                    if (!deckChooserWidth) return;
+                    selectDeckAtIndex(Math.round(event.nativeEvent.contentOffset.x / deckSnapInterval));
                   }}
-                  className={`flex-1 py-3 px-3 rounded-xl border-2 items-center justify-center gap-1 ${selectedDeck === 'NORMAL' ? 'border-amber-400 bg-amber-400/5' : 'border-neutral-900 bg-transparent'}`}
+                  ref={deckScrollRef}
+                  showsHorizontalScrollIndicator={false}
+                  snapToAlignment="start"
+                  snapToInterval={deckChooserWidth ? deckSnapInterval : undefined}
+                  snapToStart
                 >
-                  <Sparkles size={16} color={selectedDeck === 'NORMAL' ? '#facc15' : '#737373'} />
-                  <Text className={`text-[10px] uppercase tracking-wider font-bold ${selectedDeck === 'NORMAL' ? 'text-amber-400' : 'text-neutral-500'}`}>
-                    {isBs ? 'Normala' : 'Normal'}
-                  </Text>
-                  <Text className={`text-[7px] ${selectedDeck === 'NORMAL' ? 'text-amber-400/75' : 'text-neutral-500'} text-center leading-tight`}>
-                    {isBs ? 'Smiješne i čudne situacije' : 'Funny & awkward situations'}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => {
-                    playSound('click');
-                    if (!isPremium) {
-                      router.navigate('/pro');
-                      return;
-                    }
-                    setSelectedDeck('SPICY');
-                  }}
-                  className={`relative flex-1 py-3 px-3 rounded-xl border-2 items-center justify-center gap-1 ${selectedDeck === 'SPICY' ? 'border-rose-500 bg-rose-500/5' : 'border-neutral-900 bg-transparent'}`}
-                >
-                  {!isPremium && (
-                    <View className="absolute right-2 top-2">
-                      <Crown size={14} color="#facc15" fill="#facc15" />
-                    </View>
-                  )}
-                  <Flame size={16} color={selectedDeck === 'SPICY' ? '#fb7185' : '#737373'} />
-                  <Text className={`text-[10px] uppercase tracking-wider font-bold ${selectedDeck === 'SPICY' ? 'text-rose-400' : 'text-neutral-500'}`}>
-                    {isBs ? 'Ljuti (Spicy)' : 'Spicy'}
-                  </Text>
-                  <Text className={`text-[7px] ${selectedDeck === 'SPICY' ? 'text-rose-400/75' : 'text-neutral-500'} text-center leading-tight`}>
-                    {isBs ? 'Ekstremne i bizarne nesreće' : 'Extreme & bizarre misery'}
-                  </Text>
-                </Pressable>
+                  {deckOptions.map((option, index) => {
+                    const selected = selectedDeck === option.slug;
+                    const premium = option.is_premium;
+                    const accent = option.color || '#facc15';
+                    return (
+                      <Pressable
+                        key={option.slug}
+                        onPress={() => {
+                          deckScrollRef.current?.scrollTo({ animated: true, x: index * deckSnapInterval });
+                          selectDeckAtIndex(index);
+                        }}
+                        className="relative items-center justify-center gap-1 rounded-xl border-2 px-4 py-3"
+                        style={{ backgroundColor: selected ? `${accent}0D` : 'transparent', borderColor: selected ? accent : '#171717', minHeight: 82, width: deckCardWidth }}
+                      >
+                        {premium && !isPremium && (
+                          <View className="absolute right-3 top-3">
+                            <Crown size={14} color="#facc15" fill="#facc15" />
+                          </View>
+                        )}
+                        {iconForStack(option.icon_key, selected ? accent : '#737373')}
+                        <Text style={{ color: selected ? accent : '#737373', fontFamily: 'Outfit_700Bold', fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}>
+                          {option.name}
+                        </Text>
+                        <Text className="text-center text-[8px] leading-tight text-neutral-500">
+                          {isBs ? option.description_bs || option.description : option.description}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+                <View className="mt-2 flex-row justify-center" style={{ gap: 5 }}>
+                  {deckOptions.map((option) => (
+                    <View key={option.slug} className={`h-1.5 rounded-full ${selectedDeck === option.slug ? 'w-5 bg-amber-400' : 'w-1.5 bg-neutral-700'}`} />
+                  ))}
+                </View>
               </View>
             </Section>
 
@@ -1954,9 +2042,12 @@ export default function Lobby() {
                     {isBs ? 'Čekanje igrača...' : 'Waiting for players...'}
                   </Text>
                 )}
-                <Text className="font-mono text-[8px] font-black uppercase tracking-wider text-neutral-400">
-                  {isBs ? 'PAKET IGRE' : 'GAME PACK'}: {selectedDeck === 'SPICY' ? (isBs ? 'LJUTI' : 'SPICY') : 'NORMAL'}
-                </Text>
+                <View className="flex-row items-center" style={{ gap: 4 }}>
+                  {selectedDeck !== 'normal' && <Crown color="#facc15" fill="#facc15" size={11} strokeWidth={2.2} />}
+                  <Text className="font-mono text-[8px] font-black uppercase tracking-wider text-neutral-400">
+                    {isBs ? 'PAKET IGRE' : 'GAME PACK'}: {deckLabel(selectedDeck, deckOptions)}
+                  </Text>
+                </View>
               </View>
             </View>
             <RoomCodeCard
@@ -2016,9 +2107,12 @@ export default function Lobby() {
               <Text className="font-mono text-[10px] font-bold uppercase tracking-widest text-neutral-500">
                 {isBs ? 'IGRAČI U SOBI' : 'PLAYERS IN ROOM'}
               </Text>
-              <Text className="font-mono text-[8px] font-black uppercase tracking-wider text-neutral-400">
-                {isBs ? 'PAKET IGRE' : 'GAME PACK'}: {selectedDeck === 'SPICY' ? (isBs ? 'LJUTI' : 'SPICY') : 'NORMAL'}
-              </Text>
+              <View className="flex-row items-center" style={{ gap: 4 }}>
+                {selectedDeck !== 'normal' && <Crown color="#facc15" fill="#facc15" size={11} strokeWidth={2.2} />}
+                <Text className="font-mono text-[8px] font-black uppercase tracking-wider text-neutral-400">
+                  {isBs ? 'PAKET IGRE' : 'GAME PACK'}: {deckLabel(selectedDeck, deckOptions)}
+                </Text>
+              </View>
             </View>
             <RoomCodeCard
               code={roomCode}

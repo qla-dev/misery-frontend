@@ -18,6 +18,7 @@ import { CardBackDecoration } from './CardBackDecoration';
 import { InactivityKickCountdown } from './InactivityKickCountdown';
 import { logGameAction } from '@/lib/gameDiagnostics';
 import { cardDescription, cardTitle } from '@/lib/cardText';
+import { DeckType } from '@/context/game-types';
 
 import { MiseryLogo } from './MiseryLogo';
 const INACTIVITY_KICK_MS = 60_000;
@@ -43,8 +44,8 @@ function pointsFromLane(lane: Card[]) {
   return Math.max(0, lane.length - 3);
 }
 
-function cardsForDeck(deckType: 'NORMAL' | 'SPICY') {
-  return CARD_DECK.filter((card) => deckType === 'SPICY' ? card.isSpicy === true : card.isSpicy !== true);
+function cardsForDeck(deckType: DeckType) {
+  return CARD_DECK.filter((card) => deckType === 'spicy' ? card.isSpicy === true : card.isSpicy !== true);
 }
 
 function shuffleCards(cards: Card[]) {
@@ -60,7 +61,7 @@ interface GameBoardProps {
   mode: GameMode;
   initialPlayers: { id?: number; name: string; color: string; isBot?: boolean }[];
   targetScore: number;
-  deckType?: 'NORMAL' | 'SPICY';
+  deckType?: DeckType;
   gameId?: number;
   userId?: number;
 }
@@ -76,7 +77,7 @@ export default function GameBoard({
   mode,
   initialPlayers,
   targetScore,
-  deckType = 'NORMAL',
+  deckType = 'normal',
   gameId,
   userId,
 }: GameBoardProps) {

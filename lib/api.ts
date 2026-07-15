@@ -86,10 +86,9 @@ export const api = {
   },
   getGame: (id: number, userId?: number | null, signal?: AbortSignal) => request<ApiGame>(`/games/${id}${userId ? `?user_id=${encodeURIComponent(String(userId))}` : ''}`, { signal }),
   setHostLobbyPresence: (id: number, userId: number, present: boolean) => request<ApiGame>(`/games/${id}/host-lobby-presence`, { method: 'POST', body: JSON.stringify({ user_id: userId, present }) }),
-  lockLobbyRoom: (id: number, userId: number, token: string) => request<ApiGame>(`/games/${id}/lock`, {
+  lockLobbyRoom: (id: number, userId: number, proActive: boolean) => request<ApiGame>(`/games/${id}/lock`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ user_id: userId }),
+    body: JSON.stringify({ user_id: userId, pro_active: proActive }),
   }),
   kickLobbyPlayer: (id: number, userId: number, playerId: number) => request<ApiGame>(`/games/${id}/kick`, { method: 'POST', body: JSON.stringify({ user_id: userId, player_id: playerId }) }),
   deleteGame: (id: number) => request<void>(`/games/${id}`, { method: 'DELETE' }),

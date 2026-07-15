@@ -102,10 +102,10 @@ export function DrawnCardFace({
           className="items-center justify-center"
           pointerEvents="none"
           style={{
+            alignSelf: 'stretch',
             aspectRatio: 1,
             backgroundColor: '#000000',
             overflow: 'hidden',
-            width: '100%',
           }}
         >
           {card.image && !imageFailed ? (

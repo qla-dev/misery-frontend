@@ -206,23 +206,28 @@ export function Paywall() {
             )}
           </LinearGradient>
         </Pressable>
-        <Pressable className="items-center py-4" disabled={restoring || activating} onPress={restore}>
-          {restoring ? (
-            <ActivityIndicator color="#fbbf24" size="small" />
-          ) : (
-            <Text className="text-xs font-black uppercase tracking-wider text-neutral-400">
-              {isBs ? 'VRATI KUPOVINU' : 'RESTORE PURCHASES'}
-            </Text>
-          )}
-        </Pressable>
+        <View className="flex-row items-center justify-center py-4" style={{ gap: 10 }}>
+          <Pressable className="items-center" disabled={restoring || activating} onPress={restore}>
+            {restoring ? (
+              <ActivityIndicator color="#fbbf24" size="small" />
+            ) : (
+              <Text className="text-xs font-black uppercase tracking-wider text-neutral-400">
+                {isBs ? 'VRATI KUPOVINU' : 'RESTORE PURCHASES'}
+              </Text>
+            )}
+          </Pressable>
+          {isPremium && premiumPlan ? (
+            <>
+              <Text className="text-xs font-black text-neutral-600">•</Text>
+              <Text className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+                {isBs ? `AKTIVAN ${premiumPlan === 'yearly' ? 'GODIŠNJI' : 'MJESEČNI'} PLAN` : `ACTIVE ${premiumPlan.toUpperCase()} PLAN`}
+              </Text>
+            </>
+          ) : null}
+        </View>
         {!hasRevenueCatConfig() ? (
           <Text className="text-center text-[10px] leading-4 text-red-400">
             {isBs ? 'RevenueCat javni SDK ključ nije konfigurisan.' : 'RevenueCat public SDK key is not configured.'}
-          </Text>
-        ) : null}
-        {isPremium && premiumPlan ? (
-          <Text className="text-center text-[10px] font-bold uppercase tracking-wider text-emerald-400">
-            {isBs ? `AKTIVAN ${premiumPlan === 'yearly' ? 'GODIŠNJI' : 'MJESEČNI'} PLAN` : `ACTIVE ${premiumPlan.toUpperCase()} PLAN`}
           </Text>
         ) : null}
         <Text className="mb-3 mt-8 text-base font-black uppercase tracking-[2px] text-amber-400">

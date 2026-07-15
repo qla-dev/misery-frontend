@@ -1,17 +1,39 @@
 import { useGame } from '@/context/GameContext';
-import LottieView from 'lottie-react-native';
-import { ScrollView, Text, View } from 'react-native';
+import { BookOpen } from 'lucide-react-native';
+import { ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { ConfirmModal } from './ConfirmModal';
 
-const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
+const RULES = [
+  {
+    titleEn: '1. MISERY LANE',
+    titleBs: '1. STAZA PATNJE',
+    bodyEn: 'Each player starts with 3 pre-arranged cards, ordered from lowest to highest misery index. This forms your starting lane.',
+    bodyBs: 'Svaki igrač počinje sa 3 već poredane kartice, od najmanje do najviše bijedne. To je vaša Staza patnje.',
+  },
+  {
+    titleEn: '2. YOUR TURN',
+    titleBs: '2. TVOJ POTEZ',
+    bodyEn: 'A mystery card is drawn with its score hidden. Place it in the slot where you think it belongs in your lane.',
+    bodyBs: 'Izvlači se misteriozna kartica sa skrivenom ocjenom. Ubaci je na mjesto gdje misliš da pripada u tvojoj stazi.',
+  },
+  {
+    titleEn: '3. STEALING',
+    titleBs: '3. KRAĐA',
+    bodyEn: 'After a wrong placement, the other players get a chance in order to place the card correctly and steal it.',
+    bodyBs: 'Nakon netačnog poteza, ostali igrači redom dobijaju priliku da pravilno smjeste kartu i ukradu je.',
+  },
+  {
+    titleEn: '4. HOW TO WIN',
+    titleBs: '4. KAKO POBIJEDITI',
+    bodyEn: 'The first player to build a lane with the target number of correctly arranged cards wins. Solo mode uses 3 lives.',
+    bodyBs: 'Prvi igrač koji složi stazu sa traženim brojem pravilno poredanih kartica pobjeđuje. U solo modu imate 3 života.',
+  },
+];
 
 export function InfoModal({ onLeaveGame }: { onLeaveGame?: () => void }) {
+  const { height } = useWindowDimensions();
   const { language, infoModalOpen, setInfoModalOpen } = useGame();
   const isBs = language === 'bs';
-
-  const handleAcknowledge = () => {
-    setInfoModalOpen(false);
-  };
 
   return (
     <ConfirmModal
@@ -21,66 +43,43 @@ export function InfoModal({ onLeaveGame }: { onLeaveGame?: () => void }) {
         setInfoModalOpen(false);
         onLeaveGame();
       } : undefined}
-      onConfirm={handleAcknowledge}
+      onConfirm={() => setInfoModalOpen(false)}
       onRequestClose={() => setInfoModalOpen(false)}
       visible={infoModalOpen}
     >
-            <View className="items-center mb-5" style={{ gap: 10 }}>
-              <View className="items-center">
-                <View className="flex-row items-center justify-center">
-                  <Text className="text-center text-[42px] font-black uppercase leading-[44px] tracking-tight text-amber-400">
-                    M
-                  </Text>
-                  <LottieView
-                    autoPlay
-                    loop
-                    source={MASCOT_LOTTIE}
-                    style={{
-                      height: 62,
-                      marginBottom: -2,
-                      marginHorizontal: -4,
-                      marginTop: -34,
-                      transform: [{ translateY: -2 }, { translateX: 3 }],
-                      width: 30,
-                    }}
-                  />
-                  <Text className="text-center text-[42px] font-black uppercase leading-[44px] tracking-tight text-amber-400">
-                    SERY
-                  </Text>
-                </View>
-                <Text
-                  className="text-center text-[42px] font-black uppercase leading-[44px] tracking-tight text-white"
-                  style={{ marginTop: -10 }}
-                >
-                  METER
-                </Text>
-              </View>
-              <Text className="text-2xl text-neutral-400 text-center leading-7 font-handwritten tracking-[1px] uppercase px-2">
-                {isBs
-                  ? 'Svako od nas ima loše dane. Dokaži ko preživljava najgoru patnju.'
-                  : 'We all have bad days. Prove who survives the worst misery.'}
-              </Text>
-            </View>
+      <ScrollView
+        contentContainerStyle={{ gap: 14, paddingBottom: 4 }}
+        nestedScrollEnabled
+        showsVerticalScrollIndicator
+        style={{ maxHeight: Math.max(280, height - (onLeaveGame ? 310 : 250)) }}
+      >
+        <View className="items-center" style={{ gap: 9 }}>
+          <BookOpen color="#fbbf24" size={34} strokeWidth={2.4} />
+          <Text className="text-center text-xl font-black uppercase tracking-widest text-amber-400">
+            {isBs ? 'PRAVILA IGRE' : 'GAME RULES'}
+          </Text>
+          <Text className="text-center text-sm leading-5 text-neutral-400">
+            {isBs
+              ? 'Poredaj životne događaje od najmanje do najveće patnje.'
+              : 'Arrange life events from the least to the most miserable.'}
+          </Text>
+        </View>
 
-            <ScrollView className="max-h-80" showsVerticalScrollIndicator={false}>
-              <View style={{ gap: 14 }}>
-                <Text className="text-sm text-neutral-300 leading-6 font-sans">
-                  {isBs
-                    ? 'Zabavna igra u kojoj procjenjujete blesave, neprijatne ili potpuno bizarne životne situacije na skali od 0 (nebitno) do 100 (maksimalna nesreća).'
-                    : 'A card game where you rank real-life, painful, funny, or extremely awkward situations on a scale of 0 (meh) to 100 (miserable).'}
-                </Text>
-                <Text className="text-sm text-neutral-300 leading-6 font-sans">
-                  {isBs
-                    ? 'Vaš cilj je da tačno plasirate novu kartu unutar vašeg postojećeg niza od lakših prema težim životnim situacijama.'
-                    : 'Your goal is to accurately place a newly drawn card into your existing sequence of cards sorted from least miserable to most miserable.'}
-                </Text>
-                <Text className="text-sm text-neutral-300 leading-6 font-sans">
-                  {isBs
-                    ? 'Prvi igrač koji sakupi traženi broj ispravno poredanih kartica u svojoj stazi proglašava se pobjednikom!'
-                    : 'The first player to successfully assemble the target number of correctly arranged cards in their lane wins the game!'}
-                </Text>
-              </View>
-            </ScrollView>
+        {RULES.map((rule) => (
+          <View
+            className="rounded-xl border border-neutral-800 bg-neutral-950/70 p-4"
+            key={rule.titleEn}
+            style={{ gap: 7 }}
+          >
+            <Text className="text-sm font-black uppercase tracking-wider text-amber-400">
+              {isBs ? rule.titleBs : rule.titleEn}
+            </Text>
+            <Text className="text-sm leading-6 text-neutral-300">
+              {isBs ? rule.bodyBs : rule.bodyEn}
+            </Text>
+          </View>
+        ))}
+      </ScrollView>
     </ConfirmModal>
   );
 }

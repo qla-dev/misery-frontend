@@ -264,12 +264,12 @@ function RoomCodeCard({
               tintColor={isPrivate ? '#facc15' : 'rgba(255,255,255,0.08)'}
             >
               <Pressable
-                accessibilityLabel={isPrivate
-                  ? isBs ? 'Soba je privatna' : 'Room is private'
-                  : isBs ? 'Zaklju\u010daj sobu' : 'Lock room'}
+              accessibilityLabel={isPrivate
+                ? isBs ? 'Otklju\u010daj sobu' : 'Unlock room'
+                : isBs ? 'Zaklju\u010daj sobu' : 'Lock room'}
                 accessibilityRole="button"
                 className="h-full w-full items-center justify-center"
-                disabled={isLocking || isPrivate}
+              disabled={isLocking}
                 onPress={onLock}
                 style={{ opacity: isLocking ? 0.55 : 1 }}
               >
@@ -407,6 +407,7 @@ export default function Lobby() {
   const insets = useSafeAreaInsets();
   const {
     isPremium,
+    premiumPlan,
     language,
     lobbyView,
     setLobbyView,
@@ -450,6 +451,7 @@ export default function Lobby() {
   } = useGame();
 
   const isBs = language === 'bs';
+  const hasActiveProPlan = Boolean(isPremium && premiumPlan);
   const lobbyScrollRef = useRef<ScrollView>(null);
   const welcomeOpacity = useRef(new Animated.Value(lobbyView === 'WELCOME' ? 1 : 0)).current;
   const setupOpacity = useRef(new Animated.Value(lobbyView === 'SETUP' ? 1 : 0)).current;
@@ -477,7 +479,7 @@ export default function Lobby() {
   const [playerToRemove, setPlayerToRemove] = useState<{ id: number; name: string } | null>(null);
   const [isLockingRoom, setIsLockingRoom] = useState(false);
   const [isRoomPrivate, setIsRoomPrivate] = useState(false);
-  const [roomLockedOverlayVisible, setRoomLockedOverlayVisible] = useState(false);
+  const [roomPrivacyResult, setRoomPrivacyResult] = useState<'locked' | 'unlocked' | null>(null);
   const [lobbyOpening, setLobbyOpening] = useState({ changed: false, color: AVAILABLE_COLORS[0].hex, visible: false });
   const [serverGameId, setServerGameId] = useState<number | null>(session?.gameId ?? null);
   const [serverUserId, setServerUserId] = useState<number | null>(session?.userId ?? null);
@@ -778,30 +780,18 @@ export default function Lobby() {
   };
 
   const handleLockRoom = async () => {
-    if (isLockingRoom || isRoomPrivate || !serverGameId || !serverUserId) return;
+    if (isLockingRoom || !serverGameId || !serverUserId) return;
     playSound('click');
-    if (!isPremium) {
+    if (!isRoomPrivate && !hasActiveProPlan) {
       router.navigate('/pro');
-      return;
-    }
-
-    const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
-    if (!token) {
-      setStartModal({
-        visible: true,
-        title: isBs ? 'PRIJAVA JE POTREBNA' : 'SIGN IN REQUIRED',
-        message: isBs
-          ? 'Prijavi se na svoj PRO ra\u010dun da zaklju\u010da\u0161 sobu.'
-          : 'Sign in to your PRO account to lock this room.',
-      });
       return;
     }
 
     setIsLockingRoom(true);
     try {
-      const game = await api.lockLobbyRoom(serverGameId, serverUserId, token);
+      const game = await api.lockLobbyRoom(serverGameId, serverUserId, hasActiveProPlan);
       applyServerGame(game);
-      setRoomLockedOverlayVisible(true);
+      setRoomPrivacyResult(game.is_private ? 'locked' : 'unlocked');
     } catch (error) {
       playSound('wrong');
       setStartModal({
@@ -2161,11 +2151,15 @@ export default function Lobby() {
       <LaneModal
         failureMessage=""
         failureTitle=""
-        onComplete={() => setRoomLockedOverlayVisible(false)}
+        onComplete={() => setRoomPrivacyResult(null)}
         success
-        successMessage={isBs ? 'SOBA VI\u0160E NIJE VIDLJIVA U JAVNIM IGRAMA' : 'THIS ROOM IS NO LONGER VISIBLE IN PUBLIC GAMES'}
-        successTitle={isBs ? 'SOBA JE ZAKLJU\u010cANA' : 'ROOM LOCKED'}
-        visible={roomLockedOverlayVisible}
+        successMessage={roomPrivacyResult === 'unlocked'
+          ? isBs ? 'SOBA JE PONOVO VIDLJIVA U JAVNIM IGRAMA' : 'THIS ROOM IS VISIBLE IN PUBLIC GAMES AGAIN'
+          : isBs ? 'SOBA VI\u0160E NIJE VIDLJIVA U JAVNIM IGRAMA' : 'THIS ROOM IS NO LONGER VISIBLE IN PUBLIC GAMES'}
+        successTitle={roomPrivacyResult === 'unlocked'
+          ? isBs ? 'SOBA JE OTKLJU\u010cANA' : 'ROOM UNLOCKED'
+          : isBs ? 'SOBA JE ZAKLJU\u010cANA' : 'ROOM LOCKED'}
+        visible={roomPrivacyResult !== null}
       />
       <LobbyOpeningOverlay
         changed={lobbyOpening.changed}

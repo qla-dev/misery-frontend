@@ -42,6 +42,11 @@ const getApiKey = () => {
   return '';
 };
 
+const getEntitlementIdentifier = () => {
+  const config = Constants.expoConfig?.extra?.revenueCat ?? {};
+  return process.env.EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID || config.entitlementIdentifier || 'misery-pro';
+};
+
 const emptyStatus = (): PremiumStatus => ({
   active: false,
   expirationDate: null,
@@ -54,10 +59,18 @@ const planForProduct = (identifier?: string | null): PremiumPlan | null => {
   if (!identifier) return null;
   if (identifier === REVENUECAT_PRODUCT_IDENTIFIERS.yearly) return 'yearly';
   if (identifier === REVENUECAT_PRODUCT_IDENTIFIERS.monthly) return 'monthly';
+  const normalized = identifier.toLowerCase();
+  if (normalized.includes('year') || normalized.includes('annual')) return 'yearly';
+  if (normalized.includes('month')) return 'monthly';
   return null;
 };
 
-export const premiumStatusFromCustomerInfo = (customerInfo?: CustomerInfo | null): PremiumStatus => {
+export const premiumStatusFromCustomerInfo = (
+  customerInfo?: CustomerInfo | null,
+  fallbackPlan: PremiumPlan | null = null,
+): PremiumStatus => {
+  const activeEntitlements = customerInfo?.entitlements?.active ?? {};
+  const configuredEntitlement = activeEntitlements[getEntitlementIdentifier()];
   const supportedEntitlements = Object.values(customerInfo?.entitlements?.active ?? {})
     .filter((entitlement) => planForProduct(entitlement?.productIdentifier) !== null)
     .sort((left, right) => {
@@ -65,14 +78,16 @@ export const premiumStatusFromCustomerInfo = (customerInfo?: CustomerInfo | null
       const rightExpiry = new Date(right?.expirationDate ?? 0).getTime();
       return rightExpiry - leftExpiry;
     });
-  const entitlement = supportedEntitlements[0];
+  const entitlement = configuredEntitlement ?? supportedEntitlements[0];
   if (!entitlement) return emptyStatus();
+
+  const plan = planForProduct(entitlement.productIdentifier) ?? fallbackPlan;
 
   return {
     active: true,
     expirationDate: entitlement.expirationDate ?? null,
     managementURL: customerInfo?.managementURL ?? null,
-    plan: planForProduct(entitlement.productIdentifier),
+    plan,
     productIdentifier: entitlement.productIdentifier,
   };
 };
@@ -166,8 +181,17 @@ export const purchaseRevenueCatPlan = async (plan: PremiumPlan): Promise<Premium
   }
   try {
     const result = await Purchases.purchasePackage(targetPackage);
-    const status = premiumStatusFromCustomerInfo(result.customerInfo);
-    if (!status.active) throw new Error('Purchase completed, but no active Misery PRO entitlement was returned.');
+    let status = premiumStatusFromCustomerInfo(result.customerInfo, plan);
+    if (!status.active) {
+      await Purchases.invalidateCustomerInfoCache();
+      status = premiumStatusFromCustomerInfo(await Purchases.getCustomerInfo(), plan);
+    }
+    if (!status.active) {
+      throw new Error(
+        `Purchase completed, but RevenueCat did not activate the ${getEntitlementIdentifier()} entitlement for ${targetPackage.product.identifier}. ` +
+        'Attach this product to that entitlement in RevenueCat and try Restore Purchases.',
+      );
+    }
     return status;
   } catch (error) {
     if ((error as any)?.message?.includes('no active Misery PRO')) throw error;

@@ -98,7 +98,7 @@ export function LaneProgressBadge({ label, count, target, addsCard, dark = false
   }, [addsCard, count, countScale, label, plusOpacity, plusTranslate, target]);
 
   const color = dark ? '#0a0a0a' : '#ffffff';
-  const labelParts = label.match(/^(LANE OF|STAZA IGRAČA)\s+(.+)$/i);
+  const labelParts = label.match(/^(LANE OF|STAZA IGRAČA)\s+(.+)$/iu);
   const shouldWrapLabel = emphasized && label.length > 16 && labelParts !== null;
   const emphasizedStyle = emphasized
     ? { fontFamily: 'BebasNeue_400Regular', fontSize: 48, includeFontPadding: false, letterSpacing: 1.2, lineHeight: 50 }
@@ -154,19 +154,23 @@ export function LaneProgressBadge({ label, count, target, addsCard, dark = false
   return (
     <View style={{ marginTop: 14, minHeight: 50, paddingHorizontal: 8, width: '100%' }}>
       {shouldWrapLabel ? (
-        <View className="items-center justify-center">
+        <View className="items-center justify-center" style={{ width: '100%' }}>
           <Text
+            adjustsFontSizeToFit
             className="text-center text-4xl font-black uppercase tracking-wider"
+            minimumFontScale={0.72}
             numberOfLines={1}
-            style={[{ color }, emphasizedLabelStyle]}
+            style={[{ color, textAlign: 'center', width: '100%' }, emphasizedLabelStyle]}
           >
             {labelParts?.[1]}
           </Text>
-          <View className="flex-row items-end justify-center">
+          <View className="flex-row items-end justify-center" style={{ width: '100%' }}>
             <Text
+              adjustsFontSizeToFit
               className="text-4xl font-black uppercase tracking-wider"
+              minimumFontScale={0.55}
               numberOfLines={1}
-              style={[{ color, marginRight: 8 }, emphasizedLabelStyle]}
+              style={[{ color, flexShrink: 1, marginRight: 8, textAlign: 'right' }, emphasizedLabelStyle]}
             >
               {labelParts?.[2]}
             </Text>
@@ -176,7 +180,9 @@ export function LaneProgressBadge({ label, count, target, addsCard, dark = false
       ) : (
         <View className="flex-row items-end justify-center">
           <Text
+            adjustsFontSizeToFit
             className="text-4xl font-black uppercase tracking-wider"
+            minimumFontScale={0.55}
             numberOfLines={1}
             style={[{ color, flexShrink: 1, marginRight: 8, textAlign: 'right' }, emphasizedLabelStyle]}
           >

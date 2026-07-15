@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VictoryConfetti } from './VictoryConfetti';
 import { DrawnCardFace } from './DrawnCardFace';
 import { CardBackDecoration } from './CardBackDecoration';
+import { InactivityKickCountdown } from './InactivityKickCountdown';
 import { logGameAction } from '@/lib/gameDiagnostics';
 
 const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
@@ -196,6 +197,7 @@ export default function GameBoard({
   const [inactivityWarningVisible, setInactivityWarningVisible] = useState(false);
   const [inactivityWarningCount, setInactivityWarningCount] = useState(0);
   const [inactivitySecondsRemaining, setInactivitySecondsRemaining] = useState<number | null>(null);
+  const [inactivityFinalCountdown, setInactivityFinalCountdown] = useState<number | null>(null);
   const [roomExitReason, setRoomExitReason] = useState<string | null>(null);
 
   useEffect(() => {
@@ -1108,6 +1110,7 @@ export default function GameBoard({
       setInactivityWarningVisible(false);
       setInactivityWarningCount(0);
       setInactivitySecondsRemaining(null);
+      setInactivityFinalCountdown(null);
       return;
     }
 
@@ -1117,6 +1120,7 @@ export default function GameBoard({
     inactivityKickInFlightRef.current = false;
     setInactivityWarningCount(0);
     setInactivitySecondsRemaining(null);
+    setInactivityFinalCountdown(null);
 
     const warningTimers = [1, 2, 3].map((warningNumber) => setTimeout(() => {
       inactivityWarningCountRef.current = warningNumber;
@@ -1130,14 +1134,16 @@ export default function GameBoard({
     }, warningNumber * INACTIVITY_WARNING_MS));
 
     const countdownTimer = setInterval(() => {
-      if (inactivityWarningCountRef.current < 3) return;
-      setInactivitySecondsRemaining(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
+      const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      if (inactivityWarningCountRef.current >= 3) setInactivitySecondsRemaining(remaining);
+      setInactivityFinalCountdown(remaining > 0 && remaining <= 3 ? remaining : null);
     }, 1_000);
 
     const kickTimer = setTimeout(() => {
       if (inactivityKickInFlightRef.current) return;
       inactivityKickInFlightRef.current = true;
       setInactivityWarningVisible(false);
+      setInactivityFinalCountdown(null);
       logGameAction('inactivity.kick.start', { gameId, playerId: userId, timeoutMs: INACTIVITY_KICK_MS });
       void api.expireInactivePlayer(gameId, userId)
         .then((game) => {
@@ -1394,6 +1400,7 @@ export default function GameBoard({
 
   return (
     <Animated.View className="flex-1 bg-neutral-950" style={{ opacity: finishedScreenOpacity }}>
+      <InactivityKickCountdown isBs={isBs} value={inactivityFinalCountdown} />
       <VictoryConfetti visible={didLocalWin} />
       {(isVictoryPhase || isGameOverPhase) && (
         <LinearGradient

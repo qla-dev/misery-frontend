@@ -86,6 +86,7 @@ export const api = {
   },
   getGame: (id: number, userId?: number | null, signal?: AbortSignal) => request<ApiGame>(`/games/${id}${userId ? `?user_id=${encodeURIComponent(String(userId))}` : ''}`, { signal }),
   setHostLobbyPresence: (id: number, userId: number, present: boolean) => request<ApiGame>(`/games/${id}/host-lobby-presence`, { method: 'POST', body: JSON.stringify({ user_id: userId, present }) }),
+  kickLobbyPlayer: (id: number, userId: number, playerId: number) => request<ApiGame>(`/games/${id}/kick`, { method: 'POST', body: JSON.stringify({ user_id: userId, player_id: playerId }) }),
   deleteGame: (id: number) => request<void>(`/games/${id}`, { method: 'DELETE' }),
   startGame: (id: number, userId: number, stack: 'normal' | 'spicy', targetScore: number) => request<ApiGame>(`/games/${id}/start`, { method: 'POST', body: JSON.stringify({ user_id: userId, stack, target_score: targetScore }) }),
   submitMove: (id: number, playerId: number, correct: boolean) => request<{ game: ApiGame }>(`/games/${id}/moves`, { method: 'POST', body: JSON.stringify({ player_id: playerId, correct }) }),

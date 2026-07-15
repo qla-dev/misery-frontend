@@ -6,7 +6,7 @@ import * as Google from 'expo-auth-session/providers/google';
 import * as Haptics from 'expo-haptics';
 import * as WebBrowser from 'expo-web-browser';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Check, Copy, Crown, Flame, Loader2, Share2, Sparkles, User, X } from 'lucide-react-native';
+import { Check, Copy, Crown, Flame, Loader2, Share2, ShieldAlert, Sparkles, User, X } from 'lucide-react-native';
 import LottieView from 'lottie-react-native';
 import { ActivityIndicator, Animated, BackHandler, Easing, Keyboard, KeyboardAvoidingView, LayoutAnimation, Platform, Pressable, ScrollView, Share, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -150,14 +150,20 @@ function SocialButtonContent({
 
 function PlayerCard({
   index,
+  isCurrentPlayer,
+  isHost,
   isBs,
+  isRemoving,
+  onRemove,
   player,
-  roomState,
 }: {
   index: number;
+  isCurrentPlayer: boolean;
+  isHost: boolean;
   isBs: boolean;
-  player: { color: string; name: string };
-  roomState: 'created' | 'joined';
+  isRemoving?: boolean;
+  onRemove?: () => void;
+  player: { color: string; id?: number; name: string };
 }) {
   const playerColor =
     AVAILABLE_COLORS.find((color) => color.borderClass === player.color) ??
@@ -169,17 +175,30 @@ function PlayerCard({
         <View className="flex-row items-center gap-4">
           <View className={`h-4 w-4 rounded-full ${playerColor.bgClass}`} />
           <Text className="text-base font-bold text-neutral-200">{player.name}</Text>
-          {index === 0 && <Crown size={18} color="#facc15" fill="#facc15" />}
+          {isHost && <Crown size={18} color="#facc15" fill="#facc15" />}
         </View>
         <View className="flex-row items-center gap-2">
-          <Text
-            className={`rounded-md bg-yellow-500 px-2.5 py-1 font-mono text-[10px] font-extrabold uppercase text-black ${
-              roomState === 'joined' ? 'animate-pulse' : ''
-            }`}
-          >
-            {roomState === 'created' ? (isBs ? 'TI (HOST)' : 'YOU (HOST)') : isBs ? 'TI' : 'YOU'}
-          </Text>
-          <Text className="ml-2 font-mono text-sm text-emerald-400">✓</Text>
+          {(isCurrentPlayer || isHost) && (
+            <Text className="rounded-md bg-yellow-500 px-2.5 py-1 font-mono text-[10px] font-extrabold uppercase text-black">
+              {isCurrentPlayer
+                ? isHost
+                  ? isBs ? 'TI (DOMAĆIN)' : 'YOU (HOST)'
+                  : isBs ? 'TI' : 'YOU'
+                : isBs ? 'DOMAĆIN' : 'HOST'}
+            </Text>
+          )}
+          {onRemove ? (
+            <Pressable
+              accessibilityLabel={isBs ? `Ukloni igrača ${player.name}` : `Remove ${player.name}`}
+              accessibilityRole="button"
+              className="h-8 w-8 items-center justify-center rounded-full bg-red-500/15"
+              disabled={isRemoving}
+              hitSlop={8}
+              onPress={onRemove}
+            >
+              {isRemoving ? <ActivityIndicator color="#ef4444" size="small" /> : <X color="#ef4444" size={17} strokeWidth={3} />}
+            </Pressable>
+          ) : null}
         </View>
       </View>
     </Card>
@@ -403,6 +422,8 @@ export default function Lobby() {
   const [usernameDraft, setUsernameDraft] = useState('');
   const [usernameError, setUsernameError] = useState('');
   const [isSavingUsername, setIsSavingUsername] = useState(false);
+  const [removingPlayerId, setRemovingPlayerId] = useState<number | null>(null);
+  const [playerToRemove, setPlayerToRemove] = useState<{ id: number; name: string } | null>(null);
   const [lobbyOpening, setLobbyOpening] = useState({ changed: false, color: AVAILABLE_COLORS[0].hex, visible: false });
   const [serverGameId, setServerGameId] = useState<number | null>(session?.gameId ?? null);
   const [serverUserId, setServerUserId] = useState<number | null>(session?.userId ?? null);
@@ -678,6 +699,27 @@ export default function Lobby() {
     if (!gameId || !serverUserId) return;
     void api.leaveGame(gameId, serverUserId)
       .catch((error) => console.warn('[LeaveRoom] Background room leave failed', error));
+  };
+
+  const handleRemoveLobbyPlayer = async (playerId?: number) => {
+    if (!playerId || !serverGameId || !serverUserId || Number(serverOwnerId) !== Number(serverUserId)) return;
+    setRemovingPlayerId(playerId);
+    playSound('click');
+    try {
+      const game = await api.kickLobbyPlayer(serverGameId, serverUserId, playerId);
+      applyServerGame(game);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not remove this player.';
+      playSound('wrong');
+      setStartModal({
+        visible: true,
+        title: isBs ? 'UKLANJANJE NIJE USPJELO' : 'REMOVE PLAYER FAILED',
+        message: isBs ? 'Igrača nije moguće ukloniti iz sobe.' : message,
+      });
+    } finally {
+      setRemovingPlayerId(null);
+      setPlayerToRemove(null);
+    }
   };
 
   const handleJoinWithCode = async (codeOverride?: string) => {
@@ -1071,13 +1113,19 @@ export default function Lobby() {
     const poll = async () => {
       try {
         const game = await api.getGame(serverGameId, serverUserId);
-        if (game.terminated_at || (serverUserId && !game.members.some((member) => Number(member.id) === Number(serverUserId)))) {
+        const isStillMember = !serverUserId || game.members.some((member) => Number(member.id) === Number(serverUserId));
+        if (game.terminated_at || !isStillMember) {
+          const removedByHost = !game.terminated_at && !isStillMember;
           setStartModal({
             visible: true,
-            title: game.termination_reason === 'host_inactive' ? 'ROOM CLOSED' : 'ROOM ENDED',
-            message: game.termination_reason === 'host_inactive'
-              ? 'The host was inactive for 60 seconds.'
-              : 'The host left the room.',
+            title: removedByHost
+              ? isBs ? 'UKLONJEN SI' : 'YOU WERE REMOVED'
+              : game.termination_reason === 'host_inactive' ? isBs ? 'SOBA JE ZATVORENA' : 'ROOM CLOSED' : isBs ? 'SOBA JE ZAVRŠENA' : 'ROOM ENDED',
+            message: removedByHost
+              ? isBs ? 'Domaćin te uklonio iz sobe.' : 'The host removed you from the lobby.'
+              : game.termination_reason === 'host_inactive'
+                ? isBs ? 'Domaćin je bio neaktivan 60 sekundi.' : 'The host was inactive for 60 seconds.'
+                : isBs ? 'Domaćin je napustio sobu.' : 'The host left the room.',
           });
           transitionLobbyView('SETUP', () => {
             setServerGameId(null);
@@ -1772,7 +1820,18 @@ export default function Lobby() {
             />
             <View style={{ gap: 16 }}>
               {roomPlayers.map((player, idx) => (
-                <PlayerCard key={`${player.name}-${idx}`} index={idx} isBs={isBs} player={player} roomState="created" />
+                <PlayerCard
+                  key={`${player.name}-${idx}`}
+                  index={idx}
+                  isBs={isBs}
+                  isCurrentPlayer={Number(player.id) === Number(serverUserId)}
+                  isHost={Number(player.id) === Number(serverOwnerId)}
+                  isRemoving={Number(player.id) === removingPlayerId}
+                  onRemove={Number(player.id) !== Number(serverOwnerId) && player.id
+                    ? () => setPlayerToRemove({ id: player.id as number, name: player.name })
+                    : undefined}
+                  player={player}
+                />
               ))}
             </View>
           </View>
@@ -1814,7 +1873,14 @@ export default function Lobby() {
             />
             <View style={{ gap: 16 }}>
               {roomPlayers.map((player, idx) => (
-                <PlayerCard key={`${player.name}-${idx}`} index={idx} isBs={isBs} player={player} roomState="joined" />
+                <PlayerCard
+                  key={`${player.name}-${idx}`}
+                  index={idx}
+                  isBs={isBs}
+                  isCurrentPlayer={Number(player.id) === Number(serverUserId)}
+                  isHost={Number(player.id) === Number(serverOwnerId)}
+                  player={player}
+                />
               ))}
             </View>
           </View>
@@ -1911,6 +1977,29 @@ export default function Lobby() {
         </Animated.View>
         )}
       </KeyboardAvoidingView>
+      <ConfirmModal
+        cancelLabel={isBs ? 'ODUSTANI' : 'CANCEL'}
+        confirmLabel={isBs ? 'IZBACI IGRAČA' : 'KICK OUT'}
+        confirmLoading={removingPlayerId !== null}
+        onCancel={() => setPlayerToRemove(null)}
+        onConfirm={() => void handleRemoveLobbyPlayer(playerToRemove?.id)}
+        onRequestClose={() => {
+          if (removingPlayerId === null) setPlayerToRemove(null);
+        }}
+        visible={playerToRemove !== null}
+      >
+        <View className="items-center" style={{ gap: 10 }}>
+          <ShieldAlert color="#fbbf24" size={38} />
+          <Text className="text-center text-lg font-black uppercase tracking-wider text-amber-400">
+            {isBs ? 'JESI LI SIGURAN?' : 'ARE YOU SURE?'}
+          </Text>
+          <Text className="text-center text-sm leading-6 text-neutral-300">
+            {isBs
+              ? `Želiš li izbaciti igrača ${playerToRemove?.name ?? ''} iz sobe?`
+              : `Are you sure you want to kick ${playerToRemove?.name ?? 'this player'} out of the lobby?`}
+          </Text>
+        </View>
+      </ConfirmModal>
       <ConfirmModal
         cancelLabel={isBs ? 'ODUSTANI' : 'CANCEL'}
         confirmLabel={isSavingUsername ? (isBs ? 'PROVJERA...' : 'CHECKING...') : (isBs ? 'SPREMI' : 'SAVE')}

@@ -6,14 +6,16 @@ const GAME_BACKGROUND_AUDIO = require('../assets/audio/game-bg.mp3');
 const LOBBY_BACKGROUND_AUDIO = require('../assets/audio/lobby.mp3');
 const BELL_AUDIO = require('../assets/audio/bell-ring.mp3');
 const APPLAUSE_AUDIO = require('../assets/audio/applause.mp3');
+const COUNTDOWN_AUDIO = require('../assets/audio/countdown-beep.mp3');
 
-export type SoundType = 'correct' | 'wrong' | 'victory' | 'click' | 'steal' | 'shuffle' | 'bell' | 'applause';
+export type SoundType = 'correct' | 'wrong' | 'victory' | 'click' | 'steal' | 'shuffle' | 'bell' | 'applause' | 'countdown';
 
 let audioModule: typeof import('expo-audio') | null = null;
 let clickPlayer: any = null;
 let shufflePlayer: any = null;
 let bellPlayer: any = null;
 let applausePlayer: any = null;
+let countdownPlayer: any = null;
 let backgroundPlayer: any = null;
 let lobbyBackgroundPlayer: any = null;
 let musicMuted = false;
@@ -63,7 +65,7 @@ function syncLockScreenPlayer(player: any, title?: string) {
   }
 }
 
-async function effectPlayer(type: 'click' | 'shuffle' | 'bell' | 'applause') {
+async function effectPlayer(type: 'click' | 'shuffle' | 'bell' | 'applause' | 'countdown') {
   await ensureAudio();
   if (!audioModule) return null;
   if (type === 'click') {
@@ -78,11 +80,15 @@ async function effectPlayer(type: 'click' | 'shuffle' | 'bell' | 'applause') {
     bellPlayer ??= audioModule.createAudioPlayer(BELL_AUDIO, { keepAudioSessionActive: true });
     return bellPlayer;
   }
+  if (type === 'countdown') {
+    countdownPlayer ??= audioModule.createAudioPlayer(COUNTDOWN_AUDIO, { keepAudioSessionActive: true });
+    return countdownPlayer;
+  }
   applausePlayer ??= audioModule.createAudioPlayer(APPLAUSE_AUDIO, { keepAudioSessionActive: true });
   return applausePlayer;
 }
 
-async function playEffect(type: 'click' | 'shuffle' | 'bell' | 'applause') {
+async function playEffect(type: 'click' | 'shuffle' | 'bell' | 'applause' | 'countdown') {
   if (type === 'click') {
     const now = Date.now();
     if (now - lastClickAt < 80) return;
@@ -157,7 +163,7 @@ export function playHaptic(type: SoundType = 'click') {
 }
 
 export function playSound(type: SoundType) {
-  if (type === 'click' || type === 'shuffle' || type === 'bell' || type === 'applause') void playEffect(type);
+  if (type === 'click' || type === 'shuffle' || type === 'bell' || type === 'applause' || type === 'countdown') void playEffect(type);
   playHaptic(type);
 }
 

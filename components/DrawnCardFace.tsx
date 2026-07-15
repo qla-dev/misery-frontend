@@ -141,8 +141,8 @@ export function DrawnCardFace({
         </Animated.Text>
       )}
       <View
-        className="absolute bottom-0 left-0 right-0 items-center"
-        style={{ backgroundColor: '#000000', paddingTop: 8, zIndex: 4 }}
+        className="absolute items-center"
+        style={{ backgroundColor: '#000000', bottom: 12, left: 12, paddingTop: 8, right: 12, zIndex: 4 }}
       >
         <Text
           adjustsFontSizeToFit

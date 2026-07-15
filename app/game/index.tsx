@@ -15,7 +15,7 @@ export default function GameScreen() {
   if (isCountingDown) {
     return (
       <GameCountdown
-        bottomLabel={language === 'bs' ? 'SPREMI SE ZA NESREĆU' : 'GET READY FOR MISERY'}
+        bottomLabel={language === 'bs' ? 'SPREMI SE ZA PATNJU' : 'GET READY FOR MISERY'}
         finalLabel={language === 'bs' ? 'KRENI' : 'GO'}
         onComplete={() => {
           setIsCountingDown(false);

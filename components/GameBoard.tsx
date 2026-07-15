@@ -1498,8 +1498,8 @@ export default function GameBoard({
                       alignItems: 'center',
                       backgroundColor: '#050505',
                       borderColor: '#fbbf24',
-                      borderRadius: 16,
-                      borderWidth: 6,
+                      borderRadius: 18,
+                      borderWidth: 5,
                       height: drawnCardHeight,
                       justifyContent: 'center',
                       overflow: 'hidden',
@@ -1507,7 +1507,7 @@ export default function GameBoard({
                     }}
                   >
                     <CardBackDecoration />
-                    <View style={{ borderColor: 'rgba(251,191,36,0.55)', borderRadius: 10, borderWidth: 2, bottom: 12, left: 12, position: 'absolute', right: 12, top: 12 }} />
+                    <View style={{ borderColor: 'rgba(251,191,36,0.35)', borderRadius: 11, borderWidth: 2, bottom: 9, left: 9, position: 'absolute', right: 9, top: 9 }} />
                     <CardLogo />
                     <Animated.Text
                       adjustsFontSizeToFit

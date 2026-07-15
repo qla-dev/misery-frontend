@@ -61,14 +61,14 @@ export function DrawnCardFace({
       style={{
         alignItems: 'center',
         borderColor: isWrong ? '#ef4444' : isCorrect ? '#10b981' : '#fbbf24',
-        borderRadius: 16,
-        borderWidth: 6,
+        borderRadius: 18,
+        borderWidth: 5,
         height,
         overflow: 'hidden',
         width: '100%',
       }}
     >
-      <View style={{ borderColor: 'rgba(251,191,36,0.35)', borderRadius: 10, borderWidth: 2, bottom: 12, left: 12, position: 'absolute', right: 12, top: 12 }} />
+      <View style={{ borderColor: 'rgba(251,191,36,0.35)', borderRadius: 11, borderWidth: 2, bottom: 9, left: 9, position: 'absolute', right: 9, top: 9 }} />
       <View className="w-full items-center px-6 pt-8" style={{ gap: 10, zIndex: 2 }}>
         <Text
           adjustsFontSizeToFit

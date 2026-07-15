@@ -13,6 +13,8 @@ type GameActionQueueProps = {
   activeStealerName?: string;
   hasPendingLaneAnimation: boolean;
   inactivityWarningVisible: boolean;
+  inactivityWarningCount?: number;
+  inactivitySecondsRemaining?: number | null;
   isBs: boolean;
   laneFailureMessage: string;
   laneResult: 'success' | 'failure' | 'steal' | null;
@@ -34,6 +36,8 @@ export function GameActionQueue({
   activeStealerName,
   hasPendingLaneAnimation,
   inactivityWarningVisible,
+  inactivityWarningCount = 0,
+  inactivitySecondsRemaining = null,
   isBs,
   laneFailureMessage,
   laneResult,
@@ -209,7 +213,11 @@ export function GameActionQueue({
         failureTitle=""
         onComplete={() => complete('inactivity', onInactivityComplete)}
         success
-        successMessage={isBs ? 'ODIGRAJ TRENUTNU KARTU DA SE IGRA NASTAVI' : 'PLAY THE CURRENT CARD TO KEEP THE GAME MOVING'}
+        successMessage={inactivityWarningCount >= 3 && inactivitySecondsRemaining !== null
+          ? isBs
+            ? `ODIGRAJ SADA — BIT ĆEŠ UKLONJEN ZA ${inactivitySecondsRemaining} SEKUNDI`
+            : `PLAY NOW — YOU WILL BE KICKED IN ${inactivitySecondsRemaining} SECONDS`
+          : isBs ? 'ODIGRAJ TRENUTNU KARTU DA SE IGRA NASTAVI' : 'PLAY THE CURRENT CARD TO KEEP THE GAME MOVING'}
         successTitle={isBs ? 'TVOJ POTEZ ČEKA' : 'YOUR TURN IS WAITING'}
         visible={activeAction === 'inactivity'}
         warning

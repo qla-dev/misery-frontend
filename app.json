@@ -21,7 +21,7 @@
           "NSAllowsLocalNetworking": true
         }
       },
-      "associatedDomains": ["applinks:misery.qla.dev"]
+      "associatedDomains": ["applinks:miserymeter.app"]
     },
     "android": {
       "package": "misery.qla.dev",
@@ -41,7 +41,7 @@
           "data": [
             {
               "scheme": "https",
-              "host": "misery.qla.dev",
+              "host": "miserymeter.app",
               "pathPrefix": "/code/"
             }
           ],

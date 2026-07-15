@@ -771,8 +771,8 @@ export default function Lobby() {
     try {
       await Share.share({
         message: isBs
-          ? `Pridruži se mojoj Misery Meter sobi: https://misery.qla.dev/code/${roomCode}`
-          : `Join my Misery Meter room: https://misery.qla.dev/code/${roomCode}`,
+          ? `Pridruži se mojoj Misery Meter sobi: https://miserymeter.app/code/${roomCode}`
+          : `Join my Misery Meter room: https://miserymeter.app/code/${roomCode}`,
         title: 'Misery Meter',
       });
     } catch {

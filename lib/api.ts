@@ -5,7 +5,7 @@ export const API_TARGET: ApiTarget = 'production';
 
 const API_URLS = {
   local: 'http://192.168.0.31:8000/api',
-  production: 'https://misery.qla.dev/api',
+  production: 'https://miserymeter.app/api',
 } as const;
 
 export const API_BASE_URL = API_URLS[API_TARGET];
@@ -91,5 +91,6 @@ export const api = {
   submitMove: (id: number, playerId: number, correct: boolean) => request<{ game: ApiGame }>(`/games/${id}/moves`, { method: 'POST', body: JSON.stringify({ player_id: playerId, correct }) }),
   finishTurn: (id: number, playerId: number) => request<{ game: ApiGame }>(`/games/${id}/finish-turn`, { method: 'POST', body: JSON.stringify({ player_id: playerId }) }),
   passSteal: (id: number, playerId: number) => request<{ game: ApiGame }>(`/games/${id}/pass-steal`, { method: 'POST', body: JSON.stringify({ player_id: playerId }) }),
+  expireInactivePlayer: (id: number, userId: number) => request<ApiGame>(`/games/${id}/inactivity-timeout`, { method: 'POST', body: JSON.stringify({ user_id: userId }) }),
   leaveGame: (id: number, userId: number) => request<ApiGame>(`/games/${id}/leave`, { method: 'POST', body: JSON.stringify({ user_id: userId }) }),
 };

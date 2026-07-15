@@ -19,6 +19,8 @@ import { CardBackDecoration } from './CardBackDecoration';
 import { logGameAction } from '@/lib/gameDiagnostics';
 
 const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
+const INACTIVITY_KICK_MS = 60_000;
+const INACTIVITY_WARNING_MS = 15_000;
 
 const PLAYER_COLOR_HEX: Record<string, string> = {
   yellow: '#facc15',
@@ -152,6 +154,8 @@ export default function GameBoard({
   const laneResultGapRef = useRef(false);
   const laneCollapseInFlightRef = useRef(false);
   const finishTurnInFlightRef = useRef(false);
+  const inactivityKickInFlightRef = useRef(false);
+  const inactivityWarningCountRef = useRef(0);
   const isAwaitingTurnFinishRef = useRef(false);
   const serverCurrentPlayerIdRef = useRef<number | null>(null);
   // True while an "on hold" (YOU'RE ON HOLD) notice is queued or showing. A stolen-card
@@ -191,6 +195,8 @@ export default function GameBoard({
   const [lastStealWasFromLocalPlayer, setLastStealWasFromLocalPlayer] = useState(false);
   const [isTurnInactive, setIsTurnInactive] = useState(false);
   const [inactivityWarningVisible, setInactivityWarningVisible] = useState(false);
+  const [inactivityWarningCount, setInactivityWarningCount] = useState(0);
+  const [inactivitySecondsRemaining, setInactivitySecondsRemaining] = useState<number | null>(null);
   const [roomExitReason, setRoomExitReason] = useState<string | null>(null);
 
   useEffect(() => {
@@ -653,14 +659,17 @@ export default function GameBoard({
           lastObservedMoveIdRef.current = latestMove.id;
           if (Number(latestMove.player_id) !== Number(userId)) {
             if (latestMove.card) setRevealedScoreCardId(String(latestMove.card.id));
-            const wasStolen = latestMove.correct &&
-              game.turn_owner_id !== null &&
-              Number(latestMove.player_id) !== Number(game.turn_owner_id);
+            const observedMoveTurn = observedTurnRef.current;
+            const wasStolen = Boolean(
+              latestMove.correct &&
+              observedMoveTurn?.isSteal &&
+              Number(observedMoveTurn.actorId) === Number(latestMove.player_id)
+            );
             enqueueLaneResult({
               playerName: latestMove.player.name,
               result: wasStolen ? 'steal' : latestMove.correct ? 'success' : 'failure',
               score: latestMove.card ? Number(latestMove.card.score) : null,
-              stolenFromLocal: Boolean(wasStolen && Number(game.turn_owner_id) === Number(userId)),
+              stolenFromLocal: Boolean(wasStolen && Number(observedTurnOwnerIdRef.current) === Number(userId)),
             });
           }
         }
@@ -1088,29 +1097,72 @@ export default function GameBoard({
     !hasPendingLocalTurnStartNotice &&
     gameState.phase === 'PLAYING'
   );
+  const inactivityTurnKey = shouldWatchLocalInactivity
+    ? `${serverCurrentPlayerId}:${gameState.drawnCard?.id ?? 'no-card'}:${activeStealer ? 'steal' : 'turn'}`
+    : null;
 
   useEffect(() => {
-    if (!shouldWatchLocalInactivity) {
+    if (!inactivityTurnKey || !gameId || !userId) {
+      inactivityWarningCountRef.current = 0;
+      inactivityKickInFlightRef.current = false;
       setIsTurnInactive(false);
       setInactivityWarningVisible(false);
+      setInactivityWarningCount(0);
+      setInactivitySecondsRemaining(null);
       return;
     }
-    if (inactivityWarningVisible) return;
 
-    const timer = setTimeout(() => {
+    const startedAt = Date.now();
+    const deadline = startedAt + INACTIVITY_KICK_MS;
+    inactivityWarningCountRef.current = 0;
+    inactivityKickInFlightRef.current = false;
+    setInactivityWarningCount(0);
+    setInactivitySecondsRemaining(null);
+
+    const warningTimers = [1, 2, 3].map((warningNumber) => setTimeout(() => {
+      inactivityWarningCountRef.current = warningNumber;
+      setInactivityWarningCount(warningNumber);
+      if (warningNumber >= 3) {
+        setInactivitySecondsRemaining(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
+      }
       setIsTurnInactive(true);
       setInactivityWarningVisible(true);
       playSound('bell');
-    }, 15_000);
+    }, warningNumber * INACTIVITY_WARNING_MS));
+
+    const countdownTimer = setInterval(() => {
+      if (inactivityWarningCountRef.current < 3) return;
+      setInactivitySecondsRemaining(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
+    }, 1_000);
+
+    const kickTimer = setTimeout(() => {
+      if (inactivityKickInFlightRef.current) return;
+      inactivityKickInFlightRef.current = true;
+      setInactivityWarningVisible(false);
+      logGameAction('inactivity.kick.start', { gameId, playerId: userId, timeoutMs: INACTIVITY_KICK_MS });
+      void api.expireInactivePlayer(gameId, userId)
+        .then((game) => {
+          const reason = game.termination_reason ?? 'player_inactive';
+          logGameAction('inactivity.kick.success', { gameId, playerId: userId, reason });
+          setRoomExitReason(reason);
+        })
+        .catch((error) => {
+          inactivityKickInFlightRef.current = false;
+          logGameAction('inactivity.kick.failure', {
+            gameId,
+            message: error instanceof Error ? error.message : String(error),
+            playerId: userId,
+          });
+          setConnectionWarningVisible(true);
+        });
+    }, INACTIVITY_KICK_MS);
 
     return () => {
-      clearTimeout(timer);
+      warningTimers.forEach(clearTimeout);
+      clearInterval(countdownTimer);
+      clearTimeout(kickTimer);
     };
-  }, [
-    gameState.drawnCard?.id,
-    inactivityWarningVisible,
-    shouldWatchLocalInactivity,
-  ]);
+  }, [gameId, inactivityTurnKey, userId]);
 
   const faceDownPrompt = gameId && !isLocalServerTurn
     ? !isAwaitingTurnFinish && currentActingPlayer?.name
@@ -1290,6 +1342,8 @@ export default function GameBoard({
       handleLaneResultFadeComplete,
       hasPendingLaneAnimation: selectedSlotResult !== null || isLaneCollapsing,
       inactivityWarningVisible,
+      inactivityWarningCount,
+      inactivitySecondsRemaining,
       roomExitReason,
       connectionWarningVisible,
       isTurnInactive,
@@ -1311,7 +1365,7 @@ export default function GameBoard({
         (!gameId || Number(activeStealer.id) === Number(userId))
       ),
     });
-  }, [connectionWarningVisible, currentActingPlayer, gameId, gameState, hasPendingLocalTurnStartNotice, inactivityWarningVisible, isAwaitingTurnFinish, isDrawnCardFlipped, isDrawnCardScoreRevealed, isLaneCollapsing, isServerTurnReady, isSubmittingMove, isTurnInactive, laneResult, lastInsertedCardId, lastResultCardScore, lastStealWasFromLocalPlayer, localPlayer, roomExitReason, selectedSlotIndex, selectedSlotResult, serverCurrentPlayerId, setGameRuntime, userId]);
+  }, [connectionWarningVisible, currentActingPlayer, gameId, gameState, hasPendingLocalTurnStartNotice, inactivitySecondsRemaining, inactivityWarningCount, inactivityWarningVisible, isAwaitingTurnFinish, isDrawnCardFlipped, isDrawnCardScoreRevealed, isLaneCollapsing, isServerTurnReady, isSubmittingMove, isTurnInactive, laneResult, lastInsertedCardId, lastResultCardScore, lastStealWasFromLocalPlayer, localPlayer, roomExitReason, selectedSlotIndex, selectedSlotResult, serverCurrentPlayerId, setGameRuntime, userId]);
 
   useEffect(() => {
     if (!didLocalWin || winnerCelebratedRef.current) return;

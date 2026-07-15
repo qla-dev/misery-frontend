@@ -7,9 +7,9 @@ import { Card } from '@/components/Card';
 import { TabFadeView } from '@/components/TabFadeView';
 
 const MASCOT_LOTTIE = require('../../assets/animations/mascot_lottie.json');
-const PRIVACY_URL = 'https://misery.qla.dev/privacy';
-const TERMS_URL = 'https://misery.qla.dev/terms';
-const COOKIES_URL = 'https://misery.qla.dev/cookies';
+const PRIVACY_URL = 'https://miserymeter.app/privacy';
+const TERMS_URL = 'https://miserymeter.app/terms';
+const COOKIES_URL = 'https://miserymeter.app/cookies';
 const PRODUCER_URL = 'https://qla.dev';
 
 export default function AboutScreen() {

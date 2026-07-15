@@ -6,7 +6,7 @@ import { router, Stack } from 'expo-router';
 import { useGame } from '@/context/GameContext';
 import { playHaptic, setGameMusicActive, setGameMusicMuted, setLobbyMusicActive } from '@/lib/sound';
 import { ImageSourcePropType, Pressable, Text, View } from 'react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import HelpIcon from '@expo/material-symbols/help.xml';
 import VolumeOffIcon from '@expo/material-symbols/volume_off.xml';
 import VolumeUpIcon from '@expo/material-symbols/volume_up.xml';
@@ -50,6 +50,7 @@ export default function GameTabsLayout() {
     turnNotices,
   } = useGame();
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
+  const returningToGameSettingsRef = useRef(false);
   const isBs = language === 'bs';
   const turnNotice = turnNotices[0];
   const activePlayerName = gameRuntime?.currentActingPlayer?.name ?? session?.players[0]?.name;
@@ -156,6 +157,10 @@ export default function GameTabsLayout() {
   };
 
   const returnToGameSettings = () => {
+    if (returningToGameSettingsRef.current) return;
+    returningToGameSettingsRef.current = true;
+    setIsExitConfirmOpen(false);
+    setInfoModalOpen(false);
     setGameRuntime(null);
     setIsGameCountingDown(false);
     setLaneResult(null);
@@ -163,7 +168,7 @@ export default function GameTabsLayout() {
     setTurnNotices([]);
     setSession(null);
     setLobbyView('SETUP');
-    requestAnimationFrame(() => router.replace('/'));
+    router.replace('/');
   };
 
   return (
@@ -307,6 +312,8 @@ export default function GameTabsLayout() {
       <GameActionQueue
         activeStealerName={gameRuntime?.activeStealer?.name}
         hasPendingLaneAnimation={Boolean(gameRuntime?.hasPendingLaneAnimation)}
+        inactivitySecondsRemaining={gameRuntime?.inactivitySecondsRemaining}
+        inactivityWarningCount={gameRuntime?.inactivityWarningCount}
         inactivityWarningVisible={Boolean(gameRuntime?.inactivityWarningVisible)}
         isBs={isBs}
         laneFailureMessage={laneFailureMessage}

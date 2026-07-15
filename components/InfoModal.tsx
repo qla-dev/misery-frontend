@@ -48,10 +48,10 @@ export function InfoModal({ onLeaveGame }: { onLeaveGame?: () => void }) {
       visible={infoModalOpen}
     >
       <ScrollView
-        contentContainerStyle={{ gap: 14, paddingBottom: 4 }}
+        contentContainerStyle={{ gap: 18, paddingBottom: 4, paddingHorizontal: 18 }}
         nestedScrollEnabled
         showsVerticalScrollIndicator
-        style={{ maxHeight: Math.max(280, height - (onLeaveGame ? 310 : 250)) }}
+        style={{ marginHorizontal: -18, maxHeight: Math.max(280, height - (onLeaveGame ? 310 : 250)) }}
       >
         <View className="items-center" style={{ gap: 9 }}>
           <BookOpen color="#fbbf24" size={34} strokeWidth={2.4} />
@@ -67,7 +67,6 @@ export function InfoModal({ onLeaveGame }: { onLeaveGame?: () => void }) {
 
         {RULES.map((rule) => (
           <View
-            className="rounded-xl border border-neutral-800 bg-neutral-950/70 p-4"
             key={rule.titleEn}
             style={{ gap: 7 }}
           >

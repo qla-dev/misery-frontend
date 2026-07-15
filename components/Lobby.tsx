@@ -27,7 +27,7 @@ import { LobbyOpeningOverlay } from './LobbyOpeningOverlay';
 import { LaneModal } from './LaneModal';
 import { SetupTabs } from './SetupTabs';
 import { WelcomeSilhouetteRow } from './WelcomeSilhouetteRow';
-import { api, ApiGame, ApiUser } from '@/lib/api';
+import { api, ApiError, ApiGame, ApiUser } from '@/lib/api';
 
 const AVAILABLE_COLORS = [
   { id: 'yellow', hex: '#facc15', nameEn: 'Amber Gold', nameBs: 'Zlatni Ćilibar', bgClass: 'bg-yellow-400', borderClass: 'border-yellow-400 bg-yellow-400/5 text-yellow-400' },
@@ -408,6 +408,8 @@ export default function Lobby() {
   const {
     isPremium,
     premiumPlan,
+    premiumReady,
+    refreshPremium,
     language,
     lobbyView,
     setLobbyView,
@@ -674,6 +676,7 @@ export default function Lobby() {
     setServerOwnerId(game.owner_id);
     setHostInLobby(game.host_in_lobby ?? true);
     setIsRoomPrivate(Boolean(game.is_private));
+    setSelectedDeck(game.stack === 'spicy' ? 'SPICY' : 'NORMAL');
     setRoomPlayers(game.members.map((member, index) => ({
       id: member.id,
       name: member.name,
@@ -707,7 +710,7 @@ export default function Lobby() {
   }, []);
 
   useEffect(() => {
-    if (lobbyView !== 'ROOM_CREATED') return;
+    if (lobbyView !== 'ROOM_CREATED' && lobbyView !== 'ROOM_JOINED') return;
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
       setRoomExitWarningOpen(true);
       return true;
@@ -721,7 +724,7 @@ export default function Lobby() {
     const finalName = userName.trim() || (isBs ? 'Igrač 1' : 'Player 1');
     try {
       if (!isSocialUser) void AsyncStorage.setItem(LAST_GUEST_USERNAME_KEY, finalName).catch(() => undefined);
-      const result = await api.createGame(finalName, selectedColor);
+      const result = await api.createGame(finalName, selectedColor, selectedDeck.toLowerCase() as 'normal' | 'spicy');
       setServerGameId(result.game.id);
       setServerUserId(result.user.id);
       applyServerGame(result.game);
@@ -740,11 +743,25 @@ export default function Lobby() {
     }
   };
 
-  const handleLeaveRoom = () => {
+  const handleLeaveRoom = async () => {
     const gameId = serverGameId;
+    const leavingUserId = serverUserId;
 
     joinPendingRef.current = false;
     setRoomExitWarningOpen(false);
+    if (gameId && leavingUserId) {
+      try {
+        await api.leaveGame(gameId, leavingUserId);
+      } catch (error) {
+        console.warn('[LeaveRoom] Server room leave failed', error);
+        setStartModal({
+          visible: true,
+          title: isBs ? 'IZLAZ NIJE USPIO' : 'LEAVE FAILED',
+          message: isBs ? 'Nije vas moguće ukloniti iz sobe. Pokušajte ponovo.' : 'You could not be removed from the room. Please try again.',
+        });
+        return;
+      }
+    }
     transitionLobbyView('SETUP', () => {
       setServerGameId(null);
       setServerUserId(null);
@@ -753,9 +770,6 @@ export default function Lobby() {
       setRoomPlayers([]);
     });
 
-    if (!gameId || !serverUserId) return;
-    void api.leaveGame(gameId, serverUserId)
-      .catch((error) => console.warn('[LeaveRoom] Background room leave failed', error));
   };
 
   const handleRemoveLobbyPlayer = async (playerId?: number) => {
@@ -822,6 +836,22 @@ export default function Lobby() {
     try {
       const finalName = userName.trim() || (isBs ? 'Igrač 2' : 'Player 2');
       if (!isSocialUser) void AsyncStorage.setItem(LAST_GUEST_USERNAME_KEY, finalName).catch(() => undefined);
+      const requestedGame = await api.getGameByCode(cleanCode);
+      const isPremiumPack = (requestedGame.stack ?? 'normal') !== 'normal';
+      const hasActivePremium = !isPremiumPack || (premiumReady ? isPremium : (await refreshPremium()).active);
+      if (isPremiumPack && !hasActivePremium) {
+        joinPendingRef.current = false;
+        playSound('wrong');
+        transitionLobbyView('SETUP');
+        setStartModal({
+          visible: true,
+          title: isBs ? 'POTREBAN JE MISERY PRO' : 'MISERY PRO REQUIRED',
+          message: isBs
+            ? 'Svi igrači u sobi s premium paketom moraju imati aktivan Misery PRO.'
+            : 'Every player in a premium-pack room must have an active Misery PRO subscription.',
+        });
+        return;
+      }
       const result = await api.joinGame(cleanCode, finalName, selectedColor);
       setServerGameId(result.game.id);
       setServerUserId(result.user.id);
@@ -1192,9 +1222,12 @@ export default function Lobby() {
 
   useEffect(() => {
     if (!serverGameId) return;
+    let cancelled = false;
     const poll = async () => {
+      if (cancelled) return;
       try {
         const game = await api.getGame(serverGameId, serverUserId);
+        if (cancelled) return;
         const isStillMember = !serverUserId || game.members.some((member) => Number(member.id) === Number(serverUserId));
         if (game.terminated_at || !isStillMember) {
           const removedByHost = !game.terminated_at && !isStillMember;
@@ -1237,11 +1270,39 @@ export default function Lobby() {
           });
           router.push('./game');
         }
-      } catch { /* Retry on the next poll. */ }
+      } catch (error) {
+        if (cancelled) return;
+        if (error instanceof ApiError && error.status === 404) {
+          cancelled = true;
+          setIsGameCountingDown(false);
+          setSession(null);
+          setStartModal({
+            visible: true,
+            title: isBs ? 'SOBA JE OBRISANA' : 'ROOM DELETED',
+            message: isBs
+              ? 'Ova soba više ne postoji. Vraćen/a si na postavke igre.'
+              : 'This room no longer exists. You were returned to Game Settings.',
+          });
+          transitionLobbyView('SETUP', () => {
+            setServerGameId(null);
+            setServerUserId(null);
+            setServerOwnerId(null);
+            setHostInLobby(true);
+            setRoomCode('');
+            setRoomPlayers([]);
+            serverStartedRef.current = false;
+          });
+          return;
+        }
+        /* Temporary network/server failures retry on the next poll. */
+      }
     };
-    poll();
+    void poll();
     const timer = setInterval(poll, 3000);
-    return () => clearInterval(timer);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
   }, [serverGameId, serverUserId, targetScore, selectedDeck, setIsGameCountingDown, setSession]);
 
   useEffect(() => {
@@ -1887,11 +1948,16 @@ export default function Lobby() {
               <Text className="text-[10px] font-mono tracking-widest uppercase text-neutral-500 font-bold">
                   {isBs ? `IGRAČI U SOBI (${roomPlayers.length}/8)` : `PLAYERS IN LOBBY (${roomPlayers.length}/8)`}
               </Text>
-              {roomPlayers.length < 8 && (
-                <Text className="text-[8px] font-mono text-amber-500/80 uppercase animate-pulse">
-                  {isBs ? 'Čekanje igrača...' : 'Waiting for players...'}
+              <View className="items-end" style={{ gap: 3 }}>
+                {roomPlayers.length < 8 && (
+                  <Text className="text-[8px] font-mono text-amber-500/80 uppercase animate-pulse">
+                    {isBs ? 'Čekanje igrača...' : 'Waiting for players...'}
+                  </Text>
+                )}
+                <Text className="font-mono text-[8px] font-black uppercase tracking-wider text-neutral-400">
+                  {isBs ? 'PAKET IGRE' : 'GAME PACK'}: {selectedDeck === 'SPICY' ? (isBs ? 'LJUTI' : 'SPICY') : 'NORMAL'}
                 </Text>
-              )}
+              </View>
             </View>
             <RoomCodeCard
               code={roomCode}
@@ -1946,9 +2012,14 @@ export default function Lobby() {
       return (
         <View style={{ gap: 20 }}>
           <View style={{ gap: 16 }}>
-            <Text className="font-mono text-[10px] font-bold uppercase tracking-widest text-neutral-500">
-              {isBs ? 'SVI IGRAČI U SOBI' : 'ALL PLAYERS IN LOBBY'}
-            </Text>
+            <View className="flex-row items-center justify-between">
+              <Text className="font-mono text-[10px] font-bold uppercase tracking-widest text-neutral-500">
+                {isBs ? 'IGRAČI U SOBI' : 'PLAYERS IN ROOM'}
+              </Text>
+              <Text className="font-mono text-[8px] font-black uppercase tracking-wider text-neutral-400">
+                {isBs ? 'PAKET IGRE' : 'GAME PACK'}: {selectedDeck === 'SPICY' ? (isBs ? 'LJUTI' : 'SPICY') : 'NORMAL'}
+              </Text>
+            </View>
             <RoomCodeCard
               code={roomCode}
               isBs={isBs}
@@ -2168,9 +2239,11 @@ export default function Lobby() {
         visible={lobbyOpening.visible}
       />
       <ConfirmModal
-        cancelLabel={isBs ? 'IZAĐI I OBRIŠI' : 'LEAVE & DELETE'}
+        cancelLabel={Number(serverOwnerId) === Number(serverUserId)
+          ? isBs ? 'IZAĐI I OBRIŠI' : 'LEAVE & DELETE'
+          : isBs ? 'NAPUSTI SOBU' : 'LEAVE ROOM'}
         confirmLabel={isBs ? 'OSTANI' : 'STAY'}
-        onCancel={handleLeaveRoom}
+        onCancel={() => void handleLeaveRoom()}
         onConfirm={() => setRoomExitWarningOpen(false)}
         onRequestClose={() => setRoomExitWarningOpen(false)}
         visible={roomExitWarningOpen}
@@ -2180,9 +2253,13 @@ export default function Lobby() {
             {isBs ? 'NAPUSTITI SOBU?' : 'LEAVE THIS ROOM?'}
           </Text>
           <Text className="text-center text-sm leading-6 text-neutral-300">
-            {isBs
-              ? 'Igra još nije počela. Ako izađeš, ova soba će biti trajno obrisana.'
-              : 'The game has not started. If you leave, this room will be permanently deleted.'}
+            {Number(serverOwnerId) === Number(serverUserId)
+              ? isBs
+                ? 'Igra još nije počela. Ako izađeš, ova soba će biti trajno obrisana.'
+                : 'The game has not started. If you leave, this room will be permanently deleted.'
+              : isBs
+                ? 'Ako napustiš sobu, bit ćeš uklonjen/a iz lobbyja.'
+                : 'If you leave this room, you will be removed from the lobby.'}
           </Text>
         </View>
       </ConfirmModal>

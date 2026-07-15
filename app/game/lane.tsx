@@ -1,6 +1,6 @@
 import { useGame } from '@/context/GameContext';
 import { Card } from '@/components/Card';
-import { useEffect, useRef } from 'react';
+import { type ReactNode, useEffect, useRef } from 'react';
 import { Animated, Pressable, ScrollView, Text, View } from 'react-native';
 import { TabFadeView } from '@/components/TabFadeView';
 import { cardDescription, cardTitle } from '@/lib/cardText';
@@ -47,6 +47,51 @@ function SelectedInsertSlot({ isBs, onFadeComplete, result, shouldFade }: { isBs
         {isBs ? 'UMETNI OVDJE' : 'INSERT HERE'}
       </Text>
     </Animated.View>
+  );
+}
+
+function PendingCardGlow({ active, children }: { active: boolean; children: ReactNode }) {
+  const glow = useRef(new Animated.Value(active ? 0.12 : 0)).current;
+
+  useEffect(() => {
+    if (!active) {
+      glow.setValue(0);
+      return;
+    }
+
+    const pulse = Animated.loop(Animated.sequence([
+      Animated.timing(glow, { duration: 1200, toValue: 0.2, useNativeDriver: true }),
+      Animated.timing(glow, { duration: 1200, toValue: 0.08, useNativeDriver: true }),
+    ]));
+    pulse.start();
+    return () => pulse.stop();
+  }, [active, glow]);
+
+  return (
+    <View className="mb-6" style={{ position: 'relative' }}>
+      {active && (
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            backgroundColor: '#facc15',
+            borderRadius: 16,
+            bottom: -2,
+            left: -2,
+            opacity: glow,
+            position: 'absolute',
+            right: -2,
+            shadowColor: '#facc15',
+            shadowOffset: { height: 0, width: 0 },
+            shadowOpacity: 0.3,
+            shadowRadius: 7,
+            top: -2,
+          }}
+        />
+      )}
+      <View className="overflow-hidden rounded-xl border border-amber-400/50 bg-amber-400/5">
+        {children}
+      </View>
+    </View>
   );
 }
 
@@ -120,7 +165,7 @@ export default function MiseryLaneScreen() {
       {gameRuntime.drawnCard &&
       gameRuntime.selectedSlotResult !== 'success' &&
       gameRuntime.lastInsertedCardId !== gameRuntime.drawnCard.id ? (
-        <View className="mb-6 overflow-hidden rounded-xl border border-amber-400/50 bg-amber-400/5">
+        <PendingCardGlow active={Boolean(gameRuntime.canPlaceCard)}>
           <LaneCard
             card={gameRuntime.isDrawnCardFlipped
               ? gameRuntime.drawnCard
@@ -129,7 +174,7 @@ export default function MiseryLaneScreen() {
             isBs={isBs}
             isNew={false}
           />
-        </View>
+        </PendingCardGlow>
       ) : null}
 
       <View className="mb-6 flex-row items-center gap-3">

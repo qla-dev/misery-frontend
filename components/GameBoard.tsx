@@ -153,6 +153,7 @@ export default function GameBoard({
   const [isLaneCollapsing, setIsLaneCollapsing] = useState(false);
   const [connectionWarningVisible, setConnectionWarningVisible] = useState(false);
   const [chatMessages, setChatMessages] = useState<ApiChatMessage[]>([]);
+  const [hiddenChatMessageIds, setHiddenChatMessageIds] = useState<number[]>([]);
   const [shakeCard, setShakeCard] = useState(false);
   const [isLaneSheetOpen, setIsLaneSheetOpen] = useState(false);
   const [flippedCardId, setFlippedCardId] = useState<string | null>(null);
@@ -736,6 +737,10 @@ export default function GameBoard({
       ? current
       : [...current, sent].sort((a, b) => a.id - b.id));
   }, [gameId, userId]);
+
+  const reportChatMessageLocally = useCallback((messageId: number) => {
+    setHiddenChatMessageIds((current) => current.includes(messageId) ? current : [...current, messageId]);
+  }, []);
 
   useEffect(() => {
     if (!holdingTurnCardRef.current || !pendingTurnCardRef.current || turnNotices.length === 0) return;
@@ -1341,6 +1346,8 @@ export default function GameBoard({
       isDrawnCardScoreRevealed,
       guessHistory: gameState.guessHistory,
       chatMessages,
+      hiddenChatMessageIds,
+      reportChatMessageLocally,
       sendChatMessage,
       handleSlotSelect,
       handleProceedNextRound,
@@ -1376,7 +1383,7 @@ export default function GameBoard({
         (!gameId || Number(activeStealer.id) === Number(userId))
       ),
     });
-  }, [chatMessages, connectionWarningVisible, currentActingPlayer, gameId, gameState, hasPendingLocalTurnStartNotice, inactivitySecondsRemaining, inactivityWarningCount, inactivityWarningVisible, isAwaitingTurnFinish, isDrawnCardFlipped, isDrawnCardScoreRevealed, isLaneCollapsing, isServerTurnReady, isSubmittingMove, isTurnInactive, laneResult, lastInsertedCardId, lastResultCardScore, lastStealWasFromLocalPlayer, localPlayer, roomExitReason, selectedSlotIndex, selectedSlotResult, sendChatMessage, serverCurrentPlayerId, setGameRuntime, userId]);
+  }, [chatMessages, connectionWarningVisible, currentActingPlayer, gameId, gameState, hasPendingLocalTurnStartNotice, hiddenChatMessageIds, inactivitySecondsRemaining, inactivityWarningCount, inactivityWarningVisible, isAwaitingTurnFinish, isDrawnCardFlipped, isDrawnCardScoreRevealed, isLaneCollapsing, isServerTurnReady, isSubmittingMove, isTurnInactive, laneResult, lastInsertedCardId, lastResultCardScore, lastStealWasFromLocalPlayer, localPlayer, reportChatMessageLocally, roomExitReason, selectedSlotIndex, selectedSlotResult, sendChatMessage, serverCurrentPlayerId, setGameRuntime, userId]);
 
   useEffect(() => {
     if (!didLocalWin || winnerCelebratedRef.current) return;

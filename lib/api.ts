@@ -10,6 +10,18 @@ const API_URLS = {
 
 export const API_BASE_URL = API_URLS[API_TARGET];
 
+export class ApiError extends Error {
+  readonly body: unknown;
+  readonly status: number;
+
+  constructor(message: string, status: number, body: unknown) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.body = body;
+  }
+}
+
 export interface ApiUser {
   id: number;
   name: string;
@@ -46,13 +58,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!response.ok) {
-    console.error('[API] request failed', {
+    const details = {
       method: init?.method ?? 'GET',
       url,
       status: response.status,
-      body,
-    });
-    throw new Error(body?.message || `API request failed (${response.status})`);
+      message: body?.message || `API request failed (${response.status})`,
+    };
+    if (response.status === 404) console.warn('[API] resource no longer exists', details);
+    else console.error('[API] request failed', details);
+    throw new ApiError(details.message, response.status, body);
   }
 
   return (body?.data ?? body) as T;
@@ -80,7 +94,11 @@ export const api = {
     const suffix = query.toString();
     return request<ApiQuestion[]>(`/questions${suffix ? `?${suffix}` : ''}`);
   },
-  createGame: (name: string, color: string) => request<{ game: ApiGame; user: ApiUser }>('/games', { method: 'POST', body: JSON.stringify({ name, color }) }),
+  createGame: (name: string, color: string, stack: 'normal' | 'spicy') => request<{ game: ApiGame; user: ApiUser }>('/games', {
+    method: 'POST',
+    body: JSON.stringify({ name, color, stack }),
+  }),
+  getGameByCode: (code: string) => request<ApiGame>(`/games/code/${encodeURIComponent(code.trim().toUpperCase())}`),
   joinGame: (code: string, name: string, color: string) => {
     const normalizedCode = code.trim().toUpperCase();
     if (!normalizedCode) throw new Error('Enter a room code.');

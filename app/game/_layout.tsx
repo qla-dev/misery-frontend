@@ -224,7 +224,18 @@ export default function GameTabsLayout() {
               }}
             />
           ),
-          headerTitle: () => isChatOpen ? null : (
+          headerTitle: () => isChatOpen ? (
+            <Text
+              style={{
+                color: '#ffffff',
+                fontFamily: 'BebasNeue_400Regular',
+                fontSize: 22,
+                letterSpacing: 1.5,
+              }}
+            >
+              Chat
+            </Text>
+          ) : (
             <Text
               numberOfLines={1}
               style={{
@@ -334,6 +345,7 @@ export default function GameTabsLayout() {
         inactivitySecondsRemaining={gameRuntime?.inactivitySecondsRemaining}
         inactivityWarningCount={gameRuntime?.inactivityWarningCount}
         inactivityWarningVisible={Boolean(gameRuntime?.inactivityWarningVisible)}
+        isDrawnCardFlipped={Boolean(gameRuntime?.isDrawnCardFlipped)}
         isBs={isBs}
         laneFailureMessage={laneFailureMessage}
         laneResult={laneResult}
@@ -341,7 +353,10 @@ export default function GameTabsLayout() {
         laneStealMessage={laneStealMessage}
         laneSuccessMessage={laneSuccessMessage}
         lastResultCardScore={gameRuntime?.lastResultCardScore}
-        onInactivityComplete={() => gameRuntime?.dismissInactivityWarning?.()}
+        onInactivityComplete={() => {
+          gameRuntime?.dismissInactivityWarning?.();
+          router.replace(gameRuntime?.isDrawnCardFlipped ? '/game/lane' : '/game');
+        }}
         onLaneResultComplete={() => {
           setLaneResult(null);
           setLaneResultPlayerName(null);

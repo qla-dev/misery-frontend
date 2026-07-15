@@ -120,6 +120,7 @@ export function DrawnCardFace({
             alignSelf: 'stretch',
             aspectRatio: 1,
             backgroundColor: '#000000',
+            marginHorizontal: 6,
             overflow: 'hidden',
           }}
         >

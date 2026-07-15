@@ -44,11 +44,11 @@ export function ChatComposer({ isBs, onSend }: ChatComposerProps) {
   };
 
   return (
-    <Host colorScheme="dark" matchContents={{ vertical: true }} seedColor="#facc15" style={{ backgroundColor: '#111b21', width }}>
+    <Host colorScheme="dark" matchContents={{ vertical: true }} seedColor="#facc15" style={{ backgroundColor: '#09090b', width }}>
       <HStack
         alignment="center"
         spacing={9}
-        modifiers={[frame({ width: width - 20, height: 46 }), padding({ horizontal: 10, vertical: 9 }), background('#111b21')]}
+        modifiers={[frame({ width: width - 20, height: 46 }), padding({ horizontal: 10, vertical: 9 }), background('#09090b')]}
       >
         <TextField
           maxLength={20}
@@ -58,7 +58,7 @@ export function ChatComposer({ isBs, onSend }: ChatComposerProps) {
           modifiers={[
             frame({ width: Math.max(160, width - 75), height: 46 }),
             padding({ horizontal: 15 }),
-            background('#202c33'),
+            background('#18181b'),
             clipShape('capsule'),
             foregroundStyle('#f1f5f9'),
             textFieldStyle('plain'),
@@ -78,8 +78,8 @@ export function ChatComposer({ isBs, onSend }: ChatComposerProps) {
             accessibilityLabel(isBs ? 'Pošalji' : 'Send'),
             buttonStyle('borderedProminent'),
             buttonBorderShape('circle'),
-            tint(trimmed ? '#facc15' : '#374248'),
-            foregroundStyle(trimmed ? '#111b21' : '#8696a0'),
+            tint(trimmed ? '#facc15' : '#262626'),
+            foregroundStyle(trimmed ? '#09090b' : '#737373'),
             disabled(!trimmed || sending),
           ]}
         />

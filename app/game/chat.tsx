@@ -1,9 +1,11 @@
 import { ChatComposer } from '@/components/ChatComposer';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { useGame } from '@/context/GameContext';
 import { ApiChatMessage } from '@/lib/api';
-import { useRef } from 'react';
-import { Alert, FlatList, KeyboardAvoidingView, Platform, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Alert, FlatList, Keyboard, KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Flag } from 'lucide-react-native';
 
 const PLAYER_COLORS: Record<string, string> = {
   yellow: '#facc15', blue: '#60a5fa', emerald: '#10b981', purple: '#c084fc',
@@ -25,9 +27,22 @@ export default function ChatScreen() {
   const { gameRuntime, language, session } = useGame();
   const insets = useSafeAreaInsets();
   const isBs = language === 'bs';
-  const messages: ApiChatMessage[] = gameRuntime?.chatMessages ?? [];
+  const hiddenMessageIds: number[] = gameRuntime?.hiddenChatMessageIds ?? [];
+  const messages: ApiChatMessage[] = (gameRuntime?.chatMessages ?? [])
+    .filter((message: ApiChatMessage) => !hiddenMessageIds.includes(message.id));
   const currentUserId = session?.userId;
   const listRef = useRef<FlatList<ApiChatMessage>>(null);
+  const [selectedMessage, setSelectedMessage] = useState<ApiChatMessage | null>(null);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   const send = async (message: string) => {
     try {
@@ -42,65 +57,119 @@ export default function ChatScreen() {
     }
   };
 
+  const reportSelectedMessage = () => {
+    if (!selectedMessage) return;
+    const playerName = selectedMessage.user?.name ?? (isBs ? 'Igrač' : 'Player');
+    gameRuntime?.reportChatMessageLocally?.(selectedMessage.id);
+    setSelectedMessage(null);
+    Alert.alert(
+      isBs ? 'PRIJAVA ZABILJEŽENA' : 'REPORT RECORDED',
+      isBs
+        ? `Poruka je skrivena do kraja igre. Igrač ${playerName} će biti prijavljen.`
+        : `The message is hidden until the game ends. ${playerName} will be reported.`,
+    );
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={0}
-      style={{ backgroundColor: '#0b141a', flex: 1 }}
+      style={{ backgroundColor: '#09090b', flex: 1 }}
     >
       <FlatList
         ref={listRef}
-        contentContainerStyle={{ flexGrow: 1, gap: 5, justifyContent: messages.length ? 'flex-end' : 'center', paddingBottom: 12, paddingHorizontal: 10, paddingTop: insets.top + 56 }}
+        contentContainerStyle={{ flexGrow: 1, justifyContent: messages.length ? 'flex-end' : 'center', paddingBottom: 12, paddingHorizontal: 16, paddingTop: insets.top + 56 }}
         data={messages}
         keyExtractor={(item) => String(item.id)}
         ListEmptyComponent={(
           <View style={{ alignItems: 'center', paddingHorizontal: 32 }}>
-            <Text style={{ color: '#8696a0', fontFamily: 'Outfit_600SemiBold', fontSize: 14, textAlign: 'center' }}>
+            <Text style={{ color: '#737373', fontFamily: 'Outfit_600SemiBold', fontSize: 14, textAlign: 'center' }}>
               {isBs ? 'Još nema poruka. Započni razgovor.' : 'No messages yet. Start the conversation.'}
             </Text>
           </View>
         )}
         onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: messages.length > 1 })}
         onLayout={() => listRef.current?.scrollToEnd({ animated: false })}
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
           const own = Number(item.user_id) === Number(currentUserId);
+          const previous = messages[index - 1];
+          const next = messages[index + 1];
+          const startsGroup = !previous || Number(previous.user_id) !== Number(item.user_id);
+          const endsGroup = !next || Number(next.user_id) !== Number(item.user_id);
           return (
-            <View style={{ alignItems: own ? 'flex-end' : 'flex-start' }}>
-              <View
+            <View style={{ alignItems: own ? 'flex-end' : 'flex-start', marginBottom: endsGroup ? 9 : 2, marginTop: startsGroup && index > 0 ? 4 : 0 }}>
+              <Pressable
+                accessibilityHint={!own ? (isBs ? 'Držite za opcije poruke' : 'Hold for message options') : undefined}
+                accessibilityRole={!own ? 'button' : undefined}
+                disabled={own}
+                delayLongPress={350}
+                onLongPress={() => setSelectedMessage(item)}
                 style={{
-                  backgroundColor: own ? '#005c4b' : '#202c33',
-                  borderRadius: 9,
-                  borderTopLeftRadius: own ? 9 : 2,
-                  borderTopRightRadius: own ? 2 : 9,
-                  maxWidth: '82%',
+                  backgroundColor: own ? '#facc15' : '#18181b',
+                  borderColor: own ? '#facc15' : '#333333',
+                  borderRadius: 14,
+                  borderTopLeftRadius: !own && startsGroup ? 4 : 14,
+                  borderTopRightRadius: own && startsGroup ? 4 : 14,
+                  borderWidth: 1,
+                  maxWidth: '84%',
                   minWidth: 72,
-                  paddingBottom: 6,
-                  paddingHorizontal: 9,
-                  paddingTop: own ? 6 : 5,
+                  paddingBottom: 7,
+                  paddingHorizontal: 11,
+                  paddingTop: !own && startsGroup ? 7 : 6,
                 }}
               >
-                {!own && (
+                {!own && startsGroup && (
                   <Text numberOfLines={1} style={{ color: playerColor(item.user?.color), fontFamily: 'Outfit_700Bold', fontSize: 11, marginBottom: 1 }}>
                     {item.user?.name ?? (isBs ? 'Igrač' : 'Player')}
                   </Text>
                 )}
                 <View style={{ alignItems: 'flex-end', flexDirection: 'row', gap: 7 }}>
-                  <Text style={{ color: '#e9edef', flexShrink: 1, fontFamily: 'Outfit_400Regular', fontSize: 16, lineHeight: 21 }}>
+                  <Text style={{ color: own ? '#09090b' : '#f5f5f5', flexShrink: 1, fontFamily: 'Outfit_400Regular', fontSize: 16, lineHeight: 21 }}>
                     {item.message}
                   </Text>
-                  <Text style={{ color: '#8696a0', fontFamily: 'Outfit_400Regular', fontSize: 9, lineHeight: 15 }}>
+                  <Text style={{ color: own ? 'rgba(9,9,11,0.58)' : '#737373', fontFamily: 'Outfit_500Medium', fontSize: 9, lineHeight: 15 }}>
                     {messageTime(item.created_at)}
                   </Text>
                 </View>
-              </View>
+              </Pressable>
             </View>
           );
         }}
         showsVerticalScrollIndicator={false}
       />
-      <View style={{ paddingBottom: Math.max(insets.bottom, 5) }}>
+      <View style={{ paddingBottom: keyboardVisible ? 0 : Math.max(insets.bottom, 5) }}>
         <ChatComposer isBs={isBs} onSend={send} />
       </View>
+      <ConfirmModal
+        cancelLabel={isBs ? 'ODUSTANI' : 'CANCEL'}
+        confirmLabel={isBs ? 'PRIJAVI' : 'REPORT'}
+        confirmType="danger"
+        onCancel={() => setSelectedMessage(null)}
+        onConfirm={reportSelectedMessage}
+        onRequestClose={() => setSelectedMessage(null)}
+        visible={selectedMessage !== null}
+      >
+        <View style={{ gap: 12 }}>
+          <View className="items-center" style={{ gap: 8 }}>
+            <Flag color="#ef4444" size={34} strokeWidth={2.2} />
+            <Text className="text-center text-lg font-black uppercase tracking-wider text-white">
+              {isBs ? 'OPCIJE PORUKE' : 'MESSAGE OPTIONS'}
+            </Text>
+          </View>
+          <View style={{ backgroundColor: '#404040', height: 1, width: '100%' }} />
+          <View className="rounded-xl bg-neutral-950 px-4 py-3">
+            <Text className="mb-1 text-xs font-black text-amber-400">
+              {selectedMessage?.user?.name ?? (isBs ? 'Igrač' : 'Player')}
+            </Text>
+            <Text className="text-sm leading-5 text-neutral-300">{selectedMessage?.message}</Text>
+          </View>
+          <Text className="text-center text-xs leading-5 text-neutral-400">
+            {isBs
+              ? 'Prijavljivanjem će ova poruka biti skrivena do kraja igre.'
+              : 'Reporting will hide this message until the game ends.'}
+          </Text>
+        </View>
+      </ConfirmModal>
     </KeyboardAvoidingView>
   );
 }

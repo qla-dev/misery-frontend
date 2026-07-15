@@ -8,6 +8,7 @@ type ConfirmModalProps = {
   cancelLabel?: string;
   confirmLabel: string;
   confirmLoading?: boolean;
+  confirmType?: 'primary' | 'secondary' | 'third' | 'success' | 'danger';
   onCancel?: () => void;
   onConfirm: () => void;
   onRequestClose?: () => void;
@@ -20,6 +21,7 @@ export function ConfirmModal({
   cancelLabel,
   confirmLabel,
   confirmLoading = false,
+  confirmType = 'primary',
   onCancel,
   onConfirm,
   onRequestClose = onConfirm,
@@ -56,7 +58,7 @@ export function ConfirmModal({
                 disabled={confirmLoading}
                 onPress={handleConfirm}
                 size="100"
-                type="primary"
+                type={confirmType}
               >
                 {confirmLoading ? (
                   <View className="flex-row items-center justify-center gap-2">

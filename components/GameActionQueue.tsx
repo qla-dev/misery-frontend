@@ -15,6 +15,7 @@ type GameActionQueueProps = {
   inactivityWarningVisible: boolean;
   inactivityWarningCount?: number;
   inactivitySecondsRemaining?: number | null;
+  isDrawnCardFlipped: boolean;
   isBs: boolean;
   laneFailureMessage: string;
   laneResult: 'success' | 'failure' | 'steal' | null;
@@ -38,6 +39,7 @@ export function GameActionQueue({
   inactivityWarningVisible,
   inactivityWarningCount = 0,
   inactivitySecondsRemaining = null,
+  isDrawnCardFlipped,
   isBs,
   laneFailureMessage,
   laneResult,
@@ -215,9 +217,11 @@ export function GameActionQueue({
         success
         successMessage={inactivityWarningCount >= 3 && inactivitySecondsRemaining !== null
           ? isBs
-            ? `ODIGRAJ SADA: BIT ĆEŠ UKLONJEN ZA ${inactivitySecondsRemaining} SEKUNDI`
-            : `PLAY NOW: YOU WILL BE KICKED IN ${inactivitySecondsRemaining} SECONDS`
-          : isBs ? 'ODIGRAJ TRENUTNU KARTU DA SE IGRA NASTAVI' : 'PLAY THE CURRENT CARD TO KEEP THE GAME MOVING'}
+            ? `${isDrawnCardFlipped ? 'POSTAVI KARTU NA STAZU PATNJE' : 'OKRENI KARTU'}. BIT ĆEŠ UKLONJEN ZA ${inactivitySecondsRemaining} SEKUNDI`
+            : `${isDrawnCardFlipped ? 'PLACE YOUR CARD ON MISERY LANE' : 'FLIP YOUR CARD'}. YOU WILL BE KICKED IN ${inactivitySecondsRemaining} SECONDS`
+          : isDrawnCardFlipped
+            ? isBs ? 'POSTAVI KARTU NA STAZU PATNJE' : 'PLACE YOUR CARD ON MISERY LANE'
+            : isBs ? 'OKRENI KARTU' : 'FLIP YOUR CARD'}
         successTitle={isBs ? 'TVOJ POTEZ \u010CEKA' : 'YOUR TURN IS WAITING'}
         visible={activeAction === 'inactivity'}
         warning

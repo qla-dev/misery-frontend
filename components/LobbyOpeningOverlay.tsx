@@ -14,7 +14,10 @@ export function LobbyOpeningOverlay({ changed, color, isBs = false, visible }: L
   return (
     <Modal animationType="fade" onRequestClose={() => undefined} statusBarTranslucent transparent visible={visible}>
       <View accessibilityViewIsModal className="flex-1 items-center justify-center bg-black/95 px-8">
-        <View className="w-full max-w-sm items-center">
+        <View
+          className="w-full max-w-sm items-center"
+          style={changed ? { transform: [{ translateY: -30 }] } : undefined}
+        >
           <Text className="text-center text-xl font-black uppercase tracking-wider text-amber-400">
             {isBs ? 'OTVARAMO LOBI' : 'OPENING LOBBY'}
           </Text>

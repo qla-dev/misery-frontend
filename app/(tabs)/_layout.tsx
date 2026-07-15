@@ -103,7 +103,7 @@ export default function TabLayout() {
             icon={toolbarIcon('chevron.left', ChevronLeftIcon)}
             onPress={() => {
               playHaptic();
-              if (lobbyView === 'ROOM_CREATED') {
+              if (lobbyView === 'ROOM_CREATED' || lobbyView === 'ROOM_JOINED') {
                 setRoomExitWarningOpen(true);
                 return;
               }

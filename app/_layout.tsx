@@ -79,7 +79,15 @@ function RootStack() {
           animation: 'slide_from_right',
         }}
       >
-        <Stack.Screen name="(tabs)" options={{ headerShown: true }} />
+        <Stack.Screen
+          name="(tabs)"
+          options={{
+            gestureEnabled: false,
+            headerBackVisible: false,
+            headerShown: true,
+            title: '',
+          }}
+        />
         <Stack.Screen name="code/[code]" options={{ headerShown: false }} />
         <Stack.Screen
           name="game"

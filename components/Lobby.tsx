@@ -503,6 +503,9 @@ export default function Lobby() {
           toValue: 1,
           useNativeDriver: true,
         }).start(({ finished }) => {
+          welcomeOpacity.setValue(nextView === 'WELCOME' ? 1 : 0);
+          setupOpacity.setValue(nextView === 'SETUP' ? 1 : 0);
+          publicGamesOpacity.setValue(nextView === 'PUBLIC_GAMES' ? 1 : 0);
           lobbyCrossfadeRef.current = false;
           logLobbyTransition('transition-crossfade-end', { finished, nextView });
         });
@@ -517,6 +520,9 @@ export default function Lobby() {
   useEffect(() => {
     if (!lobbyEntryFade || (lobbyView !== 'WELCOME' && lobbyView !== 'SETUP' && lobbyView !== 'PUBLIC_GAMES')) return;
     const incomingOpacity = lobbyView === 'WELCOME' ? welcomeOpacity : lobbyView === 'SETUP' ? setupOpacity : publicGamesOpacity;
+    welcomeOpacity.setValue(0);
+    setupOpacity.setValue(0);
+    publicGamesOpacity.setValue(0);
     incomingOpacity.setValue(0);
     const frame = requestAnimationFrame(() => {
       Animated.timing(incomingOpacity, {
@@ -528,6 +534,14 @@ export default function Lobby() {
     });
     return () => cancelAnimationFrame(frame);
   }, [lobbyEntryFade, lobbyView, publicGamesOpacity, setLobbyEntryFade, setupOpacity, welcomeOpacity]);
+
+  useEffect(() => {
+    if (lobbyEntryFade || lobbyCrossfadeRef.current) return;
+    if (lobbyView !== 'WELCOME' && lobbyView !== 'SETUP' && lobbyView !== 'PUBLIC_GAMES') return;
+    welcomeOpacity.setValue(lobbyView === 'WELCOME' ? 1 : 0);
+    setupOpacity.setValue(lobbyView === 'SETUP' ? 1 : 0);
+    publicGamesOpacity.setValue(lobbyView === 'PUBLIC_GAMES' ? 1 : 0);
+  }, [lobbyEntryFade, lobbyView, publicGamesOpacity, setupOpacity, welcomeOpacity]);
 
   useEffect(() => {
     if (lobbyTransitionTarget !== 'WELCOME' && lobbyTransitionTarget !== 'SETUP' && lobbyTransitionTarget !== 'PUBLIC_GAMES') return;
@@ -1136,15 +1150,19 @@ export default function Lobby() {
   );
 
   const renderAvailableGames = () => {
+    if (availableGames.length === 0) {
+      return (
+        <View className="flex-1" style={{ minHeight: 360, transform: [{ translateY: -30 }] }}>
+          <LoadingState
+            message={isBs ? 'TRENUTNO NEMA JAVNIH IGARA' : 'NO PUBLIC GAMES RIGHT NOW'}
+          />
+        </View>
+      );
+    }
+
     return (
       <View style={{ gap: 10 }}>
-          {availableGames.length === 0 ? (
-            <Card>
-              <Text className="py-3 text-center text-sm font-bold text-neutral-500">
-                {isBs ? 'Trenutno nema javnih igara. Provjeravamo ponovo...' : 'No public games right now. Checking again...'}
-              </Text>
-            </Card>
-          ) : availableGames.map((game) => (
+          {availableGames.map((game) => (
             <Card key={game.id}>
               <View className="flex-row items-center justify-between" style={{ gap: 12 }}>
                 <View className="flex-1">
@@ -1706,7 +1724,7 @@ export default function Lobby() {
 
     if (view === 'PUBLIC_GAMES') {
       return (
-        <View style={{ gap: 10 }}>
+        <View className="flex-1" style={{ gap: 10 }}>
           {renderAvailableGames()}
         </View>
       );
@@ -1848,7 +1866,7 @@ export default function Lobby() {
             >
               <ScrollView
                 className="flex-1 px-5"
-                contentContainerStyle={{ paddingBottom: 24, paddingTop: 100 }}
+                contentContainerStyle={{ flexGrow: 1, paddingBottom: 24, paddingTop: 100 }}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
               >

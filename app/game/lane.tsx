@@ -134,7 +134,7 @@ export default function MiseryLaneScreen() {
       <View className="mb-6 flex-row items-center gap-3">
         <View className="h-px flex-1 bg-neutral-800" />
         <Text className="font-mono text-[9px] font-black uppercase tracking-[2px] text-neutral-500">
-          {isBs ? 'TVOJA TRAKA' : 'YOUR LANE'}
+          {isBs ? 'STAZA PATNJE' : 'MISERY LANE'}
         </Text>
         <View className="h-px flex-1 bg-neutral-800" />
       </View>

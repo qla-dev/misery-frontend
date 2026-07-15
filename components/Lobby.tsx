@@ -46,6 +46,7 @@ const LAST_GUEST_USERNAME_KEY = '@misery-index/last-guest-username';
 const AUTH_TOKEN_KEY = '@misery-index/auth-token';
 const AUTH_USER_KEY = '@misery-index/auth-user';
 const AUTH_PROVIDER_KEY = '@misery-index/auth-provider';
+const TERMS_URL = 'https://miserymeter.app/terms';
 const GOOGLE_AUTH_CONFIG = {
   webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
   iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
@@ -1213,7 +1214,7 @@ export default function Lobby() {
             : !hasPlayerIdentity
             ? isBs ? 'UNESI IME' : 'ENTER NAME'
             : !hasValidRoomCode
-              ? isBs ? 'UNESI CODE SOBE' : 'ENTER ROOM CODE'
+              ? isBs ? 'UNESI KOD SOBE' : 'ENTER ROOM CODE'
               : isBs ? 'PRIDRUŽI SE SOBI' : 'JOIN ROOM'}
       </ButtonTab>
     </View>
@@ -1230,7 +1231,7 @@ export default function Lobby() {
 
     if (view === 'WELCOME') {
       return (
-        <View style={{ gap: 24, position: 'relative' }}>
+        <View style={{ gap: 15, position: 'relative' }}>
           <View
             style={{ gap: 22 }}
           >
@@ -1399,6 +1400,24 @@ export default function Lobby() {
                 />
               </ButtonTab>
               </View>
+              <Text className="px-4 text-center text-[10px] leading-4 text-neutral-600">
+                {isBs ? 'Nastavkom pristajete na ' : 'By proceeding, you agree to the '}
+                <Text
+                  accessibilityLabel={isBs ? 'Otvori uslove korištenja' : 'Open terms of use'}
+                  accessibilityRole="link"
+                  onPress={() => {
+                    playSound('click');
+                    void WebBrowser.openBrowserAsync(TERMS_URL, {
+                      controlsColor: '#facc15',
+                      toolbarColor: '#0a0a0a',
+                    }).catch(() => undefined);
+                  }}
+                  style={{ textDecorationLine: 'underline' }}
+                >
+                  {isBs ? 'Uslove korištenja' : 'Terms'}
+                </Text>
+                .
+              </Text>
             </Animated.View>
 
             <WelcomeSilhouetteRow flip />
@@ -1480,7 +1499,7 @@ export default function Lobby() {
             </Pressable>
           </View>
 
-          <View className="pt-4 pb-2 items-center" style={{ gap: 4 }}>
+          <View className="pb-2 items-center" style={{ gap: 4 }}>
             <Text className="text-[10px] text-neutral-600 font-mono">© 2026 Misery Meter</Text>
             <Text className="text-[10px] text-neutral-600 font-mono opacity-80">
               {isBs

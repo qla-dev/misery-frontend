@@ -98,7 +98,7 @@ export function LaneProgressBadge({ label, count, target, addsCard, dark = false
   }, [addsCard, count, countScale, label, plusOpacity, plusTranslate, target]);
 
   const color = dark ? '#0a0a0a' : '#ffffff';
-  const labelParts = label.match(/^(LANE OF|TRAKA IGRAČA)\s+(.+)$/i);
+  const labelParts = label.match(/^(LANE OF|STAZA IGRAČA)\s+(.+)$/i);
   const shouldWrapLabel = emphasized && label.length > 16 && labelParts !== null;
   const emphasizedStyle = emphasized
     ? { fontFamily: 'BebasNeue_400Regular', fontSize: 48, includeFontPadding: false, letterSpacing: 1.2, lineHeight: 50 }

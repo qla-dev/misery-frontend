@@ -181,55 +181,57 @@ export function WelcomeSilhouetteRow({ flip = false }: { flip?: boolean }) {
   return (
     <View
       onLayout={(event) => setViewportWidth(event.nativeEvent.layout.width)}
-      style={{ alignSelf: 'stretch', height: 124, marginHorizontal: -20, overflow: 'hidden' }}
+      style={{ alignSelf: 'stretch', height: 100, marginHorizontal: -20, overflow: 'visible' }}
     >
-      <Animated.View
-        style={{
-          alignItems: 'flex-end',
-          bottom: 0,
-          flexDirection: 'row',
-          opacity: viewportWidth > 0 ? 1 : 0,
-          position: 'absolute',
-          transform: [{ translateX: Animated.add(motion, centeredOffset) }],
-          width: GROUP_WIDTH * 3,
-        }}
-      >
-        {Array.from({ length: 3 }).flatMap((_, groupIndex) =>
-          Array.from({ length: SILHOUETTE_COUNT }).map((__, index) => {
-            const isCenter = index === CENTER_INDEX;
-            const isRestingCenter = groupIndex === 1 && isCenter;
-            return (
-              <Animated.View
-                key={`${groupIndex}-${index}`}
-                style={{
-                  alignItems: 'center',
-                  opacity: isCenter ? 1 : 0.92,
-                  transform: [
-                    { scaleX: index % 2 === 0 ? -1 : 1 },
-                    { translateY: flip ? 2 : 0 },
-                    { translateX: isRestingCenter ? centerShock : 0 },
-                  ],
-                  width: ITEM_WIDTH,
-                }}
-              >
-                <ManSilhouette color="#facc15" height={96} width={72} />
-                {isRestingCenter ? (
-                  <Animated.View
-                    pointerEvents="none"
-                    style={{
-                      bottom: 0,
-                      opacity: centerWhiteOpacity,
-                      position: 'absolute',
-                    }}
-                  >
-                    <ManSilhouette color="#ffffff" height={96} width={72} />
-                  </Animated.View>
-                ) : null}
-              </Animated.View>
-            );
-          })
-        )}
-      </Animated.View>
+      <View style={{ bottom: 0, left: 0, overflow: 'hidden', position: 'absolute', right: 0, top: 0 }}>
+        <Animated.View
+          style={{
+            alignItems: 'flex-end',
+            bottom: 0,
+            flexDirection: 'row',
+            opacity: viewportWidth > 0 ? 1 : 0,
+            position: 'absolute',
+            transform: [{ translateX: Animated.add(motion, centeredOffset) }],
+            width: GROUP_WIDTH * 3,
+          }}
+        >
+          {Array.from({ length: 3 }).flatMap((_, groupIndex) =>
+            Array.from({ length: SILHOUETTE_COUNT }).map((__, index) => {
+              const isCenter = index === CENTER_INDEX;
+              const isRestingCenter = groupIndex === 1 && isCenter;
+              return (
+                <Animated.View
+                  key={`${groupIndex}-${index}`}
+                  style={{
+                    alignItems: 'center',
+                    opacity: isCenter ? 1 : 0.92,
+                    transform: [
+                      { scaleX: index % 2 === 0 ? -1 : 1 },
+                      { translateY: flip ? 2 : 0 },
+                      { translateX: isRestingCenter ? centerShock : 0 },
+                    ],
+                    width: ITEM_WIDTH,
+                  }}
+                >
+                  <ManSilhouette color="#facc15" height={96} width={72} />
+                  {isRestingCenter ? (
+                    <Animated.View
+                      pointerEvents="none"
+                      style={{
+                        bottom: 0,
+                        opacity: centerWhiteOpacity,
+                        position: 'absolute',
+                      }}
+                    >
+                      <ManSilhouette color="#ffffff" height={96} width={72} />
+                    </Animated.View>
+                  ) : null}
+                </Animated.View>
+              );
+            })
+          )}
+        </Animated.View>
+      </View>
       <Animated.View
         pointerEvents="none"
         style={{
@@ -237,7 +239,7 @@ export function WelcomeSilhouetteRow({ flip = false }: { flip?: boolean }) {
           left: '50%',
           marginLeft: -29,
           position: 'absolute',
-          top: 0,
+          top: -20,
           transform: [{ translateY: cloudY }],
           width: 58,
           zIndex: 20,

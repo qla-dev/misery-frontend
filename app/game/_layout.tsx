@@ -72,33 +72,33 @@ export default function GameTabsLayout() {
   const laneResultAddsCard = laneResult === 'success' || laneResult === 'steal';
   const laneResultProgress = laneResultPlayerName
     ? {
-        label: isBs ? `TRAKA IGRAČA ${laneResultPlayerName}` : `LANE OF ${laneResultPlayerName}`,
+        label: isBs ? `STAZA IGRAČA ${laneResultPlayerName}` : `LANE OF ${laneResultPlayerName}`,
         count: laneResultCardsAdded,
         target: laneCardsNeeded,
         addsCard: laneResultAddsCard,
       }
     : undefined;
   const laneSuccessMessage = isLocalLaneResult
-    ? isBs ? 'DOGAĐAJ JE DODAN U TVOJU TRAKU' : 'EVENT ADDED TO YOUR LANE'
+    ? isBs ? 'DOGAĐAJ JE DODAN U TVOJU STAZU PATNJE' : 'EVENT ADDED TO YOUR LANE'
     : laneResultPlayerName
       ? isBs
-        ? `DOGAĐAJ JE DODAN U TRAKU IGRAČA ${laneResultPlayerName}`
+        ? `DOGAĐAJ JE DODAN U STAZU IGRAČA ${laneResultPlayerName}`
         : `EVENT ADDED TO ${laneResultPlayerName.toUpperCase()}'S LANE`
-      : isBs ? 'DOGAĐAJ JE DODAN U TRAKU IGRAČA' : "EVENT ADDED TO THE PLAYER'S LANE";
+      : isBs ? 'DOGAĐAJ JE DODAN U STAZU IGRAČA' : "EVENT ADDED TO THE PLAYER'S LANE";
   const laneStealMessage = isLocalLaneResult
     ? isBs
-      ? 'USPJEŠNO SI UKRAO KARTU I DODANA JE U TVOJU TRAKU'
+      ? 'USPJEŠNO SI UKRAO KARTU I DODANA JE U TVOJU STAZU PATNJE'
       : 'YOU SUCCESSFULLY STOLE THE CARD AND IT WAS ADDED TO YOUR LANE'
     : laneResultPlayerName
       ? gameRuntime?.lastStealWasFromLocalPlayer
         ? isBs
-          ? `${laneResultPlayerName.toUpperCase()} JE USPJEŠNO UKRAO TVOJU KARTU I DODANA JE U NJEGOVU TRAKU`
+          ? `${laneResultPlayerName.toUpperCase()} JE USPJEŠNO UKRAO TVOJU KARTU I DODANA JE U NJEGOVU STAZU`
           : `${laneResultPlayerName.toUpperCase()} SUCCESSFULLY STOLE YOUR CARD AND IT WAS ADDED TO THEIR LANE`
         : isBs
-          ? `${laneResultPlayerName.toUpperCase()} JE USPJEŠNO UKRAO KARTU I DODANA JE U NJEGOVU TRAKU`
+          ? `${laneResultPlayerName.toUpperCase()} JE USPJEŠNO UKRAO KARTU I DODANA JE U NJEGOVU STAZU`
           : `${laneResultPlayerName.toUpperCase()} SUCCESSFULLY STOLE THE CARD AND IT WAS ADDED TO THEIR LANE`
       : isBs
-        ? 'KARTA JE USPJEŠNO UKRADENA I DODANA U TRAKU IGRAČA'
+        ? 'KARTA JE USPJEŠNO UKRADENA I DODANA U STAZU IGRAČA'
         : "THE CARD WAS SUCCESSFULLY STOLEN AND ADDED TO THE PLAYER'S LANE";
   const laneFailureMessage = isLocalLaneResult || !laneResultPlayerName
     ? isBs
@@ -274,7 +274,7 @@ export default function GameTabsLayout() {
         <NativeTabs.Trigger name="lane" contentStyle={{ backgroundColor: '#0a0a0a' }}>
           <NativeTabs.Trigger.Icon sf={{ default: 'rectangle.stack', selected: 'rectangle.stack.fill' } as any} md="view_agenda" />
           <NativeTabs.Trigger.Label>
-            {isBs ? `Traka bijede ${laneCardsAdded}/${laneCardsNeeded}` : `Misery Lane ${laneCardsAdded}/${laneCardsNeeded}`}
+            {isBs ? `Staza patnje ${laneCardsAdded}/${laneCardsNeeded}` : `Misery Lane ${laneCardsAdded}/${laneCardsNeeded}`}
           </NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
         <NativeTabs.Trigger name="history" contentStyle={{ backgroundColor: '#0a0a0a' }}>

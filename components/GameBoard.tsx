@@ -128,7 +128,6 @@ export default function GameBoard({
   const cardTopPadding = 12;
   const drawnCardHeight = height - cardTopOffset - cardTopPadding - 105;
   const cardAreaHeight = drawnCardHeight + cardTopPadding;
-  const dummyArtworkSize = Math.min(300, drawnCardHeight * 0.52);
   const cardFlip = useRef(new Animated.Value(0)).current;
   const cardFloat = useRef(new Animated.Value(0)).current;
   const cardPromptFloat = useRef(new Animated.Value(0)).current;
@@ -207,9 +206,9 @@ export default function GameBoard({
   const toLocalCard = (card: ApiCard): Card => ({
     id: String(card.id),
     titleEn: card.title,
-    titleBs: card.title,
+    titleBs: card.title_bs?.trim() || card.title,
     descriptionEn: card.subtitle ?? undefined,
-    descriptionBs: card.subtitle ?? undefined,
+    descriptionBs: card.subtitle_bs?.trim() || card.subtitle || undefined,
     index: Number(card.score),
     image: card.image && card.image !== '0'
       ? card.image.startsWith('http://') || card.image.startsWith('https://')
@@ -1497,7 +1496,7 @@ export default function GameBoard({
                     style={{
                       alignItems: 'center',
                       backgroundColor: '#050505',
-                      borderColor: '#fbbf24',
+                      borderColor: '#facc15',
                       borderRadius: 18,
                       borderWidth: 5,
                       height: drawnCardHeight,
@@ -1538,7 +1537,6 @@ export default function GameBoard({
                   }}
                 >
                   <DrawnCardFace
-                    artworkSize={dummyArtworkSize}
                     card={gameState.drawnCard}
                     height={drawnCardHeight}
                     isOnline={Boolean(gameId)}
@@ -1564,7 +1562,7 @@ export default function GameBoard({
                 {isBs ? 'IMAMO POBJEDNIKA!' : 'WE HAVE A CHAMPION!'}
               </Text>
               <Text className="mt-2 max-w-[290px] text-center text-xs leading-5 text-neutral-400">
-                {isBs ? 'Traka bijede je završena. Pogledajte konačni poredak.' : 'The Misery Lane is complete. Here are the final rankings.'}
+                {isBs ? 'Staza patnje je završena. Pogledajte konačni poredak.' : 'The Misery Lane is complete. Here are the final rankings.'}
               </Text>
 
               <View className="mt-8 w-full flex-row items-end justify-center" style={{ gap: 8 }}>
@@ -1646,7 +1644,7 @@ export default function GameBoard({
                 <AlertOctagon size={32} color="#ef4444" />
               </View>
               <Text className="text-xl font-black text-red-500 uppercase tracking-tight">{isBs ? 'KRAJ IGRE!' : 'GAME OVER!'}</Text>
-              <Text className="max-w-[300px] text-xs text-neutral-400 leading-relaxed text-center">{isBs ? `Izgubili ste sve živote! Uspjeli ste dodati ${currentPlayer.lane.length - 3} novih kartica u vašu Traku Bijede.` : `You ran out of lives! You managed to add ${currentPlayer.lane.length - 3} new cards to your Misery Lane.`}</Text>
+              <Text className="max-w-[300px] text-xs text-neutral-400 leading-relaxed text-center">{isBs ? `Izgubili ste sve živote! Uspjeli ste dodati ${currentPlayer.lane.length - 3} novih kartica u svoju Stazu patnje.` : `You ran out of lives! You managed to add ${currentPlayer.lane.length - 3} new cards to your Misery Lane.`}</Text>
               <View className="w-full items-center border-y border-red-500/20 py-5">
                 <Text className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold">{isBs ? 'KONAČNI REZULTAT' : 'FINAL SCORE'}</Text>
                 <View className="mt-1 flex-row items-end">
@@ -1685,7 +1683,7 @@ export default function GameBoard({
             style={{ paddingTop: 64 }}
           >
             <View>
-              <Text className="text-base font-black tracking-widest uppercase text-amber-400">{isBs ? 'TRAKA BIJEDE' : 'MISERY LANE'}</Text>
+              <Text className="text-base font-black tracking-widest uppercase text-amber-400">{isBs ? 'STAZA PATNJE' : 'MISERY LANE'}</Text>
             </View>
             <Pressable onPress={() => setIsLaneSheetOpen(false)} hitSlop={10} className="p-2.5 rounded-xl bg-neutral-800">
               <X size={20} color="#d4d4d4" />
@@ -1696,7 +1694,7 @@ export default function GameBoard({
             contentContainerStyle={{ paddingBottom: 48, paddingTop: 20 }}
             showsVerticalScrollIndicator={false}
           >
-            <Text className="text-center text-xs font-mono uppercase tracking-widest text-neutral-400 font-bold mb-6">{isBs ? 'Gdje se ovaj događaj uklapa u tvoju traku?' : 'Where does this fit in your Misery Lane?'}</Text>
+            <Text className="text-center text-xs font-mono uppercase tracking-widest text-neutral-400 font-bold mb-6">{isBs ? 'Gdje se ovaj događaj uklapa u tvoju Stazu patnje?' : 'Where does this fit in your Misery Lane?'}</Text>
             <View className="relative pl-8 pr-1 py-2" style={{ gap: 22 }}>
               <LinearGradient colors={['rgba(251,191,36,0.3)', 'rgba(251,191,36,0.1)', 'rgba(251,191,36,0.3)']} className="absolute left-3 top-0 bottom-0 w-[2px]" />
               {currentActingPlayer.lane.map((card, idx) => (

@@ -6,7 +6,6 @@ import { Card, Language } from '@/types';
 const DEFAULT_CARD_IMAGE = require('../assets/images/def-card.png');
 
 type DrawnCardFaceProps = {
-  artworkSize: number;
   card: Card;
   height: number;
   isOnline?: boolean;
@@ -19,7 +18,6 @@ type DrawnCardFaceProps = {
 };
 
 export function DrawnCardFace({
-  artworkSize,
   card,
   height,
   isOnline = false,
@@ -60,7 +58,7 @@ export function DrawnCardFace({
       start={{ x: 0.12, y: 0 }}
       style={{
         alignItems: 'center',
-        borderColor: isWrong ? '#ef4444' : isCorrect ? '#10b981' : '#fbbf24',
+        borderColor: isWrong ? '#ef4444' : isCorrect ? '#10b981' : '#facc15',
         borderRadius: 18,
         borderWidth: 5,
         height,
@@ -69,7 +67,7 @@ export function DrawnCardFace({
       }}
     >
       <View style={{ borderColor: 'rgba(251,191,36,0.35)', borderRadius: 11, borderWidth: 2, bottom: 9, left: 9, position: 'absolute', right: 9, top: 9 }} />
-      <View className="w-full items-center px-6 pt-8" style={{ gap: 10, zIndex: 2 }}>
+      <View className="w-full items-center px-3 pt-8" style={{ gap: 10, zIndex: 2 }}>
         <Text
           adjustsFontSizeToFit
           minimumFontScale={0.72}
@@ -104,9 +102,10 @@ export function DrawnCardFace({
           className="items-center justify-center"
           pointerEvents="none"
           style={{
+            aspectRatio: 1,
             backgroundColor: '#000000',
-            height: artworkSize,
-            width: artworkSize,
+            overflow: 'hidden',
+            width: '100%',
           }}
         >
           {card.image && !imageFailed ? (
@@ -141,7 +140,10 @@ export function DrawnCardFace({
             : isBs ? 'DODIRNI KARTU ZA NASTAVAK' : 'TAP CARD TO CONTINUE'}
         </Animated.Text>
       )}
-      <View className="absolute bottom-0 left-0 right-0 items-center">
+      <View
+        className="absolute bottom-0 left-0 right-0 items-center"
+        style={{ backgroundColor: '#000000', paddingTop: 8, zIndex: 4 }}
+      >
         <Text
           adjustsFontSizeToFit
           className="mb-1 uppercase text-amber-400"
@@ -159,7 +161,7 @@ export function DrawnCardFace({
           {isBs ? 'STOPA BIJEDE' : 'MISERY RATE'}
         </Text>
         <LinearGradient
-          colors={['#fbbf24', '#eab308']}
+          colors={['#facc15', '#facc15']}
           style={{ alignItems: 'center', height: 70, justifyContent: 'center', padding: 8, width: scoreTabWidth }}
         >
           <Animated.Text

@@ -76,7 +76,7 @@ export function InfoModal({ onLeaveGame }: { onLeaveGame?: () => void }) {
                 </Text>
                 <Text className="text-sm text-neutral-300 leading-6 font-sans">
                   {isBs
-                    ? 'Prvi igrač koji sakupi traženi broj ispravno poredanih kartica u svojoj traci proglašava se pobjednikom!'
+                    ? 'Prvi igrač koji sakupi traženi broj ispravno poredanih kartica u svojoj stazi proglašava se pobjednikom!'
                     : 'The first player to successfully assemble the target number of correctly arranged cards in their lane wins the game!'}
                 </Text>
               </View>

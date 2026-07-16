@@ -10,7 +10,7 @@
       "com.googleusercontent.apps.665506911061-976buu8r3d5l76atbsgsl6bd03jqcs7q"
     ],
     "userInterfaceStyle": "dark",
-    "owner": "kulasin94",
+    "owner": "qla-dev",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "misery.qla.dev",
@@ -24,7 +24,9 @@
           "NSAllowsLocalNetworking": true
         }
       },
-      "associatedDomains": ["applinks:miserymeter.app"]
+      "associatedDomains": [
+        "applinks:miserymeter.app"
+      ]
     },
     "android": {
       "package": "misery.qla.dev",
@@ -48,7 +50,10 @@
               "pathPrefix": "/code/"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -109,7 +114,7 @@
         "testStoreApiKey": ""
       },
       "eas": {
-        "projectId": "a81f5dc4-e8ec-4326-886d-37bc4cf9718e"
+        "projectId": "0bbd93b0-1015-4dd6-975a-e79ab98fe7f9"
       }
     }
   }

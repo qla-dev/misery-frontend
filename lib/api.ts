@@ -41,39 +41,73 @@ export interface ApiGame { id: number; code: string; owner_id: number; started: 
 export interface ApiStack { id: number; name: string; slug: string; color: string; icon_key: string; description: string | null; description_bs: string | null; is_premium: boolean }
 export interface SocialAuthResponse { token: string; user: ApiUser; is_new_user: boolean }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
+
+async function request<T>(path: string, init?: RequestInit, timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS): Promise<T> {
   const url = `${API_BASE_URL}${path}`;
-  const response = await fetch(url, {
-    ...init,
-    headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...init?.headers },
+  const controller = new AbortController();
+  const externalSignal = init?.signal;
+  let didTimeout = false;
+  const abortFromExternalSignal = () => controller.abort();
+  if (externalSignal?.aborted) controller.abort();
+  else externalSignal?.addEventListener('abort', abortFromExternalSignal, { once: true });
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      didTimeout = true;
+      controller.abort();
+      reject(new ApiError('Server is not responding. Please try again.', 0, null));
+    }, timeoutMs);
   });
-  const responseText = response.status === 204 ? '' : await response.text();
-  let body: any = null;
 
-  if (responseText) {
-    try {
-      body = JSON.parse(responseText);
-    } catch {
-      body = { message: responseText };
+  try {
+    const requestPromise = (async () => {
+      const response = await fetch(url, {
+        ...init,
+        signal: controller.signal,
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...init?.headers },
+      });
+      const responseText = response.status === 204 ? '' : await response.text();
+      let body: any = null;
+
+      if (responseText) {
+        try {
+          body = JSON.parse(responseText);
+        } catch {
+          body = { message: responseText };
+        }
+      }
+
+      if (!response.ok) {
+        const details = {
+          method: init?.method ?? 'GET',
+          url,
+          status: response.status,
+          message: body?.message || `API request failed (${response.status})`,
+        };
+        if (response.status === 404) console.warn('[API] resource no longer exists', details);
+        else console.error('[API] request failed', details);
+        throw new ApiError(details.message, response.status, body);
+      }
+
+      return (body?.data ?? body) as T;
+    })();
+
+    return await Promise.race([requestPromise, timeoutPromise]);
+  } catch (error) {
+    if (error instanceof ApiError || externalSignal?.aborted) throw error;
+    if (didTimeout || (error instanceof Error && error.name === 'AbortError')) {
+      throw new ApiError('Server is not responding. Please try again.', 0, null);
     }
+    throw new ApiError(error instanceof Error ? error.message : 'Network request failed.', 0, null);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+    externalSignal?.removeEventListener('abort', abortFromExternalSignal);
   }
-
-  if (!response.ok) {
-    const details = {
-      method: init?.method ?? 'GET',
-      url,
-      status: response.status,
-      message: body?.message || `API request failed (${response.status})`,
-    };
-    if (response.status === 404) console.warn('[API] resource no longer exists', details);
-    else console.error('[API] request failed', details);
-    throw new ApiError(details.message, response.status, body);
-  }
-
-  return (body?.data ?? body) as T;
 }
 
 export const api = {
+  health: () => request<{ status: 'ok'; timestamp: string }>('/health', undefined, 6_000),
   getCards: () => request<ApiCard[]>('/cards'),
   signInWithGoogle: (idToken: string) => request<SocialAuthResponse>('/auth/google', { method: 'POST', body: JSON.stringify({ id_token: idToken }) }),
   signInWithApple: (identityToken: string, fullName?: string) => request<SocialAuthResponse>('/auth/apple', { method: 'POST', body: JSON.stringify({ identity_token: identityToken, full_name: fullName || undefined }) }),
@@ -99,7 +133,7 @@ export const api = {
   createGame: (name: string, color: string, stack: string) => request<{ game: ApiGame; user: ApiUser }>('/games', {
     method: 'POST',
     body: JSON.stringify({ name, color, stack }),
-  }),
+  }, 10_000),
   getGameByCode: (code: string) => request<ApiGame>(`/games/code/${encodeURIComponent(code.trim().toUpperCase())}`),
   joinGame: (code: string, name: string, color: string) => {
     const normalizedCode = code.trim().toUpperCase();
@@ -114,7 +148,7 @@ export const api = {
   }),
   kickLobbyPlayer: (id: number, userId: number, playerId: number) => request<ApiGame>(`/games/${id}/kick`, { method: 'POST', body: JSON.stringify({ user_id: userId, player_id: playerId }) }),
   deleteGame: (id: number) => request<void>(`/games/${id}`, { method: 'DELETE' }),
-  startGame: (id: number, userId: number, stack: string, targetScore: number) => request<ApiGame>(`/games/${id}/start`, { method: 'POST', body: JSON.stringify({ user_id: userId, stack, target_score: targetScore }) }),
+  startGame: (id: number, userId: number, stack: string, targetScore: number) => request<ApiGame>(`/games/${id}/start`, { method: 'POST', body: JSON.stringify({ user_id: userId, stack, target_score: targetScore }) }, 12_000),
   submitMove: (id: number, playerId: number, correct: boolean) => request<{ game: ApiGame }>(`/games/${id}/moves`, { method: 'POST', body: JSON.stringify({ player_id: playerId, correct }) }),
   sendChatMessage: (id: number, userId: number, message: string) => request<ApiChatMessage>(`/games/${id}/messages`, { method: 'POST', body: JSON.stringify({ user_id: userId, message }) }),
   finishTurn: (id: number, playerId: number) => request<{ game: ApiGame }>(`/games/${id}/finish-turn`, { method: 'POST', body: JSON.stringify({ player_id: playerId }) }),

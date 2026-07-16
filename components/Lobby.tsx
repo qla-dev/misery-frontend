@@ -495,12 +495,15 @@ export default function Lobby() {
   const codeInputFocusedRef = useRef(false);
   const copyResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lobbyOpeningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestFailureModalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [deckChooserWidth, setDeckChooserWidth] = useState(0);
   const [deckOptions, setDeckOptions] = useState<ApiStack[]>(FALLBACK_STACKS);
   const [joinCodeErrorOpen, setJoinCodeErrorOpen] = useState(false);
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
   const [isStartingGame, setIsStartingGame] = useState(false);
+  const [serverHealth, setServerHealth] = useState<'checking' | 'online' | 'offline'>('checking');
+  const serverHealthPulse = useRef(new Animated.Value(1)).current;
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [identityRestored, setIdentityRestored] = useState(false);
   const [signingInProvider, setSigningInProvider] = useState<'google' | 'apple' | null>(null);
@@ -567,6 +570,40 @@ export default function Lobby() {
     }).catch(() => undefined);
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    const animation = Animated.loop(Animated.sequence([
+      Animated.timing(serverHealthPulse, { duration: 1100, toValue: 0.38, useNativeDriver: true }),
+      Animated.timing(serverHealthPulse, { duration: 1100, toValue: 1, useNativeDriver: true }),
+    ]));
+    if (serverHealth === 'offline') {
+      animation.stop();
+      serverHealthPulse.setValue(1);
+      return undefined;
+    }
+    animation.start();
+    return () => animation.stop();
+  }, [serverHealth, serverHealthPulse]);
+
+  useEffect(() => {
+    if (lobbyView !== 'WELCOME') return undefined;
+    let cancelled = false;
+    setServerHealth('checking');
+    const checkHealth = async () => {
+      try {
+        const health = await api.health();
+        if (!cancelled) setServerHealth(health.status === 'ok' ? 'online' : 'offline');
+      } catch {
+        if (!cancelled) setServerHealth('offline');
+      }
+    };
+    void checkHealth();
+    const timer = setInterval(checkHealth, 15_000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [lobbyView]);
 
   useEffect(() => {
     if (Platform.OS === 'web' || (lobbyView !== 'ROOM_CREATED' && lobbyView !== 'ROOM_JOINED')) {
@@ -771,6 +808,7 @@ export default function Lobby() {
     return () => {
       if (copyResetTimerRef.current) clearTimeout(copyResetTimerRef.current);
       if (lobbyOpeningTimerRef.current) clearTimeout(lobbyOpeningTimerRef.current);
+      if (requestFailureModalTimerRef.current) clearTimeout(requestFailureModalTimerRef.current);
     };
   }, []);
 
@@ -785,6 +823,8 @@ export default function Lobby() {
 
   const handleCreateRoom = async () => {
     if (isCreatingRoom) return;
+    Keyboard.dismiss();
+    setIsKeyboardVisible(false);
     setIsCreatingRoom(true);
     const finalName = userName.trim() || (isBs ? 'Igrač 1' : 'Player 1');
     try {
@@ -797,14 +837,25 @@ export default function Lobby() {
       setLobbyView('ROOM_CREATED');
       requestAnimationFrame(() => setIsCreatingRoom(false));
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const isBackendUnavailable = error instanceof ApiError && (error.status === 0 || error.status >= 500);
+      const message = isBackendUnavailable
+        ? isBs ? 'Server trenutno ne odgovara. Pokušaj ponovo za nekoliko trenutaka.' : 'The server is not responding. Try again in a few moments.'
+        : error instanceof Error ? error.message : String(error);
       setJoinStatusText(message);
+      Keyboard.dismiss();
+      setIsKeyboardVisible(false);
       setIsCreatingRoom(false);
-      setStartModal({
-        visible: true,
-        title: 'CREATE ROOM FAILED',
-        message,
-      });
+      if (requestFailureModalTimerRef.current) clearTimeout(requestFailureModalTimerRef.current);
+      requestFailureModalTimerRef.current = setTimeout(() => {
+        requestFailureModalTimerRef.current = null;
+        setStartModal({
+          visible: true,
+          title: isBackendUnavailable
+            ? isBs ? 'SERVER NIJE DOSTUPAN' : 'SERVER UNAVAILABLE'
+            : isBs ? 'SOBA NIJE KREIRANA' : 'CREATE ROOM FAILED',
+          message,
+        });
+      }, Platform.OS === 'ios' ? 350 : 50);
     }
   };
 
@@ -1241,7 +1292,22 @@ export default function Lobby() {
     deck: DeckType
   ) => {
     if (isStartingGame) return;
+    Keyboard.dismiss();
+    setIsKeyboardVisible(false);
     setIsStartingGame(true);
+    if (mode === 'MULTIPLAYER' && (!serverGameId || !serverUserId)) {
+      const message = isBs
+        ? 'Veza sa serverom nije dostupna. Vrati se u postavke igre i pokušaj ponovo.'
+        : 'The server connection is unavailable. Return to game settings and try again.';
+      setIsStartingGame(false);
+      setIsGameCountingDown(false);
+      if (requestFailureModalTimerRef.current) clearTimeout(requestFailureModalTimerRef.current);
+      requestFailureModalTimerRef.current = setTimeout(() => {
+        requestFailureModalTimerRef.current = null;
+        setStartModal({ visible: true, title: isBs ? 'SERVER NIJE DOSTUPAN' : 'SERVER UNAVAILABLE', message });
+      }, Platform.OS === 'ios' ? 350 : 50);
+      return;
+    }
     console.log('[StartGame] clicked', {
       gameId: serverGameId,
       userId: serverUserId,
@@ -1264,14 +1330,26 @@ export default function Lobby() {
         applyServerGame(game);
       } catch (error) {
         console.error('[StartGame] API failed', error);
-        const message = error instanceof Error ? error.message : String(error);
+        const isBackendUnavailable = error instanceof ApiError && (error.status === 0 || error.status >= 500);
+        const message = isBackendUnavailable
+          ? isBs ? 'Server trenutno ne odgovara. Pokušaj ponovo za nekoliko trenutaka.' : 'The server is not responding. Try again in a few moments.'
+          : error instanceof Error ? error.message : String(error);
         setJoinStatusText(message);
+        Keyboard.dismiss();
+        setIsKeyboardVisible(false);
         setIsStartingGame(false);
-        setStartModal({
-          visible: true,
-          title: 'START FAILED',
-          message,
-        });
+        setIsGameCountingDown(false);
+        if (requestFailureModalTimerRef.current) clearTimeout(requestFailureModalTimerRef.current);
+        requestFailureModalTimerRef.current = setTimeout(() => {
+          requestFailureModalTimerRef.current = null;
+          setStartModal({
+            visible: true,
+            title: isBackendUnavailable
+              ? isBs ? 'SERVER NIJE DOSTUPAN' : 'SERVER UNAVAILABLE'
+              : isBs ? 'POKRETANJE NIJE USPJELO' : 'START FAILED',
+            message,
+          });
+        }, Platform.OS === 'ios' ? 350 : 50);
         return;
       }
     }
@@ -1792,11 +1870,28 @@ export default function Lobby() {
 
           <View className="pb-2 items-center" style={{ gap: 4 }}>
             <Text className="text-[10px] text-neutral-600 font-mono">© 2026 Misery Meter</Text>
-            <Text className="text-[10px] text-neutral-600 font-mono opacity-80">
-              {isBs
-                ? 'Serveri aktivni • Multiplayer mode • Do 8 igrača'
-                : 'Servers active • Multiplayer mode • Up to 8 players'}
-            </Text>
+            <View
+              accessibilityLabel={serverHealth === 'offline'
+                ? isBs ? 'Serveri nisu dostupni' : 'Servers unavailable'
+                : isBs ? 'Serveri aktivni' : 'Servers active'}
+              className="flex-row items-center justify-center"
+              style={{ gap: 6 }}
+            >
+              <Animated.View
+                style={{
+                  backgroundColor: serverHealth === 'offline' ? '#ef4444' : '#22c55e',
+                  borderRadius: 4,
+                  height: 6,
+                  opacity: serverHealth === 'offline' ? 1 : serverHealthPulse,
+                  width: 6,
+                }}
+              />
+              <Text className="text-[10px] text-neutral-600 font-mono opacity-80">
+                {serverHealth === 'offline'
+                  ? isBs ? 'Serveri nisu dostupni • Multiplayer mode • Do 8 igrača' : 'Servers unavailable • Multiplayer mode • Up to 8 players'
+                  : isBs ? 'Serveri aktivni • Multiplayer mode • Do 8 igrača' : 'Servers active • Multiplayer mode • Up to 8 players'}
+              </Text>
+            </View>
           </View>
         </View>
       );

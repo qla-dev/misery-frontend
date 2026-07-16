@@ -15,7 +15,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VictoryConfetti } from './VictoryConfetti';
 import { DrawnCardFace } from './DrawnCardFace';
 import { CardBackDecoration } from './CardBackDecoration';
-import { InactivityKickCountdown } from './InactivityKickCountdown';
 import { logGameAction } from '@/lib/gameDiagnostics';
 import { cardDescription, cardTitle } from '@/lib/cardText';
 import { DeckType } from '@/context/game-types';
@@ -1371,6 +1370,7 @@ export default function GameBoard({
       inactivityWarningVisible,
       inactivityWarningCount,
       inactivitySecondsRemaining,
+      inactivityFinalCountdown,
       roomExitReason,
       connectionWarningVisible,
       isTurnInactive,
@@ -1378,6 +1378,7 @@ export default function GameBoard({
         setIsTurnInactive(false);
         setInactivityWarningVisible(false);
       },
+      dismissInactivityCountdown: handleInactivityCountdownDismiss,
       laneResult,
       selectedSlotIndex,
       selectedSlotResult,
@@ -1392,7 +1393,7 @@ export default function GameBoard({
         (!gameId || Number(activeStealer.id) === Number(userId))
       ),
     });
-  }, [chatMessages, chatMessagesHydrated, connectionWarningVisible, currentActingPlayer, gameId, gameState, hasPendingLocalTurnStartNotice, hiddenChatMessageIds, inactivitySecondsRemaining, inactivityWarningCount, inactivityWarningVisible, isAwaitingTurnFinish, isDrawnCardFlipped, isDrawnCardScoreRevealed, isLaneCollapsing, isServerTurnReady, isSubmittingMove, isTurnInactive, laneResult, lastInsertedCardId, lastResultCardScore, lastStealWasFromLocalPlayer, localPlayer, reportChatMessageLocally, roomExitReason, selectedSlotIndex, selectedSlotResult, sendChatMessage, serverCurrentPlayerId, setGameRuntime, userId]);
+  }, [chatMessages, chatMessagesHydrated, connectionWarningVisible, currentActingPlayer, gameId, gameState, hasPendingLocalTurnStartNotice, hiddenChatMessageIds, inactivityFinalCountdown, inactivitySecondsRemaining, inactivityWarningCount, inactivityWarningVisible, isAwaitingTurnFinish, isDrawnCardFlipped, isDrawnCardScoreRevealed, isLaneCollapsing, isServerTurnReady, isSubmittingMove, isTurnInactive, laneResult, lastInsertedCardId, lastResultCardScore, lastStealWasFromLocalPlayer, localPlayer, reportChatMessageLocally, roomExitReason, selectedSlotIndex, selectedSlotResult, sendChatMessage, serverCurrentPlayerId, setGameRuntime, userId]);
 
   useEffect(() => {
     if (!didLocalWin || winnerCelebratedRef.current) return;
@@ -1422,11 +1423,6 @@ export default function GameBoard({
 
   return (
     <Animated.View className="flex-1 bg-neutral-950" style={{ opacity: finishedScreenOpacity }}>
-      <InactivityKickCountdown
-        isBs={isBs}
-        onDismiss={handleInactivityCountdownDismiss}
-        value={inactivityFinalCountdown}
-      />
       <VictoryConfetti visible={didLocalWin} />
       {(isVictoryPhase || isGameOverPhase) && (
         <LinearGradient

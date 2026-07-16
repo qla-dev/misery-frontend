@@ -194,7 +194,7 @@ export default function ChatScreen() {
         style={{
           backgroundColor: 'rgba(9,9,11,0.96)',
           paddingBottom: keyboardVisible ? 8 : Math.max(insets.bottom, 10),
-          paddingHorizontal: 20,
+          paddingHorizontal: 12,
           paddingTop: keyboardVisible ? 8 : 10,
           width: '100%',
           zIndex: 30,

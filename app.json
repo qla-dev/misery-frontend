@@ -5,13 +5,16 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "miseryindex",
+    "scheme": [
+      "miseryindex",
+      "com.googleusercontent.apps.665506911061-976buu8r3d5l76atbsgsl6bd03jqcs7q"
+    ],
     "userInterfaceStyle": "dark",
     "owner": "kulasin94",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "misery.qla.dev",
-      "buildNumber": "22",
+      "buildNumber": "23",
       "icon": "./assets/images/icon-ios.png",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -92,6 +95,11 @@
     },
     "extra": {
       "router": {},
+      "googleAuth": {
+        "iosClientId": "665506911061-976buu8r3d5l76atbsgsl6bd03jqcs7q.apps.googleusercontent.com",
+        "webClientId": "",
+        "androidClientId": ""
+      },
       "revenueCat": {
         "entitlementIdentifier": "misery-pro",
         "offeringIdentifier": "misery-pro",

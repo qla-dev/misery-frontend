@@ -2,6 +2,7 @@ import { InfoModal } from '@/components/InfoModal';
 import { Toast } from '@/components/Toast';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { GameActionQueue } from '@/components/GameActionQueue';
+import { InactivityKickCountdown } from '@/components/InactivityKickCountdown';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { router, Stack, usePathname } from 'expo-router';
 import { useGame } from '@/context/GameContext';
@@ -327,6 +328,11 @@ export default function GameTabsLayout() {
         </NativeTabs.Trigger>
       </NativeTabs>
       <InfoModal onLeaveGame={() => setIsExitConfirmOpen(true)} />
+      <InactivityKickCountdown
+        isBs={isBs}
+        onDismiss={() => gameRuntime?.dismissInactivityCountdown?.()}
+        value={gameRuntime?.inactivityFinalCountdown ?? null}
+      />
       <Toast
         autoClose={false}
         icon={<WifiOff color="#fbbf24" size={21} strokeWidth={2.4} />}

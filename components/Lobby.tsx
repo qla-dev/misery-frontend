@@ -5,8 +5,10 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Google from 'expo-auth-session/providers/google';
 import * as Haptics from 'expo-haptics';
 import * as WebBrowser from 'expo-web-browser';
+import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Check, ChevronRight, Copy, Crown, Flame, Heart, Laugh, Loader2, LockKeyhole, PartyPopper, Share2, ShieldAlert, Skull, Sparkles, User, X, Zap } from 'lucide-react-native';
+import { Check, ChevronRight, Copy, Crown, Loader2, LockKeyhole, Share2, ShieldAlert, User, X, type LucideProps } from 'lucide-react-native';
+import * as LucideDeckIcons from 'lucide-react-native/icons';
 import LottieView from 'lottie-react-native';
 import { ActivityIndicator, Animated, BackHandler, Easing, Keyboard, KeyboardAvoidingView, LayoutAnimation, Platform, Pressable, ScrollView, Share, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -48,15 +50,16 @@ const FALLBACK_STACKS: ApiStack[] = [
 ];
 
 function iconForStack(iconKey: string, color: string) {
-  const props = { color, size: 18 };
-  if (iconKey === 'flame') return <Flame {...props} />;
-  if (iconKey === 'shield-alert') return <ShieldAlert {...props} />;
-  if (iconKey === 'zap') return <Zap {...props} />;
-  if (iconKey === 'heart') return <Heart {...props} />;
-  if (iconKey === 'laugh') return <Laugh {...props} />;
-  if (iconKey === 'party-popper') return <PartyPopper {...props} />;
-  if (iconKey === 'skull') return <Skull {...props} />;
-  return <Sparkles {...props} />;
+  const componentName = iconKey
+    .trim()
+    .split('-')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join('');
+  const icons = LucideDeckIcons as unknown as Record<string, React.ComponentType<LucideProps>>;
+  const DeckIcon = icons[componentName] ?? icons.Sparkles;
+
+  return <DeckIcon color={color} size={18} />;
 }
 
 function deckToStack(deck: DeckType) {
@@ -75,10 +78,11 @@ const AUTH_TOKEN_KEY = '@misery-index/auth-token';
 const AUTH_USER_KEY = '@misery-index/auth-user';
 const AUTH_PROVIDER_KEY = '@misery-index/auth-provider';
 const TERMS_URL = 'https://miserymeter.app/terms';
+const GOOGLE_AUTH_EXTRA = Constants.expoConfig?.extra?.googleAuth ?? {};
 const GOOGLE_AUTH_CONFIG = {
-  webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-  iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-  androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+  webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || GOOGLE_AUTH_EXTRA.webClientId,
+  iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || GOOGLE_AUTH_EXTRA.iosClientId,
+  androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || GOOGLE_AUTH_EXTRA.androidClientId,
 };
 // The Google provider throws during render when the platform client ID is
 // absent. Keep startup safe for misconfigured builds; sign-in itself remains
@@ -1988,10 +1992,15 @@ export default function Lobby() {
             <Section titleEn="CHOOSE THE CARD DECK" titleBs="ODABERITE ŠPIL KARTICA">
               <View
                 onLayout={(event) => setDeckChooserWidth(Math.round(event.nativeEvent.layout.width))}
-                style={{ overflow: 'hidden' }}
+                style={{ marginHorizontal: -20 }}
               >
                 <ScrollView
-                  contentContainerStyle={{ gap: 10, paddingRight: Math.max(0, deckChooserWidth - deckCardWidth) }}
+                  contentContainerStyle={{
+                    gap: 10,
+                    paddingLeft: 20,
+                    paddingRight: Math.max(0, deckChooserWidth - deckCardWidth - 20),
+                  }}
+                  contentInsetAdjustmentBehavior="never"
                   decelerationRate="fast"
                   horizontal
                   onMomentumScrollEnd={(event) => {
@@ -2012,8 +2021,15 @@ export default function Lobby() {
                       <Pressable
                         key={option.slug}
                         onPress={() => {
+                          if (option.is_premium && !isPremium) {
+                            selectDeckAtIndex(index);
+                            return;
+                          }
+                          if (!deckChooserWidth || selected) {
+                            selectDeckAtIndex(index);
+                            return;
+                          }
                           deckScrollRef.current?.scrollTo({ animated: true, x: index * deckSnapInterval });
-                          selectDeckAtIndex(index);
                         }}
                         className="relative items-center justify-center gap-1 rounded-xl border-2 px-4 py-3"
                         style={{ backgroundColor: selected ? `${accent}0D` : 'transparent', borderColor: selected ? accent : '#171717', minHeight: 82, width: deckCardWidth }}

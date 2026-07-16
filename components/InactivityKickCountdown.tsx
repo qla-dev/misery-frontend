@@ -31,7 +31,7 @@ export function InactivityKickCountdown({ isBs, onDismiss, value }: InactivityKi
 
   return (
     <Modal animationType="fade" statusBarTranslucent transparent visible={value !== null && !dismissed}>
-      <View className="flex-1 items-center justify-center bg-red-600 px-8">
+      <View className="flex-1 items-center justify-center bg-red-500 px-8">
         <Pressable
           accessibilityLabel={isBs ? 'Zatvori upozorenje' : 'Close warning'}
           accessibilityRole="button"

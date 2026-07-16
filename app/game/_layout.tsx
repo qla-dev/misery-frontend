@@ -1,4 +1,5 @@
 import { InfoModal } from '@/components/InfoModal';
+import { Toast } from '@/components/Toast';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { GameActionQueue } from '@/components/GameActionQueue';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
@@ -313,32 +314,13 @@ export default function GameTabsLayout() {
         </NativeTabs.Trigger>
       </NativeTabs>
       <InfoModal onLeaveGame={() => setIsExitConfirmOpen(true)} />
-      {gameRuntime?.connectionWarningVisible && !isGameCountingDown && (
-        <View
-          accessibilityLiveRegion="polite"
-          pointerEvents="none"
-          style={{
-            alignItems: 'center',
-            alignSelf: 'center',
-            backgroundColor: 'rgba(23,23,23,0.96)',
-            borderColor: 'rgba(251,191,36,0.35)',
-            borderRadius: 18,
-            borderWidth: 1,
-            flexDirection: 'row',
-            gap: 8,
-            paddingHorizontal: 14,
-            paddingVertical: 9,
-            position: 'absolute',
-            top: 58,
-            zIndex: 50,
-          }}
-        >
-          <WifiOff color="#fbbf24" size={16} strokeWidth={2.4} />
-          <Text style={{ color: '#d4d4d4', fontFamily: 'Outfit_700Bold', fontSize: 12 }}>
-            {isBs ? 'Slaba veza, pokušavamo ponovo…' : 'Weak connection, retrying…'}
-          </Text>
-        </View>
-      )}
+      <Toast
+        autoClose={false}
+        icon={<WifiOff color="#fbbf24" size={21} strokeWidth={2.4} />}
+        subtitle={isBs ? 'Pokušavamo ponovo…' : 'Trying to reconnect…'}
+        title={isBs ? 'Slaba veza' : 'Weak connection'}
+        visible={Boolean(gameRuntime?.connectionWarningVisible && !isGameCountingDown)}
+      />
       <GameActionQueue
         activeStealerName={gameRuntime?.activeStealer?.name}
         hasPendingLaneAnimation={Boolean(gameRuntime?.hasPendingLaneAnimation)}

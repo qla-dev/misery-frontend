@@ -54,6 +54,10 @@ export default function GameTabsLayout() {
   } = useGame();
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
+  // Once GameBoard has published its runtime, the countdown is no longer on
+  // screen. Keep native chrome visible even if a stale global flag arrives from
+  // the still-mounted lobby/realtime lifecycle.
+  const isCountdownVisible = isGameCountingDown && !gameRuntime;
   const returningToGameSettingsRef = useRef(false);
   const isBs = language === 'bs';
   const isChatOpen = pathname.endsWith('/chat');
@@ -189,7 +193,7 @@ export default function GameTabsLayout() {
         options={{
           gestureEnabled: false,
           headerBackVisible: false,
-          headerShown: !isGameCountingDown,
+          headerShown: !isCountdownVisible,
           headerShadowVisible: false,
           headerStyle: { backgroundColor: 'transparent' },
           headerLeft: () => isChatOpen ? (
@@ -265,7 +269,7 @@ export default function GameTabsLayout() {
           headerTransparent: true,
         }}
       />
-      {!isGameCountingDown && !isChatOpen && (
+      {!isCountdownVisible && !isChatOpen && (
         <>
           <Stack.Toolbar placement="right">
             <Stack.Toolbar.Button
@@ -295,7 +299,7 @@ export default function GameTabsLayout() {
         badgeBackgroundColor="#ef4444"
         badgeTextColor="#ffffff"
         disableTransparentOnScrollEdge
-        hidden={isGameCountingDown || isGameFinished || isChatOpen}
+        hidden={isCountdownVisible || isGameFinished || isChatOpen}
         screenListeners={{ tabPress: () => playHaptic() }}
         iconColor={{ default: '#737373', selected: '#fbbf24' }}
         labelStyle={{
@@ -338,7 +342,7 @@ export default function GameTabsLayout() {
         icon={<WifiOff color="#fbbf24" size={21} strokeWidth={2.4} />}
         subtitle={isBs ? 'Pokušavamo ponovo…' : 'Trying to reconnect…'}
         title={isBs ? 'Slaba veza' : 'Weak connection'}
-        visible={Boolean(gameRuntime?.connectionWarningVisible && !isGameCountingDown)}
+        visible={Boolean(gameRuntime?.connectionWarningVisible && !isCountdownVisible)}
       />
       <GameActionQueue
         activeStealerName={gameRuntime?.activeStealer?.name}

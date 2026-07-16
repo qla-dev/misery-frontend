@@ -26,12 +26,17 @@ import { ConfirmModal } from './ConfirmModal';
 import { LoadingState } from './LoadingState';
 import { LoadingOverlay } from './LoadingOverlay';
 import { LobbyOpeningOverlay } from './LobbyOpeningOverlay';
+import { InactivityKickCountdown } from './InactivityKickCountdown';
 import { LaneModal } from './LaneModal';
 import { SetupTabs } from './SetupTabs';
 import { WelcomeSilhouetteRow } from './WelcomeSilhouetteRow';
 import { api, ApiError, ApiGame, ApiStack, ApiUser } from '@/lib/api';
 import { subscribeToGameUpdates } from '@/lib/gameRealtime';
 import { DeckType } from '@/context/game-types';
+
+const HOST_LOBBY_INACTIVITY_MS = 120_000;
+const HOST_LOBBY_WARNING_MS = 30_000;
+const HOST_LOBBY_FINAL_COUNTDOWN_SECONDS = 10;
 
 const AVAILABLE_COLORS = [
   { id: 'yellow', hex: '#facc15', nameEn: 'Amber Gold', nameBs: 'Zlatni Ćilibar', bgClass: 'bg-yellow-400', borderClass: 'border-yellow-400 bg-yellow-400/5 text-yellow-400' },
@@ -501,6 +506,7 @@ export default function Lobby() {
   const copyResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lobbyOpeningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestFailureModalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hostLobbyExpiryInFlightRef = useRef(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [deckChooserWidth, setDeckChooserWidth] = useState(0);
   const [deckOptions, setDeckOptions] = useState<ApiStack[]>(FALLBACK_STACKS);
@@ -536,6 +542,10 @@ export default function Lobby() {
     title: '',
     message: '',
   });
+  const [hostLobbyWarningVisible, setHostLobbyWarningVisible] = useState(false);
+  const [hostLobbyWarningCount, setHostLobbyWarningCount] = useState(0);
+  const [hostLobbyFinalCountdown, setHostLobbyFinalCountdown] = useState<number | null>(null);
+  const [hostLobbyInactivityResetKey, setHostLobbyInactivityResetKey] = useState(0);
   const deckCardWidth = deckChooserWidth ? Math.max(196, Math.min(224, deckChooserWidth * 0.68)) : 220;
   const deckSnapInterval = deckCardWidth + 10;
   const serverStartedRef = useRef(false);
@@ -895,6 +905,92 @@ export default function Lobby() {
     }
   };
 
+  useEffect(() => {
+    const isHostWaitingInLobby = lobbyView === 'ROOM_CREATED'
+      && Boolean(serverGameId)
+      && Boolean(serverUserId)
+      && Number(serverOwnerId) === Number(serverUserId)
+      && !isStartingGame;
+    if (!isHostWaitingInLobby || !serverGameId || !serverUserId) {
+      hostLobbyExpiryInFlightRef.current = false;
+      setHostLobbyWarningVisible(false);
+      setHostLobbyWarningCount(0);
+      setHostLobbyFinalCountdown(null);
+      return;
+    }
+
+    const deadline = Date.now() + HOST_LOBBY_INACTIVITY_MS;
+    let cancelled = false;
+    hostLobbyExpiryInFlightRef.current = false;
+    setHostLobbyWarningVisible(false);
+    setHostLobbyWarningCount(0);
+    setHostLobbyFinalCountdown(null);
+
+    const warningTimers = [1, 2, 3].map((warningNumber) => setTimeout(() => {
+      if (cancelled) return;
+      setHostLobbyWarningCount(warningNumber);
+      setHostLobbyWarningVisible(true);
+      playSound('bell');
+    }, warningNumber * HOST_LOBBY_WARNING_MS));
+
+    const countdownTimer = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      setHostLobbyFinalCountdown(
+        remaining > 0 && remaining <= HOST_LOBBY_FINAL_COUNTDOWN_SECONDS ? remaining : null,
+      );
+    }, 1_000);
+
+    const expiryTimer = setTimeout(() => {
+      if (cancelled || hostLobbyExpiryInFlightRef.current) return;
+      hostLobbyExpiryInFlightRef.current = true;
+      setHostLobbyWarningVisible(false);
+      setHostLobbyFinalCountdown(null);
+      void api.expireInactivePlayer(serverGameId, serverUserId)
+        .then(() => {
+          if (cancelled) return;
+          setServerGameId(null);
+          setServerUserId(null);
+          setServerOwnerId(null);
+          setSession(null);
+          setRoomCode('');
+          setRoomPlayers([]);
+          setLobbyView('SETUP');
+          setStartModal({
+            visible: true,
+            title: isBs ? 'SOBA JE ZATVORENA' : 'ROOM CLOSED',
+            message: isBs
+              ? 'Soba je zatvorena jer domaćin nije pokrenuo igru u roku od 2 minute.'
+              : 'The room was closed because the host did not start the game within 2 minutes.',
+          });
+        })
+        .catch((error) => {
+          if (cancelled) return;
+          hostLobbyExpiryInFlightRef.current = false;
+          setHostLobbyInactivityResetKey((current) => current + 1);
+          setStartModal({
+            visible: true,
+            title: isBs ? 'SERVER NIJE DOSTUPAN' : 'SERVER UNAVAILABLE',
+            message: error instanceof Error ? error.message : (isBs ? 'Pokušaj ponovo.' : 'Please try again.'),
+          });
+        });
+    }, HOST_LOBBY_INACTIVITY_MS);
+
+    return () => {
+      cancelled = true;
+      warningTimers.forEach(clearTimeout);
+      clearInterval(countdownTimer);
+      clearTimeout(expiryTimer);
+    };
+  }, [hostLobbyInactivityResetKey, isBs, isStartingGame, lobbyView, serverGameId, serverOwnerId, serverUserId, setLobbyView, setRoomCode, setRoomPlayers, setSession]);
+
+  const dismissHostLobbyFinalCountdown = () => {
+    hostLobbyExpiryInFlightRef.current = false;
+    setHostLobbyWarningVisible(false);
+    setHostLobbyWarningCount(0);
+    setHostLobbyFinalCountdown(null);
+    setHostLobbyInactivityResetKey((current) => current + 1);
+  };
+
   const handleLeaveRoom = () => {
     const gameId = serverGameId;
     const leavingUserId = serverUserId;
@@ -995,7 +1091,7 @@ export default function Lobby() {
         });
         return;
       }
-      const result = await api.joinGame(cleanCode, finalName, selectedColor);
+      const result = await api.joinGame(cleanCode, finalName, selectedColor, Platform.OS === 'web' ? 'web' : 'native');
       setServerGameId(result.game.id);
       setServerUserId(result.user.id);
       applyServerGame(result.game);
@@ -1018,7 +1114,19 @@ export default function Lobby() {
       const message = error instanceof Error ? error.message : 'Room not found.';
       setJoinStatusText(message);
       transitionLobbyView('SETUP');
-      if (message === 'No more available seats in this room.') {
+      const errorCode = error instanceof ApiError && error.body && typeof error.body === 'object'
+        ? (error.body as { error_code?: unknown }).error_code
+        : null;
+      if (errorCode === 'realtime_provider_capacity_exceeded') {
+        playSound('wrong');
+        setStartModal({
+          visible: true,
+          title: isBs ? 'SERVER JE OPTEREĆEN' : 'SERVER IS AT CAPACITY',
+          message: isBs
+            ? 'Započeta igra je na serveru koji je opterećen. Izaberi drugu igru ili pokušaj kasnije.'
+            : 'This game is running on a server that is at capacity. Choose another game or try again later.',
+        });
+      } else if (message === 'No more available seats in this room.') {
         playSound('wrong');
         setStartModal({
           visible: true,
@@ -1423,7 +1531,7 @@ export default function Lobby() {
             message: removedByHost
               ? isBs ? 'Domaćin te uklonio iz sobe.' : 'The host removed you from the lobby.'
               : game.termination_reason === 'host_inactive'
-                ? isBs ? 'Domaćin je bio neaktivan 60 sekundi.' : 'The host was inactive for 60 seconds.'
+                ? isBs ? 'Domaćin je bio neaktivan i soba je zatvorena.' : 'The host was inactive and the room was closed.'
                 : isBs ? 'Domaćin je napustio sobu.' : 'The host left the room.',
           });
           transitionLobbyView('SETUP', () => {
@@ -2529,6 +2637,25 @@ export default function Lobby() {
       </ConfirmModal>
       <LoadingOverlay isBs={isBs} visible={isCreatingRoom} />
       <LoadingOverlay isBs={isBs} mode="start" visible={isStartingGame} />
+      <LaneModal
+        bell
+        failureMessage=""
+        failureTitle=""
+        onComplete={() => setHostLobbyWarningVisible(false)}
+        success
+        successMessage={isBs
+          ? `POKRENI IGRU. SOBA SE ZATVARA ZA ${Math.max(30, 120 - hostLobbyWarningCount * 30)} SEKUNDI`
+              : `START THE GAME. THE ROOM CLOSES IN ${Math.max(30, 120 - hostLobbyWarningCount * 30)} SECONDS`}
+        successTitle={isBs ? 'SOBA ČEKA DOMAĆINA' : 'ROOM IS WAITING FOR HOST'}
+        visible={hostLobbyWarningVisible}
+        warning
+      />
+      <InactivityKickCountdown
+        isBs={isBs}
+        message={isBs ? 'SOBA ĆE BITI ZATVORENA ZBOG NEAKTIVNOSTI' : 'THE ROOM WILL BE CLOSED FOR INACTIVITY'}
+        onDismiss={dismissHostLobbyFinalCountdown}
+        value={hostLobbyFinalCountdown}
+      />
       <LaneModal
         failureMessage=""
         failureTitle=""

@@ -721,7 +721,10 @@ export default function GameBoard({
         nextPollDelay = Math.max(250, Number(game.ingame_polling_interval_ms) || 3000);
         const latestMove = game.moves[0];
         const handCardCount = Object.values(game.hands).reduce((total, hand) => total + hand.length, 0);
-        const pollSignature = [
+        // Chat delivery must not rebuild gameplay state. Realtime chat events can
+        // arrive while a card/result animation is active, and treating them as a
+        // gameplay transition can reset the native game screen around that overlay.
+        const gameplaySignature = [
           game.members.map((member) => member.id).join(','),
           game.current_player_id,
           game.turn_owner_id,
@@ -730,11 +733,10 @@ export default function GameBoard({
           game.is_steal_turn ? 1 : 0,
           game.winner_id ?? 0,
           latestMove?.id ?? 0,
-          game.chat_messages?.at(-1)?.id ?? 0,
           handCardCount,
         ].join(':');
-        const stateChanged = pollSignature !== lastPollSignatureRef.current;
-        lastPollSignatureRef.current = pollSignature;
+        const stateChanged = gameplaySignature !== lastPollSignatureRef.current;
+        lastPollSignatureRef.current = gameplaySignature;
         const pollDuration = Date.now() - pollStartedAt;
         if (stateChanged || pollDuration >= 750 || pollNumber % 5 === 0) {
           logGameAction('poll.success', {

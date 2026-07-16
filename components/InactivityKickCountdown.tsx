@@ -5,11 +5,12 @@ import { playSound } from '@/lib/sound';
 
 type InactivityKickCountdownProps = {
   isBs: boolean;
+  message?: string;
   onDismiss: () => void;
   value: number | null;
 };
 
-export function InactivityKickCountdown({ isBs, onDismiss, value }: InactivityKickCountdownProps) {
+export function InactivityKickCountdown({ isBs, message, onDismiss, value }: InactivityKickCountdownProps) {
   const scale = useRef(new Animated.Value(0.7)).current;
   const [dismissed, setDismissed] = useState(false);
 
@@ -67,7 +68,7 @@ export function InactivityKickCountdown({ isBs, onDismiss, value }: InactivityKi
           {value}
         </Animated.Text>
         <Text className="text-center font-black uppercase tracking-[2px] text-white/90" style={{ fontSize: 18 }}>
-          {isBs ? 'BIT \u0106E\u0160 UKLONJEN ZBOG NEAKTIVNOSTI' : 'YOU WILL BE REMOVED FOR INACTIVITY'}
+          {message ?? (isBs ? 'BIT \u0106E\u0160 UKLONJEN ZBOG NEAKTIVNOSTI' : 'YOU WILL BE REMOVED FOR INACTIVITY')}
         </Text>
       </View>
     </Modal>

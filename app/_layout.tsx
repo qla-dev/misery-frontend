@@ -73,7 +73,8 @@ function AppReadyGate() {
 }
 
 function RootStack() {
-  const { isGameCountingDown } = useGame();
+  const { gameRuntime, isGameCountingDown } = useGame();
+  const isCountdownVisible = isGameCountingDown && !gameRuntime;
 
   return (
     <View className="flex-1 bg-neutral-950">
@@ -101,7 +102,7 @@ function RootStack() {
           name="game"
           options={{
             gestureEnabled: false,
-            headerShown: !isGameCountingDown,
+            headerShown: !isCountdownVisible,
           }}
         />
       </Stack>

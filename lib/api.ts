@@ -135,10 +135,10 @@ export const api = {
     body: JSON.stringify({ name, color, stack }),
   }, 10_000),
   getGameByCode: (code: string) => request<ApiGame>(`/games/code/${encodeURIComponent(code.trim().toUpperCase())}`),
-  joinGame: (code: string, name: string, color: string) => {
+  joinGame: (code: string, name: string, color: string, client: 'native' | 'web' = 'native') => {
     const normalizedCode = code.trim().toUpperCase();
     if (!normalizedCode) throw new Error('Enter a room code.');
-    return request<{ game: ApiGame; user: ApiUser; color_changed: boolean }>(`/games/code/${encodeURIComponent(normalizedCode)}/join`, { method: 'POST', body: JSON.stringify({ name, color }) });
+    return request<{ game: ApiGame; user: ApiUser; color_changed: boolean }>(`/games/code/${encodeURIComponent(normalizedCode)}/join`, { method: 'POST', body: JSON.stringify({ name, color, client }) });
   },
   getGame: (id: number, userId?: number | null, signal?: AbortSignal) => request<ApiGame>(`/games/${id}${userId ? `?user_id=${encodeURIComponent(String(userId))}` : ''}`, { signal }, 8_000),
   getGameSnapshot: (id: number, signal?: AbortSignal) => request<ApiGame>(`/games/${id}/snapshot`, { signal }, 8_000),

@@ -30,6 +30,7 @@ import { LaneModal } from './LaneModal';
 import { SetupTabs } from './SetupTabs';
 import { WelcomeSilhouetteRow } from './WelcomeSilhouetteRow';
 import { api, ApiError, ApiGame, ApiStack, ApiUser } from '@/lib/api';
+import { subscribeToGameUpdates } from '@/lib/gameRealtime';
 import { DeckType } from '@/context/game-types';
 
 const AVAILABLE_COLORS = [
@@ -526,6 +527,10 @@ export default function Lobby() {
   const [serverOwnerId, setServerOwnerId] = useState<number | null>(session?.ownerId ?? null);
   const [hostInLobby, setHostInLobby] = useState(true);
   const [availableGames, setAvailableGames] = useState<ApiGame[]>([]);
+  const [serverRealtimeConfig, setServerRealtimeConfig] = useState<{
+    driver: 'pusher' | 'ably' | 'reverb';
+    value: NonNullable<ApiGame['pusher'] | ApiGame['ably'] | ApiGame['reverb']>;
+  } | null>(null);
   const [startModal, setStartModal] = useState<{ visible: boolean; title: string; message: string }>({
     visible: false,
     title: '',
@@ -796,6 +801,15 @@ export default function Lobby() {
   };
 
   const applyServerGame = (game: ApiGame) => {
+    const realtimeValue = game.sync_driver === 'pusher'
+      ? game.pusher
+      : game.sync_driver === 'ably' ? game.ably : game.sync_driver === 'reverb' ? game.reverb : null;
+    setServerRealtimeConfig((current) => {
+      if (!realtimeValue) return null;
+      const driver = game.sync_driver as 'pusher' | 'ably' | 'reverb';
+      if (current?.driver === driver && current.value.channel === realtimeValue.channel) return current;
+      return { driver, value: realtimeValue };
+    });
     setRoomCode(game.code);
     setServerOwnerId(game.owner_id);
     setHostInLobby(game.host_in_lobby ?? true);
@@ -1381,8 +1395,18 @@ export default function Lobby() {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
     let controller: AbortController | null = null;
+    let realtimeRetryTimer: ReturnType<typeof setTimeout> | null = null;
+    let realtimeCleanup: (() => Promise<void>) | null = null;
+    let realtimeReady = false;
+    let pendingRealtimeRefresh = false;
+    const strictRealtime = serverRealtimeConfig?.driver === 'reverb';
     const poll = async () => {
-      if (cancelled || controller) return;
+      if (cancelled) return;
+      if (controller) {
+        pendingRealtimeRefresh = true;
+        return;
+      }
+      pendingRealtimeRefresh = false;
       const requestController = new AbortController();
       controller = requestController;
       try {
@@ -1457,16 +1481,61 @@ export default function Lobby() {
         /* Temporary network/server failures retry after this request settles. */
       } finally {
         if (controller === requestController) controller = null;
-        if (!cancelled) timer = setTimeout(poll, 3000);
+        if (!cancelled) {
+          const delay = pendingRealtimeRefresh ? 0 : realtimeReady ? 30_000 : 3000;
+          if (pendingRealtimeRefresh || !strictRealtime) timer = setTimeout(poll, delay);
+        }
       }
     };
     void poll();
+    if (serverRealtimeConfig) {
+      const realtime = serverRealtimeConfig;
+      const pusherValue = realtime.driver === 'pusher'
+        ? realtime.value as NonNullable<ApiGame['pusher']>
+        : null;
+      const reverbValue = realtime.driver === 'reverb'
+        ? realtime.value as NonNullable<ApiGame['reverb']>
+        : null;
+      const connectRealtime = () => {
+        void subscribeToGameUpdates({
+          channel: realtime.value.channel,
+          cluster: pusherValue?.cluster,
+          event: realtime.value.event,
+          getToken: realtime.driver === 'ably' && serverUserId ? () => api.getAblyToken(serverGameId, serverUserId) : undefined,
+          host: reverbValue?.host,
+          key: pusherValue?.key ?? reverbValue?.key,
+          onUpdate: () => void poll(),
+          port: reverbValue?.port,
+          provider: realtime.driver,
+          scheme: reverbValue?.scheme,
+        }).then((cleanup) => {
+          if (cancelled) {
+            void cleanup();
+            return;
+          }
+          realtimeCleanup = cleanup;
+          realtimeReady = true;
+          if (timer) clearTimeout(timer);
+          timer = setTimeout(poll, 0);
+        }).catch((error) => {
+          if (realtime.driver !== 'reverb') {
+            console.warn('[Lobby] Hosted realtime unavailable; polling fallback active', error);
+            return;
+          }
+          console.warn('[Lobby] Reverb unavailable; retrying without polling fallback', error);
+          if (!cancelled) realtimeRetryTimer = setTimeout(connectRealtime, 3000);
+        });
+      };
+      connectRealtime();
+    }
     return () => {
       cancelled = true;
       if (timer) clearTimeout(timer);
+      if (realtimeRetryTimer) clearTimeout(realtimeRetryTimer);
       controller?.abort();
+      if (realtimeCleanup) void realtimeCleanup();
     };
-  }, [serverGameId, serverUserId, targetScore, selectedDeck, setIsGameCountingDown, setSession]);
+  }, [serverGameId, serverUserId, serverRealtimeConfig, targetScore, selectedDeck, setIsGameCountingDown, setSession]);
 
   useEffect(() => {
     if ((lobbyView !== 'ROOM_CREATED' && lobbyView !== 'ROOM_JOINED') || !session?.gameId) return;

@@ -8,6 +8,7 @@ const COPY = {
   createEn: {
     title: 'CREATING YOUR ROOM',
     steps: [
+      'Creating an online room, please wait...',
       'Setting up your room...',
       'Creating a private room code...',
       'Making space for your players...',
@@ -17,6 +18,7 @@ const COPY = {
   createBs: {
     title: 'KREIRAMO TVOJU SOBU',
     steps: [
+      'Kreiramo online sobu, molimo sačekajte...',
       'Pripremamo tvoju sobu...',
       'Kreiramo privatni kod sobe...',
       'Pravimo mjesto za igrače...',
@@ -62,6 +64,7 @@ export function LoadingOverlay({ isBs = false, mode = 'create', visible }: Loadi
       opacity.setValue(1);
       return;
     }
+    if (copy.steps.length < 2) return;
 
     const timer = setInterval(() => {
       Animated.sequence([

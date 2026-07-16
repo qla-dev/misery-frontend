@@ -10,7 +10,7 @@ import Illustration from './Illustration';
 import { useGame } from '@/context/GameContext';
 import { playSound } from '@/lib/sound';
 import { ButtonTab } from './ButtonTab';
-import { api, ApiCard, ApiChatMessage, API_BASE_URL } from '@/lib/api';
+import { api, ApiCard, ApiChatMessage, ApiGame, API_BASE_URL } from '@/lib/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VictoryConfetti } from './VictoryConfetti';
 import { DrawnCardFace } from './DrawnCardFace';
@@ -18,6 +18,7 @@ import { CardBackDecoration } from './CardBackDecoration';
 import { logGameAction } from '@/lib/gameDiagnostics';
 import { cardDescription, cardTitle } from '@/lib/cardText';
 import { DeckType } from '@/context/game-types';
+import { subscribeToGameUpdates } from '@/lib/gameRealtime';
 
 import { MiseryLogo } from './MiseryLogo';
 const INACTIVITY_KICK_MS = 60_000;
@@ -585,8 +586,103 @@ export default function GameBoard({
     let paused = AppState.currentState !== 'active';
     let timer: ReturnType<typeof setTimeout> | null = null;
     let activeController: AbortController | null = null;
-    const poll = async () => {
+    let heartbeatTimer: ReturnType<typeof setTimeout> | null = null;
+    let realtimeRetryTimer: ReturnType<typeof setTimeout> | null = null;
+    let heartbeatController: AbortController | null = null;
+    let realtimeCleanup: (() => Promise<void>) | null = null;
+    let realtimeEnabled = false;
+    let realtimeStarting = false;
+    let strictRealtime = false;
+    let realtimeIdentity = '';
+    let pendingRealtimeRefresh = false;
+    let heartbeatInterval = 20_000;
+    let poll: () => Promise<void>;
+
+    const heartbeat = async () => {
+      if (cancelled || paused || !realtimeEnabled || !userId || heartbeatController) return;
+      const controller = new AbortController();
+      heartbeatController = controller;
+      try {
+        await api.heartbeatGame(gameId, userId, controller.signal);
+      } catch (error) {
+        if (!cancelled && !paused && !controller.signal.aborted) {
+          logGameAction('pusher.heartbeat.failure', { message: error instanceof Error ? error.message : String(error) });
+        }
+      } finally {
+        if (heartbeatController === controller) heartbeatController = null;
+        if (!cancelled && !paused && realtimeEnabled) heartbeatTimer = setTimeout(heartbeat, heartbeatInterval);
+      }
+    };
+
+    const activateRealtime = (game: ApiGame) => {
+      const config = game.sync_driver === 'pusher'
+        ? game.pusher
+        : game.sync_driver === 'ably' ? game.ably : game.sync_driver === 'reverb' ? game.reverb : null;
+      strictRealtime = game.sync_driver === 'reverb';
+      if (!config) {
+        if (realtimeCleanup) void realtimeCleanup();
+        realtimeCleanup = null;
+        realtimeEnabled = false;
+        realtimeIdentity = '';
+        strictRealtime = false;
+        return;
+      }
+      const identity = `${game.sync_driver}:${config.channel}`;
+      if ((realtimeEnabled && realtimeIdentity === identity) || realtimeStarting) return;
+      if (realtimeCleanup) void realtimeCleanup();
+      realtimeCleanup = null;
+      realtimeEnabled = false;
+      realtimeStarting = true;
+      heartbeatInterval = Math.max(10_000, Number(config.heartbeat_interval_ms) || 20_000);
+      void subscribeToGameUpdates({
+        channel: config.channel,
+        cluster: game.pusher?.cluster,
+        event: config.event,
+        getToken: game.sync_driver === 'ably' && userId ? () => api.getAblyToken(gameId, userId) : undefined,
+        host: game.reverb?.host,
+        key: game.pusher?.key ?? game.reverb?.key,
+        onUpdate: () => {
+          pendingRealtimeRefresh = true;
+          if (!cancelled && !paused && !activeController) {
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(() => void poll(), 0);
+          }
+        },
+        port: game.reverb?.port,
+        provider: game.sync_driver as 'pusher' | 'ably' | 'reverb',
+        scheme: game.reverb?.scheme,
+      }).then((cleanup) => {
+        if (cancelled) {
+          void cleanup();
+          return;
+        }
+        realtimeCleanup = cleanup;
+        realtimeEnabled = true;
+        realtimeStarting = false;
+        realtimeIdentity = identity;
+        pendingRealtimeRefresh = true;
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => void poll(), 0);
+        void heartbeat();
+        logGameAction('realtime.connected', { channel: config.channel, driver: game.sync_driver, gameId });
+      }).catch((error) => {
+        realtimeStarting = false;
+        if (game.sync_driver === 'reverb') {
+          setConnectionWarningVisible(true);
+          logGameAction('realtime.reverb-retry', { message: error instanceof Error ? error.message : String(error) });
+          if (realtimeRetryTimer) clearTimeout(realtimeRetryTimer);
+          realtimeRetryTimer = setTimeout(() => {
+            if (!cancelled && !paused) activateRealtime(game);
+          }, 3000);
+          return;
+        }
+        logGameAction('realtime.fallback-to-polling', { driver: game.sync_driver, message: error instanceof Error ? error.message : String(error) });
+      });
+    };
+
+    poll = async () => {
       if (cancelled || paused || activeController) return;
+      if (realtimeEnabled) pendingRealtimeRefresh = false;
       const pollStartedAt = Date.now();
       const pollNumber = ++pollCountRef.current;
       let nextPollDelay = 3000;
@@ -594,8 +690,11 @@ export default function GameBoard({
       activeController = pollController;
       const pollTimeout = setTimeout(() => pollController.abort(), 8000);
       try {
-        const game = await api.getGame(gameId, userId, pollController.signal);
+        const game = realtimeEnabled
+          ? await api.getGameSnapshot(gameId, pollController.signal)
+          : await api.getGame(gameId, userId, pollController.signal);
         if (cancelled || paused || pollController.signal.aborted) return;
+        activateRealtime(game);
         consecutivePollFailuresRef.current = 0;
         setConnectionWarningVisible(false);
         const isStillMember = !userId || game.members.some((member) => Number(member.id) === Number(userId));
@@ -731,7 +830,14 @@ export default function GameBoard({
         clearTimeout(pollTimeout);
         if (activeController === pollController) activeController = null;
         const requestDuration = Date.now() - pollStartedAt;
-        if (!cancelled && !paused) timer = setTimeout(poll, Math.max(0, nextPollDelay - requestDuration));
+        if (!cancelled && !paused) {
+          const shouldSchedule = pendingRealtimeRefresh || !strictRealtime;
+          const delay = pendingRealtimeRefresh
+            ? 0
+            : realtimeEnabled ? 30_000 : Math.max(0, nextPollDelay - requestDuration);
+          pendingRealtimeRefresh = false;
+          if (shouldSchedule) timer = setTimeout(() => void poll(), delay);
+        }
       }
     };
     if (!paused) void poll();
@@ -739,16 +845,26 @@ export default function GameBoard({
       paused = state !== 'active';
       if (paused) {
         if (timer) clearTimeout(timer);
+        if (heartbeatTimer) clearTimeout(heartbeatTimer);
+        if (realtimeRetryTimer) clearTimeout(realtimeRetryTimer);
         timer = null;
+        heartbeatTimer = null;
+        realtimeRetryTimer = null;
         activeController?.abort();
+        heartbeatController?.abort();
         return;
       }
       if (!cancelled && !activeController) void poll();
+      if (!cancelled && realtimeEnabled && !heartbeatController) void heartbeat();
     });
     return () => {
       cancelled = true;
       if (timer) clearTimeout(timer);
+      if (heartbeatTimer) clearTimeout(heartbeatTimer);
+      if (realtimeRetryTimer) clearTimeout(realtimeRetryTimer);
       activeController?.abort();
+      heartbeatController?.abort();
+      if (realtimeCleanup) void realtimeCleanup();
       appStateSubscription.remove();
       logGameAction('poll.stop', { gameId, polls: pollCountRef.current });
     };

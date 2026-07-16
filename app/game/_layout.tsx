@@ -123,10 +123,10 @@ export default function GameTabsLayout() {
     ? isBs ? 'KONAČNI POREDAK' : 'FINAL STANDINGS'
     : activePlayerName
     ? isBs
-      ? `${activePlayerName} JE NA POTEZU`
+      ? `${activePlayerName} IGRA`
       : `${activePlayerName}'S TURN`
     : isBs
-      ? 'IGRAČ JE NA POTEZU'
+      ? 'IGRAČ IGRA'
       : 'PLAYER TURN';
 
   useEffect(() => {
@@ -253,7 +253,7 @@ export default function GameTabsLayout() {
                 fontSize: 20,
                 letterSpacing: 2,
                 textAlign: 'left',
-                width: 144,
+                width: 190,
               }}
             >
               {turnTitle}

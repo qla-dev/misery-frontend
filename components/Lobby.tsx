@@ -2034,11 +2034,6 @@ export default function Lobby() {
                     );
                   })}
                 </ScrollView>
-                <View className="mt-2 flex-row justify-center" style={{ gap: 5 }}>
-                  {deckOptions.map((option) => (
-                    <View key={option.slug} className={`h-1.5 rounded-full ${selectedDeck === option.slug ? 'w-5 bg-amber-400' : 'w-1.5 bg-neutral-700'}`} />
-                  ))}
-                </View>
               </View>
             </Section>
 

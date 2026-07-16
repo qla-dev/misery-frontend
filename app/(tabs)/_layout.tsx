@@ -6,7 +6,7 @@ import HelpIcon from '@expo/material-symbols/help.xml';
 import VolumeOffIcon from '@expo/material-symbols/volume_off.xml';
 import VolumeUpIcon from '@expo/material-symbols/volume_up.xml';
 import { SFSymbol } from 'sf-symbols-typescript';
-import { useEffect } from 'react';
+import { memo, useEffect } from 'react';
 import { useGame } from '@/context/GameContext';
 import { playHaptic, setGameMusicMuted, setLobbyMusicActive } from '@/lib/sound';
 import { InfoModal } from '@/components/InfoModal';
@@ -14,6 +14,43 @@ import { InfoModal } from '@/components/InfoModal';
 function toolbarIcon(ios: SFSymbol, android: ImageSourcePropType) {
   return process.env.EXPO_OS === 'ios' ? ios : android;
 }
+
+const MAIN_TAB_SCREEN_LISTENERS = { tabPress: () => playHaptic() };
+const MAIN_TAB_ICON_COLOR = { default: '#737373', selected: '#fbbf24' };
+const MAIN_TAB_LABEL_STYLE = {
+  default: { color: '#737373', fontSize: 10, fontWeight: '900' as const },
+  selected: { color: '#fbbf24', fontSize: 10, fontWeight: '900' as const },
+};
+
+const MainNativeTabs = memo(function MainNativeTabs({ isBs }: { isBs: boolean }) {
+  return (
+    <NativeTabs
+      disableTransparentOnScrollEdge
+      screenListeners={MAIN_TAB_SCREEN_LISTENERS}
+      iconColor={MAIN_TAB_ICON_COLOR}
+      labelStyle={MAIN_TAB_LABEL_STYLE}
+      labelVisibilityMode="labeled"
+      tintColor="#fbbf24"
+    >
+      <NativeTabs.Trigger name="index" contentStyle={{ backgroundColor: '#0a0a0a' }} disableTransparentOnScrollEdge>
+        <NativeTabs.Trigger.Icon sf={{ default: 'bolt', selected: 'bolt.fill' } as any} md="bolt" />
+        <NativeTabs.Trigger.Label>{isBs ? 'Igra' : 'Play'}</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="rules" contentStyle={{ backgroundColor: '#0a0a0a' }} disableTransparentOnScrollEdge>
+        <NativeTabs.Trigger.Icon sf={{ default: 'book', selected: 'book.fill' } as any} md="menu_book" />
+        <NativeTabs.Trigger.Label>{isBs ? 'Pravila' : 'Rules'}</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="about" contentStyle={{ backgroundColor: '#0a0a0a' }} disableTransparentOnScrollEdge>
+        <NativeTabs.Trigger.Icon sf={{ default: 'info', selected: 'info.fill' } as any} md="info" />
+        <NativeTabs.Trigger.Label>{isBs ? 'O igri' : 'About'}</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="pro" contentStyle={{ backgroundColor: '#0a0a0a' }} disableTransparentOnScrollEdge>
+        <NativeTabs.Trigger.Icon sf={{ default: 'crown', selected: 'crown.fill' } as any} md="workspace_premium" />
+        <NativeTabs.Trigger.Label>Pro</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+    </NativeTabs>
+  );
+});
 
 export default function TabLayout() {
   const {
@@ -156,34 +193,7 @@ export default function TabLayout() {
         )}
       </Stack.Toolbar>
 
-      <NativeTabs
-        disableTransparentOnScrollEdge
-        screenListeners={{ tabPress: () => playHaptic() }}
-        iconColor={{ default: '#737373', selected: '#fbbf24' }}
-        labelStyle={{
-          default: { color: '#737373', fontSize: 10, fontWeight: '900' },
-          selected: { color: '#fbbf24', fontSize: 10, fontWeight: '900' },
-        }}
-        labelVisibilityMode="labeled"
-        tintColor="#fbbf24"
-      >
-        <NativeTabs.Trigger name="index" contentStyle={{ backgroundColor: '#0a0a0a' }} disableTransparentOnScrollEdge>
-          <NativeTabs.Trigger.Icon sf={{ default: 'bolt', selected: 'bolt.fill' } as any} md="bolt" />
-          <NativeTabs.Trigger.Label>{isBs ? 'Igra' : 'Play'}</NativeTabs.Trigger.Label>
-        </NativeTabs.Trigger>
-        <NativeTabs.Trigger name="rules" contentStyle={{ backgroundColor: '#0a0a0a' }} disableTransparentOnScrollEdge>
-          <NativeTabs.Trigger.Icon sf={{ default: 'book', selected: 'book.fill' } as any} md="menu_book" />
-          <NativeTabs.Trigger.Label>{isBs ? 'Pravila' : 'Rules'}</NativeTabs.Trigger.Label>
-        </NativeTabs.Trigger>
-        <NativeTabs.Trigger name="about" contentStyle={{ backgroundColor: '#0a0a0a' }} disableTransparentOnScrollEdge>
-          <NativeTabs.Trigger.Icon sf={{ default: 'info', selected: 'info.fill' } as any} md="info" />
-          <NativeTabs.Trigger.Label>{isBs ? 'O igri' : 'About'}</NativeTabs.Trigger.Label>
-        </NativeTabs.Trigger>
-        <NativeTabs.Trigger name="pro" contentStyle={{ backgroundColor: '#0a0a0a' }} disableTransparentOnScrollEdge>
-          <NativeTabs.Trigger.Icon sf={{ default: 'crown', selected: 'crown.fill' } as any} md="workspace_premium" />
-          <NativeTabs.Trigger.Label>Pro</NativeTabs.Trigger.Label>
-        </NativeTabs.Trigger>
-      </NativeTabs>
+      <MainNativeTabs isBs={isBs} />
       <InfoModal />
     </>
   );

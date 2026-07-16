@@ -47,21 +47,29 @@ export default function RootLayout() {
     FacebookSansBold: require('../assets/fonts/FacebookSansBold.ttf'),
   });
 
-  useEffect(() => {
-    if (loaded) SplashScreen.hideAsync();
-  }, [loaded]);
-
   if (!loaded) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider value={miseryTheme}>
         <GameProvider>
-          <RootStack />
+          <AppReadyGate />
         </GameProvider>
       </ThemeProvider>
     </GestureHandlerRootView>
   );
+}
+
+function AppReadyGate() {
+  const { settingsRestored } = useGame();
+
+  useEffect(() => {
+    if (settingsRestored) void SplashScreen.hideAsync();
+  }, [settingsRestored]);
+
+  if (!settingsRestored) return null;
+
+  return <RootStack />;
 }
 
 function RootStack() {

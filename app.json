@@ -12,7 +12,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "misery.qla.dev",
       "buildNumber": "20",
-      "icon": "./assets/images/icon.png",
+      "icon": "./assets/images/icon-ios.png",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocalNetworkUsageDescription": "Misery Meter connects to the local development game server.",

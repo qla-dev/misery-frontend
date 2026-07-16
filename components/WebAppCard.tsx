@@ -6,6 +6,10 @@ import { Card, Language } from '@/types';
 import { cardDescription, cardTitle } from '@/lib/cardText';
 
 const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
+const SCORE_FOOTER_HEIGHT = 104;
+const SCORE_TAB_HEIGHT = 70;
+const SCORE_TAB_BOTTOM = -2;
+const SCORE_LABEL_HEIGHT = SCORE_FOOTER_HEIGHT - SCORE_TAB_HEIGHT - SCORE_TAB_BOTTOM;
 
 type WebAppCardProps = {
   card: Card;
@@ -21,7 +25,7 @@ export function WebAppCard({ card, height, language, scoreRevealed = false, widt
   const title = cardTitle(card, language);
   const description = cardDescription(card, language);
   const artworkSize = Math.min(width * 0.76, height * 0.39);
-  const scoreSize = Math.min(112, width * 0.31);
+  const scoreTabWidth = Math.min(112, width * 0.31);
 
   useEffect(() => setImageFailed(false), [card.image]);
 
@@ -99,7 +103,7 @@ export function WebAppCard({ card, height, language, scoreRevealed = false, widt
         )}
       </View>
 
-      <View style={{ alignItems: 'center', paddingHorizontal: 12 }}>
+      <View style={{ alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10 }}>
         <Text
           adjustsFontSizeToFit
           minimumFontScale={0.72}
@@ -123,7 +127,6 @@ export function WebAppCard({ card, height, language, scoreRevealed = false, widt
               fontFamily: 'Outfit_400Regular',
               fontSize: 11,
               lineHeight: 16,
-              marginTop: 9,
               maxWidth: width * 0.72,
               textAlign: 'center',
             }}
@@ -134,25 +137,37 @@ export function WebAppCard({ card, height, language, scoreRevealed = false, widt
       </View>
 
       <View
+        pointerEvents="none"
         style={{
-          alignItems: 'center',
-          backgroundColor: scoreRevealed ? '#facc15' : '#f5f5f3',
-          borderRadius: scoreSize / 2,
-          bottom: -18,
-          height: scoreSize,
-          justifyContent: 'flex-start',
-          left: (width - scoreSize) / 2,
-          paddingTop: 16,
+          backgroundColor: '#000000',
+          bottom: 0,
+          height: SCORE_FOOTER_HEIGHT,
+          left: 0,
           position: 'absolute',
-          width: scoreSize,
+          right: 0,
         }}
-      >
-        <Text style={{ color: '#090909', fontFamily: 'BebasNeue_400Regular', fontSize: 43, lineHeight: 45 }}>
-          {scoreRevealed ? card.index.toFixed(2) : '?.??'}
-        </Text>
-        <Text style={{ color: '#090909', fontFamily: 'JetBrainsMono_700Bold', fontSize: 6, letterSpacing: 1.1 }}>
-          {isBs ? 'STOPA PATNJE' : 'MISERY RATE'}
-        </Text>
+      />
+      <View style={{ alignItems: 'center', bottom: 0, height: SCORE_FOOTER_HEIGHT, left: 0, position: 'absolute', right: 0 }}>
+        <View style={{ alignItems: 'center', height: SCORE_LABEL_HEIGHT, justifyContent: 'center', left: 0, position: 'absolute', right: 0, top: 0 }}>
+          <Text style={{ color: '#facc15', fontFamily: 'BebasNeue_400Regular', fontSize: 15, letterSpacing: 1.2, lineHeight: 17, textAlign: 'center', width: scoreTabWidth }}>
+            {isBs ? 'STOPA PATNJE' : 'MISERY RATE'}
+          </Text>
+        </View>
+        <View
+          style={{
+            alignItems: 'center',
+            backgroundColor: '#facc15',
+            bottom: SCORE_TAB_BOTTOM,
+            height: SCORE_TAB_HEIGHT,
+            justifyContent: 'center',
+            position: 'absolute',
+            width: scoreTabWidth,
+          }}
+        >
+          <Text style={{ color: '#090909', fontFamily: 'BebasNeue_400Regular', fontSize: 42, lineHeight: 70, textAlign: 'center', width: scoreTabWidth }}>
+            {scoreRevealed ? card.index.toFixed(2) : '?.??'}
+          </Text>
+        </View>
       </View>
     </LinearGradient>
   );

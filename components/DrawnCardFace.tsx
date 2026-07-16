@@ -5,6 +5,10 @@ import { Card, Language } from '@/types';
 import { cardDescription, cardTitle } from '@/lib/cardText';
 
 const DEFAULT_CARD_IMAGE = require('../assets/images/def-card.png');
+const SCORE_FOOTER_HEIGHT = 104;
+const SCORE_TAB_HEIGHT = 70;
+const SCORE_TAB_BOTTOM = -2;
+const SCORE_LABEL_HEIGHT = SCORE_FOOTER_HEIGHT - SCORE_TAB_HEIGHT - SCORE_TAB_BOTTOM;
 
 type DrawnCardFaceProps = {
   card: Card;
@@ -78,25 +82,25 @@ export function DrawnCardFace({
         pointerEvents="none"
         style={{ borderColor: 'rgba(250,204,21,0.35)', borderRadius: 11, borderWidth: 2, bottom: 9, left: 9, position: 'absolute', right: 9, top: 9, zIndex: 5 }}
       />
-      <View className="w-full items-center px-3 pt-8" style={{ zIndex: 2 }}>
-        <Text
-          adjustsFontSizeToFit
-          minimumFontScale={0.72}
-          numberOfLines={3}
-          style={{
-            color: '#f8f8f5',
-            fontFamily: 'BebasNeue_400Regular',
-            fontSize: titleFontSize,
-            letterSpacing: 0.7,
-            lineHeight: titleFontSize + 1,
-            paddingHorizontal: 12,
-            textAlign: 'center',
-            width: '100%',
-          }}
-        >
-          {localizedTitle}
-        </Text>
-        <View style={{ alignItems: 'center', height: 55, justifyContent: 'center', width: '100%' }}>
+      <View className="w-full items-center px-3" style={{ zIndex: 2 }}>
+        <View style={{ alignItems: 'center', gap: 10, marginTop: 22, paddingVertical: 10, width: '100%' }}>
+          <Text
+            adjustsFontSizeToFit
+            minimumFontScale={0.72}
+            numberOfLines={3}
+            style={{
+              color: '#f8f8f5',
+              fontFamily: 'BebasNeue_400Regular',
+              fontSize: titleFontSize,
+              letterSpacing: 0.7,
+              lineHeight: titleFontSize + 1,
+              paddingHorizontal: 12,
+              textAlign: 'center',
+              width: '100%',
+            }}
+          >
+            {localizedTitle}
+          </Text>
           {localizedDescription && (
             <Text
               numberOfLines={3}
@@ -163,7 +167,7 @@ export function DrawnCardFace({
           borderBottomLeftRadius: 18,
           borderBottomRightRadius: 18,
           bottom: 0,
-          height: 104,
+          height: SCORE_FOOTER_HEIGHT,
           left: 0,
           position: 'absolute',
           right: 0,
@@ -172,10 +176,10 @@ export function DrawnCardFace({
       />
       <View
         className="absolute items-center"
-        style={{ bottom: 0, height: 104, left: 0, right: 0, zIndex: 6 }}
+        style={{ bottom: 0, height: SCORE_FOOTER_HEIGHT, left: 0, right: 0, zIndex: 6 }}
       >
         <View
-          style={{ alignItems: 'center', height: 34, justifyContent: 'center', left: 0, position: 'absolute', right: 0, top: 0 }}
+          style={{ alignItems: 'center', height: SCORE_LABEL_HEIGHT, justifyContent: 'center', left: 0, position: 'absolute', right: 0, top: 0 }}
         >
           <Text
             adjustsFontSizeToFit
@@ -197,7 +201,7 @@ export function DrawnCardFace({
         </View>
         <LinearGradient
           colors={['#facc15', '#facc15']}
-          style={{ alignItems: 'center', bottom: -2, height: 70, justifyContent: 'center', padding: 8, position: 'absolute', width: scoreTabWidth }}
+          style={{ alignItems: 'center', bottom: SCORE_TAB_BOTTOM, height: SCORE_TAB_HEIGHT, justifyContent: 'center', padding: 8, position: 'absolute', width: scoreTabWidth }}
         >
           <Animated.Text
             className="text-neutral-950"

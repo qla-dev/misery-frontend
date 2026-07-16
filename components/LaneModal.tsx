@@ -4,11 +4,12 @@ import { Ban, BellRing, Check, Pause, Play, ShieldAlert, Square, X } from 'lucid
 import { playHaptic } from '@/lib/sound';
 import { LaneProgress, LaneProgressBadge } from '@/components/LaneProgressBadge';
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 type LaneModalProps = {
   failureMessage: string;
   failureTitle: string;
   onComplete?: () => void;
-  playerName?: string;
   laneProgress?: LaneProgress;
   success: boolean;
   successMessage: string;
@@ -28,7 +29,6 @@ export function LaneModal({
   failureMessage,
   failureTitle,
   onComplete,
-  playerName,
   laneProgress,
   success,
   successMessage,
@@ -129,8 +129,12 @@ export function LaneModal({
   const modalMessageStyle = {
     fontFamily: 'Outfit_700Bold',
     fontSize: 15,
+    includeFontPadding: true,
     lineHeight: 20,
   };
+  const contentGap = 10;
+  const message = success ? successMessage : failureMessage;
+  const title = success ? successTitle : failureTitle;
 
   return (
     <Modal
@@ -143,13 +147,18 @@ export function LaneModal({
       transparent
       visible={rendered && visible}
     >
-      <Animated.View
+      <AnimatedPressable
+        accessible={false}
         className={`flex-1 items-center justify-center px-8 ${neutral ? 'bg-white' : warning ? 'bg-amber-400' : success ? 'bg-emerald-500' : 'bg-red-500'}`}
+        onPress={() => {
+          playHaptic();
+          dismissRef.current();
+        }}
         style={{ opacity }}
       >
         <Animated.View
           className="items-center"
-          style={{ gap: 14, transform: [{ translateY: -31 }, { scale }, { rotate }] }}
+          style={{ gap: contentGap, transform: [{ translateY: -31 }, { scale }, { rotate }], width: '100%' }}
         >
           <View className={`${isScoredSteal ? 'h-44 w-44' : 'h-40 w-40'} items-center justify-center rounded-full border-[6px] ${darkForeground ? 'border-neutral-950 bg-neutral-950/5' : 'border-white bg-white/15'}`}>
             {holding ? (
@@ -209,32 +218,37 @@ export function LaneModal({
               dark={darkForeground}
               emphasized
               label={laneProgress.label}
+              playerName={laneProgress.playerName}
               target={laneProgress.target}
             />
           )}
-          <View className="items-center" style={{ gap: 14 }}>
-            {!laneProgress && (
+          {!laneProgress && title ? (
+            <View className="items-center justify-center" style={{ width: '100%' }}>
               <Text
                 className={`text-center font-black uppercase ${darkForeground ? 'text-neutral-950' : 'text-white'}`}
                 style={modalTitleStyle}
               >
-                {success ? successTitle : failureTitle}
+                {title}
               </Text>
-            )}
-            <Text
-              className={`text-center font-bold uppercase tracking-widest ${darkForeground ? 'text-neutral-950/65' : 'text-white/85'}`}
-              style={modalMessageStyle}
-            >
-              {success ? successMessage : failureMessage}
-            </Text>
-            {score !== undefined && !warning && (
-              <View className={`mt-2 rounded-xl border px-5 py-2 ${neutral ? 'border-neutral-950/20 bg-neutral-950/5' : 'border-white/40 bg-white/15'}`}>
-                <Text className={`text-center font-mono text-[9px] font-black uppercase tracking-[2px] ${neutral ? 'text-neutral-950/60' : 'text-white/75'}`}>
-                  {`${scoreLabel}  •  ${score.toFixed(2)}`}
-                </Text>
-              </View>
-            )}
-          </View>
+            </View>
+          ) : null}
+          {message ? (
+            <View className="items-center justify-center" style={{ width: '100%' }}>
+              <Text
+                className={`text-center font-bold uppercase tracking-widest ${darkForeground ? 'text-neutral-950/65' : 'text-white/85'}`}
+                style={modalMessageStyle}
+              >
+                {message}
+              </Text>
+            </View>
+          ) : null}
+          {score !== undefined && !warning ? (
+            <View className={`rounded-xl border px-5 py-2 ${neutral ? 'border-neutral-950/20 bg-neutral-950/5' : 'border-white/40 bg-white/15'}`}>
+              <Text className={`text-center font-mono text-[9px] font-black uppercase tracking-[2px] ${neutral ? 'text-neutral-950/60' : 'text-white/75'}`}>
+                {`${scoreLabel}  •  ${score.toFixed(2)}`}
+              </Text>
+            </View>
+          ) : null}
         </Animated.View>
         <View
           pointerEvents="box-none"
@@ -247,21 +261,13 @@ export function LaneModal({
             right: 0,
           }}
         >
-          {laneProgress ? (
+          {laneProgress && title ? (
             <Text
               className={`text-center font-black uppercase ${darkForeground ? 'text-neutral-950' : 'text-white'}`}
               numberOfLines={1}
               style={[modalTitleStyle, { marginBottom: -2 }]}
             >
-              {success ? successTitle : failureTitle}
-            </Text>
-          ) : playerName ? (
-            <Text
-              className={`text-center font-black uppercase ${darkForeground ? 'text-neutral-950' : 'text-white'}`}
-              numberOfLines={1}
-              style={modalTitleStyle}
-            >
-              {playerName}
+              {title}
             </Text>
           ) : null}
           <Pressable
@@ -284,7 +290,7 @@ export function LaneModal({
             <X color={darkForeground ? '#171717' : '#ffffff'} size={22} strokeWidth={2.6} />
           </Pressable>
         </View>
-      </Animated.View>
+      </AnimatedPressable>
     </Modal>
   );
 }

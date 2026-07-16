@@ -87,7 +87,8 @@ export default function GameTabsLayout() {
   const laneResultAddsCard = laneResult === 'success' || laneResult === 'steal';
   const laneResultProgress = laneResultPlayerName
     ? {
-        label: isBs ? `STAZA OD ${laneResultPlayerName}` : `LANE OF ${laneResultPlayerName}`,
+        label: isBs ? 'STAZA OD' : 'LANE OF',
+        playerName: laneResultPlayerName,
         count: laneResultCardsAdded,
         target: laneCardsNeeded,
         addsCard: laneResultAddsCard,

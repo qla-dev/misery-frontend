@@ -218,7 +218,13 @@ export function RulebookContent({ compact = false }: { compact?: boolean }) {
     let active = true;
     api.getCards()
       .then((cards) => {
-        if (active) setApiCards(cards.map(toLocalCard).filter((card) => Number.isFinite(card.index)));
+        if (active) {
+          setApiCards(
+            cards
+              .map(toLocalCard)
+              .filter((card) => Number.isFinite(card.index) && Boolean(card.image)),
+          );
+        }
       })
       .catch((error) => console.warn('[Rulebook] Real cards unavailable; using bundled cards.', error));
     return () => { active = false; };

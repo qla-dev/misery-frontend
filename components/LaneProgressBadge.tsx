@@ -2,8 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Text, View } from 'react-native';
 
 export type LaneProgress = {
-  /** Leading text, e.g. "LANE OF ALEX". */
+  /** Leading text, e.g. "LANE OF". */
   label: string;
+  /** Optional player shown beside the counter in the conditional player row. */
+  playerName?: string;
   /** Cards already in the lane, before this move's card is added. */
   count: number;
   /** Cards needed to win (target score). */
@@ -22,7 +24,7 @@ type LaneProgressBadgeProps = LaneProgress & {
  * When a card is added it animates a "+1" that fades in above the count digit,
  * then blends down into it while the count ticks up (0 -> 1).
  */
-export function LaneProgressBadge({ label, count, target, addsCard, dark = false, emphasized = false }: LaneProgressBadgeProps) {
+export function LaneProgressBadge({ label, playerName, count, target, addsCard, dark = false, emphasized = false }: LaneProgressBadgeProps) {
   const [displayCount, setDisplayCount] = useState(count);
   const plusOpacity = useRef(new Animated.Value(0)).current;
   const plusTranslate = useRef(new Animated.Value(0)).current;
@@ -99,13 +101,17 @@ export function LaneProgressBadge({ label, count, target, addsCard, dark = false
 
   const color = dark ? '#0a0a0a' : '#ffffff';
   const labelParts = label.match(/^(LANE OF|STAZA OD)\s+(.+)$/iu);
-  const shouldWrapLabel = emphasized && label.length > 16 && labelParts !== null;
   const emphasizedStyle = emphasized
     ? { fontFamily: 'BebasNeue_400Regular', fontSize: 48, includeFontPadding: false, letterSpacing: 1.2, lineHeight: 50 }
     : undefined;
   const emphasizedLabelStyle = emphasized
-    ? { fontFamily: 'BebasNeue_400Regular', fontSize: 48, includeFontPadding: true, letterSpacing: 1.2, lineHeight: 58 }
+    ? { fontFamily: 'BebasNeue_400Regular', fontSize: 48, includeFontPadding: false, letterSpacing: 1.2, lineHeight: 50 }
     : undefined;
+  const prefixStyle = emphasized
+    ? { fontFamily: 'BebasNeue_400Regular', fontSize: 48, includeFontPadding: false, letterSpacing: 1.2, lineHeight: 50 }
+    : undefined;
+  const prefix = labelParts?.[1] ?? label;
+  const resolvedPlayerName = playerName ?? labelParts?.[2] ?? null;
 
   const counter = (
     <>
@@ -151,50 +157,33 @@ export function LaneProgressBadge({ label, count, target, addsCard, dark = false
   );
 
   return (
-    <View style={{ minHeight: 50, paddingHorizontal: 8, width: '100%' }}>
-      {shouldWrapLabel ? (
+    <View style={{ gap: 0, marginTop: 14, width: '100%' }}>
+      {prefix ? (
         <View className="items-center justify-center" style={{ width: '100%' }}>
           <Text
-            adjustsFontSizeToFit
-            className="text-center text-4xl font-black uppercase tracking-wider"
-            minimumFontScale={0.72}
+            className="text-center font-black uppercase"
             numberOfLines={1}
-            style={[{ color, textAlign: 'center', width: '100%' }, emphasizedLabelStyle]}
+            style={[{ color, textAlign: 'center', width: '100%' }, prefixStyle]}
           >
-            {labelParts?.[1]}
+            {prefix}
           </Text>
-          <View className="items-center justify-center" style={{ width: '100%' }}>
-            <View
-              className="flex-row items-end justify-center"
-              style={{ alignSelf: 'center', maxWidth: '100%' }}
-            >
-              <Text
-                adjustsFontSizeToFit
-                className="text-center text-4xl font-black uppercase tracking-wider"
-                minimumFontScale={0.55}
-                numberOfLines={1}
-                style={[{ color, flexShrink: 1, marginRight: 8, textAlign: 'center' }, emphasizedLabelStyle]}
-              >
-                {labelParts?.[2]}
-              </Text>
-              {counter}
-            </View>
-          </View>
         </View>
-      ) : (
-        <View className="flex-row items-end justify-center">
-          <Text
-            adjustsFontSizeToFit
-            className="text-4xl font-black uppercase tracking-wider"
-            minimumFontScale={0.55}
-            numberOfLines={1}
-            style={[{ color, flexShrink: 1, marginRight: 8, textAlign: 'right' }, emphasizedLabelStyle]}
-          >
-            {label}
-          </Text>
+      ) : null}
+      <View className="items-center justify-center" style={{ paddingHorizontal: 8, width: '100%' }}>
+        <View className="flex-row items-end justify-center" style={{ alignSelf: 'center', maxWidth: '100%', width: '100%' }}>
+          {resolvedPlayerName ? (
+            <Text
+              className="text-4xl font-black uppercase tracking-wider"
+              ellipsizeMode="tail"
+              numberOfLines={1}
+              style={[{ color, flex: 1, marginRight: 8, minWidth: 0, textAlign: 'right' }, emphasizedLabelStyle]}
+            >
+              {resolvedPlayerName}
+            </Text>
+          ) : null}
           {counter}
         </View>
-      )}
+      </View>
     </View>
   );
 }

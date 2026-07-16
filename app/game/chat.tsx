@@ -2,9 +2,11 @@ import { ChatComposer } from '@/components/ChatComposer';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { useGame } from '@/context/GameContext';
 import { ApiChatMessage } from '@/lib/api';
+import { CHAT_LAYOUT_DEBUG } from '@/lib/chatDebug';
 import { playHaptic } from '@/lib/sound';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, FlatList, Keyboard, KeyboardAvoidingView, Platform, Pressable, Text, TouchableWithoutFeedback, View } from 'react-native';
+import { Alert, FlatList, ImageBackground, Keyboard, KeyboardAvoidingView, Platform, Pressable, Text, TouchableWithoutFeedback, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Flag } from 'lucide-react-native';
 
@@ -12,6 +14,50 @@ const PLAYER_COLORS: Record<string, string> = {
   yellow: '#facc15', blue: '#60a5fa', emerald: '#10b981', purple: '#c084fc',
   rose: '#fb7185', red: '#ef4444', orange: '#f97316', brown: '#a16207', silver: '#d4d4d4',
 };
+
+const DEBUG_CURRENT_USER_ID = 9001;
+const DEBUG_MESSAGES: ApiChatMessage[] = [
+  {
+    id: 1,
+    game_id: 1,
+    user_id: 9002,
+    message: 'Jesi spreman?',
+    user: { id: 9002, name: 'Kila', email: null, color: 'purple' },
+    created_at: new Date(Date.now() - 7 * 60_000).toISOString(),
+  },
+  {
+    id: 2,
+    game_id: 1,
+    user_id: 9002,
+    message: 'Ovo ide prenisko.',
+    user: { id: 9002, name: 'Kila', email: null, color: 'purple' },
+    created_at: new Date(Date.now() - 6 * 60_000).toISOString(),
+  },
+  {
+    id: 3,
+    game_id: 1,
+    user_id: DEBUG_CURRENT_USER_ID,
+    message: 'Ne bih rekao.',
+    user: { id: DEBUG_CURRENT_USER_ID, name: 'Ti', email: null, color: 'yellow' },
+    created_at: new Date(Date.now() - 5 * 60_000).toISOString(),
+  },
+  {
+    id: 4,
+    game_id: 1,
+    user_id: 9003,
+    message: 'Stavi ga između.',
+    user: { id: 9003, name: 'Mia', email: null, color: 'rose' },
+    created_at: new Date(Date.now() - 3 * 60_000).toISOString(),
+  },
+  {
+    id: 5,
+    game_id: 1,
+    user_id: DEBUG_CURRENT_USER_ID,
+    message: 'Idemo probati.',
+    user: { id: DEBUG_CURRENT_USER_ID, name: 'Ti', email: null, color: 'yellow' },
+    created_at: new Date(Date.now() - 60_000).toISOString(),
+  },
+];
 
 function playerColor(value?: string | null) {
   if (!value) return '#facc15';
@@ -28,17 +74,30 @@ export default function ChatScreen() {
   const { gameRuntime, language, session } = useGame();
   const insets = useSafeAreaInsets();
   const isBs = language === 'bs';
-  const hiddenMessageIds: number[] = gameRuntime?.hiddenChatMessageIds ?? [];
-  const messages: ApiChatMessage[] = (gameRuntime?.chatMessages ?? [])
+  const [debugMessages, setDebugMessages] = useState<ApiChatMessage[]>(DEBUG_MESSAGES);
+  const [debugHiddenMessageIds, setDebugHiddenMessageIds] = useState<number[]>([]);
+  const hiddenMessageIds: number[] = CHAT_LAYOUT_DEBUG
+    ? debugHiddenMessageIds
+    : gameRuntime?.hiddenChatMessageIds ?? [];
+  const sourceMessages = CHAT_LAYOUT_DEBUG ? debugMessages : gameRuntime?.chatMessages ?? [];
+  const messages: ApiChatMessage[] = sourceMessages
     .filter((message: ApiChatMessage) => !hiddenMessageIds.includes(message.id));
-  const currentUserId = session?.userId;
+  const currentUserId = CHAT_LAYOUT_DEBUG ? DEBUG_CURRENT_USER_ID : session?.userId;
   const listRef = useRef<FlatList<ApiChatMessage>>(null);
   const [selectedMessage, setSelectedMessage] = useState<ApiChatMessage | null>(null);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   useEffect(() => {
-    const showSubscription = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
-    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSubscription = Keyboard.addListener(showEvent, (event) => {
+      Keyboard.scheduleLayoutAnimation(event);
+      setKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener(hideEvent, (event) => {
+      Keyboard.scheduleLayoutAnimation(event);
+      setKeyboardVisible(false);
+    });
     return () => {
       showSubscription.remove();
       hideSubscription.remove();
@@ -51,6 +110,21 @@ export default function ChatScreen() {
   }, [keyboardVisible]);
 
   const send = async (message: string) => {
+    if (CHAT_LAYOUT_DEBUG) {
+      setDebugMessages((current) => [
+        ...current,
+        {
+          id: Math.max(0, ...current.map((item) => item.id)) + 1,
+          game_id: 1,
+          user_id: DEBUG_CURRENT_USER_ID,
+          message,
+          user: { id: DEBUG_CURRENT_USER_ID, name: 'Ti', email: null, color: 'yellow' },
+          created_at: new Date().toISOString(),
+        },
+      ]);
+      return;
+    }
+
     try {
       if (!gameRuntime?.sendChatMessage) throw new Error(isBs ? 'Chat još nije spreman.' : 'Chat is not ready yet.');
       await gameRuntime.sendChatMessage(message);
@@ -66,7 +140,11 @@ export default function ChatScreen() {
   const reportSelectedMessage = () => {
     if (!selectedMessage) return;
     const playerName = selectedMessage.user?.name ?? (isBs ? 'Igrač' : 'Player');
-    gameRuntime?.reportChatMessageLocally?.(selectedMessage.id);
+    if (CHAT_LAYOUT_DEBUG) {
+      setDebugHiddenMessageIds((current) => [...current, selectedMessage.id]);
+    } else {
+      gameRuntime?.reportChatMessageLocally?.(selectedMessage.id);
+    }
     setSelectedMessage(null);
     Alert.alert(
       isBs ? 'PRIJAVA ZABILJEŽENA' : 'REPORT RECORDED',
@@ -77,15 +155,43 @@ export default function ChatScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={0}
-      style={{ backgroundColor: '#09090b', flex: 1 }}
+    <ImageBackground
+      resizeMode="cover"
+      source={require('../../assets/bg/wp6442276.jpg')}
+      style={{ flex: 1 }}
     >
+      <View
+        pointerEvents="none"
+        style={{
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          bottom: 0,
+          left: 0,
+          position: 'absolute',
+          right: 0,
+          top: 0,
+        }}
+      />
+      <LinearGradient
+        colors={['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.45)', 'rgba(0,0,0,0)']}
+        locations={[0, 0.5, 1]}
+        pointerEvents="none"
+        style={{
+          height: insets.top + 105,
+          left: 0,
+          position: 'absolute',
+          right: 0,
+          top: 0,
+        }}
+      />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+        style={{ flex: 1 }}
+      >
       <TouchableWithoutFeedback accessible={false} onPress={Keyboard.dismiss}>
         <FlatList
           ref={listRef}
-          contentContainerStyle={{ flexGrow: 1, justifyContent: messages.length ? 'flex-end' : 'center', paddingBottom: keyboardVisible ? 8 : 62 + Math.max(insets.bottom, 16), paddingHorizontal: 16, paddingTop: insets.top + 56 }}
+          contentContainerStyle={{ flexGrow: 1, justifyContent: messages.length ? 'flex-end' : 'center', paddingBottom: 8, paddingHorizontal: 16, paddingTop: insets.top + 56 }}
           data={messages}
           keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           keyboardShouldPersistTaps="never"
@@ -125,7 +231,7 @@ export default function ChatScreen() {
                   borderRadius: 14,
                   borderTopLeftRadius: !own && startsGroup ? 4 : 14,
                   borderTopRightRadius: own && startsGroup ? 4 : 14,
-                  borderWidth: 1,
+                  borderWidth: 0,
                   maxWidth: '84%',
                   minWidth: 72,
                   paddingBottom: 7,
@@ -155,14 +261,10 @@ export default function ChatScreen() {
       </TouchableWithoutFeedback>
       <View
         style={{
-          backgroundColor: '#000000',
-          bottom: keyboardVisible ? undefined : 0,
-          left: keyboardVisible ? undefined : 0,
-          paddingBottom: keyboardVisible ? 16 : Math.max(insets.bottom, 16),
+          backgroundColor: 'rgba(9,9,11,0.96)',
+          paddingBottom: keyboardVisible ? 8 : Math.max(insets.bottom, 10),
           paddingHorizontal: 20,
-          paddingTop: 16,
-          position: keyboardVisible ? 'relative' : 'absolute',
-          right: keyboardVisible ? undefined : 0,
+          paddingTop: keyboardVisible ? 8 : 10,
           width: '100%',
           zIndex: 30,
         }}
@@ -199,6 +301,7 @@ export default function ChatScreen() {
           </Text>
         </View>
       </ConfirmModal>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </ImageBackground>
   );
 }

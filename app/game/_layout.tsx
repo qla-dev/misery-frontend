@@ -357,6 +357,7 @@ export default function GameTabsLayout() {
           gameRuntime?.dismissInactivityWarning?.();
           router.replace(gameRuntime?.isDrawnCardFlipped ? '/game/lane' : '/game');
         }}
+        onChatNotificationPress={() => router.push('/game/chat')}
         onUnreadMessages={handleUnreadMessages}
         onLaneResultComplete={() => {
           setLaneResult(null);

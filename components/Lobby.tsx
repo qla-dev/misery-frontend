@@ -1459,7 +1459,11 @@ export default function Lobby() {
                     accessibilityLabel={isBs ? 'Pridruži se sobi' : 'Join room'}
                     accessibilityRole="button"
                     className="h-full w-full items-center justify-center"
-                    onPress={() => void handleJoinWithCode(game.code)}
+                    onPress={() => {
+                      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      playSound('click');
+                      void handleJoinWithCode(game.code);
+                    }}
                   >
                     <ChevronRight color="#d4d4d4" size={20} strokeWidth={2.5} />
                   </Pressable>

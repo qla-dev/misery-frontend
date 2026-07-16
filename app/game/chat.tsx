@@ -128,7 +128,7 @@ export default function ChatScreen() {
           keyboardShouldPersistTaps="never"
           keyExtractor={(item) => String(item.id)}
           ListEmptyComponent={(
-            <View style={{ alignItems: 'center', paddingHorizontal: 32 }}>
+            <View style={{ alignItems: 'center', paddingHorizontal: 32, transform: [{ translateY: -20 }] }}>
               <Text style={{ color: '#737373', fontFamily: 'Outfit_600SemiBold', fontSize: 14, textAlign: 'center' }}>
                 {isBs ? 'Još nema poruka. Započni razgovor.' : 'No messages yet. Start the conversation.'}
               </Text>

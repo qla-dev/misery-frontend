@@ -1,6 +1,7 @@
 import { BlurView } from 'expo-blur';
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, PanResponder, StyleProp, Text, View, ViewStyle } from 'react-native';
+import { Animated, PanResponder, Platform, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { FullWindowOverlay } from 'react-native-screens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ToastProps {
@@ -10,10 +11,11 @@ interface ToastProps {
   icon?: ReactNode;
   autoClose?: boolean;
   onClose?: () => void;
+  onPress?: () => void;
   style?: StyleProp<ViewStyle>;
 }
 
-export function Toast({ visible, title, subtitle, icon, autoClose = true, onClose, style }: ToastProps) {
+export function Toast({ visible, title, subtitle, icon, autoClose = true, onClose, onPress, style }: ToastProps) {
   const insets = useSafeAreaInsets();
   const [autoClosed, setAutoClosed] = useState(false);
   const progress = useRef(new Animated.Value(visible ? 1 : 0)).current;
@@ -104,7 +106,7 @@ export function Toast({ visible, title, subtitle, icon, autoClose = true, onClos
     },
   }), [dismissFromSwipe, dragY, presented]);
 
-  return (
+  const toast = (
     <Animated.View
       {...panResponder.panHandlers}
       accessibilityLiveRegion="polite"
@@ -117,7 +119,7 @@ export function Toast({ visible, title, subtitle, icon, autoClose = true, onClos
           opacity: progress,
           position: 'absolute',
           right: 12,
-          top: insets.top + 8,
+          top: insets.top - 2,
           transform: [{
             translateY: Animated.add(
               progress.interpolate({ inputRange: [0, 1], outputRange: [-28, 0] }),
@@ -129,7 +131,32 @@ export function Toast({ visible, title, subtitle, icon, autoClose = true, onClos
         style,
       ]}
     >
-      <BlurView
+      {onPress ? (
+        <Pressable accessibilityRole="button" onPress={onPress}>
+          <ToastContent icon={icon} subtitle={subtitle} title={title} />
+        </Pressable>
+      ) : (
+        <ToastContent icon={icon} subtitle={subtitle} title={title} />
+      )}
+    </Animated.View>
+  );
+
+  if (Platform.OS === 'ios') {
+    return (
+      <FullWindowOverlay>
+        <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+          {toast}
+        </View>
+      </FullWindowOverlay>
+    );
+  }
+
+  return toast;
+}
+
+function ToastContent({ icon, subtitle, title }: Pick<ToastProps, 'icon' | 'subtitle' | 'title'>) {
+  return (
+    <BlurView
         intensity={62}
         tint="dark"
         style={{
@@ -181,7 +208,6 @@ export function Toast({ visible, title, subtitle, icon, autoClose = true, onClos
             ) : null}
           </View>
         </View>
-      </BlurView>
-    </Animated.View>
+    </BlurView>
   );
 }

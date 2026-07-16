@@ -31,6 +31,7 @@ type GameActionQueueProps = {
   laneSuccessMessage: string;
   lastResultCardScore?: number | null;
   onInactivityComplete: () => void;
+  onChatNotificationPress: () => void;
   onUnreadMessages: (count: number) => void;
   onLaneResultComplete: () => void;
   onRoomExitComplete: () => void;
@@ -62,6 +63,7 @@ export function GameActionQueue({
   laneSuccessMessage,
   lastResultCardScore,
   onInactivityComplete,
+  onChatNotificationPress,
   onUnreadMessages,
   onLaneResultComplete,
   onRoomExitComplete,
@@ -185,6 +187,10 @@ export function GameActionQueue({
         key={activeChatNotification?.id ?? 'no-chat-notification'}
         icon={<MessageCircle color="#fbbf24" size={21} strokeWidth={2.3} />}
         onClose={() => setChatNotifications((current) => current.slice(1))}
+        onPress={() => {
+          setChatNotifications((current) => current.slice(1));
+          onChatNotificationPress();
+        }}
         subtitle={activeChatNotification?.message}
         title={activeChatNotification?.user?.name ?? (isBs ? 'Nova poruka' : 'New message')}
         visible={Boolean(activeChatNotification && chatNotificationsEnabled && !gameplayActionPending && !toastBlocked)}

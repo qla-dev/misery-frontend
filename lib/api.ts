@@ -107,7 +107,7 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = DEFAULT_
 }
 
 export const api = {
-  health: () => request<{ status: 'ok'; timestamp: string }>('/health', undefined, 6_000),
+  health: (signal?: AbortSignal) => request<{ status: 'ok'; timestamp: string }>('/health', { signal }, 6_000),
   getCards: () => request<ApiCard[]>('/cards'),
   signInWithGoogle: (idToken: string) => request<SocialAuthResponse>('/auth/google', { method: 'POST', body: JSON.stringify({ id_token: idToken }) }),
   signInWithApple: (identityToken: string, fullName?: string) => request<SocialAuthResponse>('/auth/apple', { method: 'POST', body: JSON.stringify({ identity_token: identityToken, full_name: fullName || undefined }) }),
@@ -120,7 +120,7 @@ export const api = {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
   }),
-  listAvailableGames: () => request<ApiGame[]>('/games'),
+  listAvailableGames: (signal?: AbortSignal) => request<ApiGame[]>('/games', { signal }, 8_000),
   getQuestions: (filters: { category?: string; difficulty?: number; limit?: number } = {}) => {
     const query = new URLSearchParams();
     if (filters.category) query.set('category', filters.category);
@@ -140,7 +140,7 @@ export const api = {
     if (!normalizedCode) throw new Error('Enter a room code.');
     return request<{ game: ApiGame; user: ApiUser; color_changed: boolean }>(`/games/code/${encodeURIComponent(normalizedCode)}/join`, { method: 'POST', body: JSON.stringify({ name, color }) });
   },
-  getGame: (id: number, userId?: number | null, signal?: AbortSignal) => request<ApiGame>(`/games/${id}${userId ? `?user_id=${encodeURIComponent(String(userId))}` : ''}`, { signal }),
+  getGame: (id: number, userId?: number | null, signal?: AbortSignal) => request<ApiGame>(`/games/${id}${userId ? `?user_id=${encodeURIComponent(String(userId))}` : ''}`, { signal }, 8_000),
   setHostLobbyPresence: (id: number, userId: number, present: boolean) => request<ApiGame>(`/games/${id}/host-lobby-presence`, { method: 'POST', body: JSON.stringify({ user_id: userId, present }) }),
   lockLobbyRoom: (id: number, userId: number, proActive: boolean) => request<ApiGame>(`/games/${id}/lock`, {
     method: 'POST',
@@ -149,10 +149,10 @@ export const api = {
   kickLobbyPlayer: (id: number, userId: number, playerId: number) => request<ApiGame>(`/games/${id}/kick`, { method: 'POST', body: JSON.stringify({ user_id: userId, player_id: playerId }) }),
   deleteGame: (id: number) => request<void>(`/games/${id}`, { method: 'DELETE' }),
   startGame: (id: number, userId: number, stack: string, targetScore: number) => request<ApiGame>(`/games/${id}/start`, { method: 'POST', body: JSON.stringify({ user_id: userId, stack, target_score: targetScore }) }, 12_000),
-  submitMove: (id: number, playerId: number, correct: boolean) => request<{ game: ApiGame }>(`/games/${id}/moves`, { method: 'POST', body: JSON.stringify({ player_id: playerId, correct }) }),
-  sendChatMessage: (id: number, userId: number, message: string) => request<ApiChatMessage>(`/games/${id}/messages`, { method: 'POST', body: JSON.stringify({ user_id: userId, message }) }),
-  finishTurn: (id: number, playerId: number) => request<{ game: ApiGame }>(`/games/${id}/finish-turn`, { method: 'POST', body: JSON.stringify({ player_id: playerId }) }),
-  passSteal: (id: number, playerId: number) => request<{ game: ApiGame }>(`/games/${id}/pass-steal`, { method: 'POST', body: JSON.stringify({ player_id: playerId }) }),
-  expireInactivePlayer: (id: number, userId: number) => request<ApiGame>(`/games/${id}/inactivity-timeout`, { method: 'POST', body: JSON.stringify({ user_id: userId }) }),
-  leaveGame: (id: number, userId: number) => request<ApiGame>(`/games/${id}/leave`, { method: 'POST', body: JSON.stringify({ user_id: userId }) }),
+  submitMove: (id: number, playerId: number, correct: boolean) => request<{ game: ApiGame }>(`/games/${id}/moves`, { method: 'POST', body: JSON.stringify({ player_id: playerId, correct }) }, 10_000),
+  sendChatMessage: (id: number, userId: number, message: string) => request<ApiChatMessage>(`/games/${id}/messages`, { method: 'POST', body: JSON.stringify({ user_id: userId, message }) }, 10_000),
+  finishTurn: (id: number, playerId: number) => request<{ game: ApiGame }>(`/games/${id}/finish-turn`, { method: 'POST', body: JSON.stringify({ player_id: playerId }) }, 10_000),
+  passSteal: (id: number, playerId: number) => request<{ game: ApiGame }>(`/games/${id}/pass-steal`, { method: 'POST', body: JSON.stringify({ player_id: playerId }) }, 10_000),
+  expireInactivePlayer: (id: number, userId: number) => request<ApiGame>(`/games/${id}/inactivity-timeout`, { method: 'POST', body: JSON.stringify({ user_id: userId }) }, 10_000),
+  leaveGame: (id: number, userId: number) => request<ApiGame>(`/games/${id}/leave`, { method: 'POST', body: JSON.stringify({ user_id: userId }) }, 8_000),
 };

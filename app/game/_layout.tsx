@@ -380,15 +380,12 @@ export default function GameTabsLayout() {
       <ConfirmModal
         cancelLabel={isBs ? 'NAPUSTI IGRU' : 'LEAVE GAME'}
         confirmLabel={isBs ? 'NASTAVI IGRU' : 'KEEP PLAYING'}
-        onCancel={async () => {
+        onCancel={() => {
           setIsExitConfirmOpen(false);
-          try {
-            const exitWillBeQueued = await gameRuntime?.leaveActiveGame?.();
-            if (!exitWillBeQueued) returnToGameSettings();
-          } catch (error) {
-            console.warn('[LeaveGame] Server leave failed; local exit will continue', error);
-            returnToGameSettings();
-          }
+          const leaveRequest = gameRuntime?.leaveActiveGame?.();
+          returnToGameSettings();
+          void Promise.resolve(leaveRequest)
+            .catch((error) => console.warn('[LeaveGame] Server leave failed after local exit', error));
         }}
         onConfirm={() => setIsExitConfirmOpen(false)}
         onRequestClose={() => setIsExitConfirmOpen(false)}

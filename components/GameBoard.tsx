@@ -3,7 +3,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { AlertOctagon, Crown, Loader2, Medal, Trophy, X } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { Animated, Easing, LayoutAnimation, Modal, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { Animated, AppState, Easing, LayoutAnimation, Modal, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { Card, Player, Language, GameState, GameMode } from '@/types';
 import { CARD_DECK } from '@/data/cards';
 import Illustration from './Illustration';
@@ -582,15 +582,20 @@ export default function GameBoard({
     if (!gameId) return;
     logGameAction('poll.start', { gameId, userId });
     let cancelled = false;
+    let paused = AppState.currentState !== 'active';
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let activeController: AbortController | null = null;
     const poll = async () => {
+      if (cancelled || paused || activeController) return;
       const pollStartedAt = Date.now();
       const pollNumber = ++pollCountRef.current;
       let nextPollDelay = 3000;
       const pollController = new AbortController();
+      activeController = pollController;
       const pollTimeout = setTimeout(() => pollController.abort(), 8000);
       try {
         const game = await api.getGame(gameId, userId, pollController.signal);
+        if (cancelled || paused || pollController.signal.aborted) return;
         consecutivePollFailuresRef.current = 0;
         setConnectionWarningVisible(false);
         const isStillMember = !userId || game.members.some((member) => Number(member.id) === Number(userId));
@@ -709,6 +714,7 @@ export default function GameBoard({
           });
         }
       } catch (error) {
+        if (cancelled || paused) return;
         consecutivePollFailuresRef.current += 1;
         const timedOut = error instanceof Error && error.name === 'AbortError';
         logGameAction('poll.failure', {
@@ -723,14 +729,27 @@ export default function GameBoard({
         }
       } finally {
         clearTimeout(pollTimeout);
+        if (activeController === pollController) activeController = null;
+        const requestDuration = Date.now() - pollStartedAt;
+        if (!cancelled && !paused) timer = setTimeout(poll, Math.max(0, nextPollDelay - requestDuration));
       }
-      const requestDuration = Date.now() - pollStartedAt;
-      if (!cancelled) timer = setTimeout(poll, Math.max(0, nextPollDelay - requestDuration));
     };
-    void poll();
+    if (!paused) void poll();
+    const appStateSubscription = AppState.addEventListener('change', (state) => {
+      paused = state !== 'active';
+      if (paused) {
+        if (timer) clearTimeout(timer);
+        timer = null;
+        activeController?.abort();
+        return;
+      }
+      if (!cancelled && !activeController) void poll();
+    });
     return () => {
       cancelled = true;
       if (timer) clearTimeout(timer);
+      activeController?.abort();
+      appStateSubscription.remove();
       logGameAction('poll.stop', { gameId, polls: pollCountRef.current });
     };
   }, [gameId]);
@@ -914,15 +933,10 @@ export default function GameBoard({
     });
   };
 
-  const leaveActiveGame = async () => {
-    if (!gameId || !userId) return false;
+  const leaveActiveGame = () => {
+    if (!gameId || !userId) return Promise.resolve(false);
     logGameAction('room.leave-requested', { gameId, userId });
-    const game = await api.leaveGame(gameId, userId);
-    if (!game.terminated_at) return false;
-    const reason = game.termination_reason ?? 'host_left';
-    setRoomExitReason(reason);
-    logGameAction('room.exit-queued', { gameId, reason, userId });
-    return true;
+    return api.leaveGame(gameId, userId).then(() => true);
   };
 
   const handleLaneResultFadeComplete = () => {

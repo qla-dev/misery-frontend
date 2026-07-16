@@ -592,20 +592,28 @@ export default function Lobby() {
   useEffect(() => {
     if (lobbyView !== 'WELCOME') return undefined;
     let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let controller: AbortController | null = null;
     setServerHealth('checking');
     const checkHealth = async () => {
+      if (cancelled || controller) return;
+      const requestController = new AbortController();
+      controller = requestController;
       try {
-        const health = await api.health();
+        const health = await api.health(requestController.signal);
         if (!cancelled) setServerHealth(health.status === 'ok' ? 'online' : 'offline');
       } catch {
-        if (!cancelled) setServerHealth('offline');
+        if (!cancelled && !requestController.signal.aborted) setServerHealth('offline');
+      } finally {
+        if (controller === requestController) controller = null;
+        if (!cancelled) timer = setTimeout(checkHealth, 15_000);
       }
     };
     void checkHealth();
-    const timer = setInterval(checkHealth, 15_000);
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      if (timer) clearTimeout(timer);
+      controller?.abort();
     };
   }, [lobbyView]);
 
@@ -629,18 +637,28 @@ export default function Lobby() {
       return;
     }
     let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let controller: AbortController | null = null;
     const pollAvailableGames = async () => {
+      if (cancelled || controller) return;
+      const requestController = new AbortController();
+      controller = requestController;
       try {
-        const games = await api.listAvailableGames();
+        const games = await api.listAvailableGames(requestController.signal);
+        if (cancelled || requestController.signal.aborted) return;
         logLobbyTransition('available-games-received', { count: games.length, lobbyView });
-        if (!cancelled) setAvailableGames(games.filter((game) => !game.started && !game.terminated_at && game.members.length < 8));
-      } catch { /* Retry on the next fixed lobby poll. */ }
+        setAvailableGames(games.filter((game) => !game.started && !game.terminated_at && game.members.length < 8));
+      } catch { /* Retry after the current request has settled. */ }
+      finally {
+        if (controller === requestController) controller = null;
+        if (!cancelled) timer = setTimeout(pollAvailableGames, 3000);
+      }
     };
     void pollAvailableGames();
-    const timer = setInterval(pollAvailableGames, 3000);
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      if (timer) clearTimeout(timer);
+      controller?.abort();
     };
   }, [lobbyView]);
 
@@ -863,25 +881,12 @@ export default function Lobby() {
     }
   };
 
-  const handleLeaveRoom = async () => {
+  const handleLeaveRoom = () => {
     const gameId = serverGameId;
     const leavingUserId = serverUserId;
 
     joinPendingRef.current = false;
     setRoomExitWarningOpen(false);
-    if (gameId && leavingUserId) {
-      try {
-        await api.leaveGame(gameId, leavingUserId);
-      } catch (error) {
-        console.warn('[LeaveRoom] Server room leave failed', error);
-        setStartModal({
-          visible: true,
-          title: isBs ? 'IZLAZ NIJE USPIO' : 'LEAVE FAILED',
-          message: isBs ? 'Nije vas moguće ukloniti iz sobe. Pokušajte ponovo.' : 'You could not be removed from the room. Please try again.',
-        });
-        return;
-      }
-    }
     transitionLobbyView('SETUP', () => {
       setServerGameId(null);
       setServerUserId(null);
@@ -889,6 +894,10 @@ export default function Lobby() {
       setRoomCode('');
       setRoomPlayers([]);
     });
+    if (gameId && leavingUserId) {
+      void api.leaveGame(gameId, leavingUserId)
+        .catch((error) => console.warn('[LeaveRoom] Server room leave failed after local exit', error));
+    }
 
   };
 
@@ -1370,11 +1379,15 @@ export default function Lobby() {
   useEffect(() => {
     if (!serverGameId) return;
     let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let controller: AbortController | null = null;
     const poll = async () => {
-      if (cancelled) return;
+      if (cancelled || controller) return;
+      const requestController = new AbortController();
+      controller = requestController;
       try {
-        const game = await api.getGame(serverGameId, serverUserId);
-        if (cancelled) return;
+        const game = await api.getGame(serverGameId, serverUserId, requestController.signal);
+        if (cancelled || requestController.signal.aborted) return;
         const isStillMember = !serverUserId || game.members.some((member) => Number(member.id) === Number(serverUserId));
         if (game.terminated_at || !isStillMember) {
           const removedByHost = !game.terminated_at && !isStillMember;
@@ -1418,7 +1431,7 @@ export default function Lobby() {
           router.push('./game');
         }
       } catch (error) {
-        if (cancelled) return;
+        if (cancelled || requestController.signal.aborted) return;
         if (error instanceof ApiError && error.status === 404) {
           cancelled = true;
           setIsGameCountingDown(false);
@@ -1441,14 +1454,17 @@ export default function Lobby() {
           });
           return;
         }
-        /* Temporary network/server failures retry on the next poll. */
+        /* Temporary network/server failures retry after this request settles. */
+      } finally {
+        if (controller === requestController) controller = null;
+        if (!cancelled) timer = setTimeout(poll, 3000);
       }
     };
     void poll();
-    const timer = setInterval(poll, 3000);
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      if (timer) clearTimeout(timer);
+      controller?.abort();
     };
   }, [serverGameId, serverUserId, targetScore, selectedDeck, setIsGameCountingDown, setSession]);
 

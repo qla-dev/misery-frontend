@@ -13,14 +13,13 @@ import {
   Outfit_900Black,
 } from '@expo-google-fonts/outfit';
 import { useFonts } from 'expo-font';
-import { DarkTheme, router, Stack, ThemeProvider, usePathname } from 'expo-router';
+import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { GameProvider, useGame } from '@/context/GameContext';
-import { CHAT_LAYOUT_DEBUG } from '@/lib/chatDebug';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -67,12 +66,6 @@ export default function RootLayout() {
 
 function RootStack() {
   const { isGameCountingDown } = useGame();
-  const pathname = usePathname();
-
-  useEffect(() => {
-    if (!CHAT_LAYOUT_DEBUG || pathname === '/game/chat') return;
-    requestAnimationFrame(() => router.replace('/game/chat'));
-  }, [pathname]);
 
   return (
     <View className="flex-1 bg-neutral-950">

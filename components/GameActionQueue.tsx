@@ -1,16 +1,23 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
-import { ShieldAlert } from 'lucide-react-native';
+import { MessageCircle, ShieldAlert } from 'lucide-react-native';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { LaneModal } from '@/components/LaneModal';
 import { LaneProgress } from '@/components/LaneProgressBadge';
+import { Toast } from '@/components/Toast';
 import { TurnNotice } from '@/context/GameContext';
+import { ApiChatMessage } from '@/lib/api';
 import { logGameAction } from '@/lib/gameDiagnostics';
 
 type ActionKind = 'room-exit' | 'lane-result' | 'turn-notice' | 'steal-decision' | 'inactivity';
 
 type GameActionQueueProps = {
   activeStealerName?: string;
+  chatMessages: ApiChatMessage[];
+  chatMessagesHydrated: boolean;
+  chatNotificationsEnabled: boolean;
+  currentUserId?: number;
+  gameId?: number;
   hasPendingLaneAnimation: boolean;
   inactivityWarningVisible: boolean;
   inactivityWarningCount?: number;
@@ -24,6 +31,7 @@ type GameActionQueueProps = {
   laneSuccessMessage: string;
   lastResultCardScore?: number | null;
   onInactivityComplete: () => void;
+  onUnreadMessages: (count: number) => void;
   onLaneResultComplete: () => void;
   onRoomExitComplete: () => void;
   onStealChoice: (accept: boolean) => void;
@@ -31,10 +39,16 @@ type GameActionQueueProps = {
   stealDecisionVisible: boolean;
   turnNotice?: TurnNotice;
   roomExitReason?: string | null;
+  toastBlocked?: boolean;
 };
 
 export function GameActionQueue({
   activeStealerName,
+  chatMessages,
+  chatMessagesHydrated,
+  chatNotificationsEnabled,
+  currentUserId,
+  gameId,
   hasPendingLaneAnimation,
   inactivityWarningVisible,
   inactivityWarningCount = 0,
@@ -48,6 +62,7 @@ export function GameActionQueue({
   laneSuccessMessage,
   lastResultCardScore,
   onInactivityComplete,
+  onUnreadMessages,
   onLaneResultComplete,
   onRoomExitComplete,
   onStealChoice,
@@ -55,14 +70,63 @@ export function GameActionQueue({
   stealDecisionVisible,
   turnNotice,
   roomExitReason,
+  toastBlocked = false,
 }: GameActionQueueProps) {
   const [activeAction, setActiveAction] = useState<ActionKind | null>(null);
+  const [chatNotifications, setChatNotifications] = useState<ApiChatMessage[]>([]);
   const [handledStealOffer, setHandledStealOffer] = useState(false);
+  const lastSeenChatMessageIdRef = useRef(Math.max(0, ...chatMessages.map((message) => message.id)));
+  const hasHydratedChatSnapshotRef = useRef(false);
+  const previousGameIdRef = useRef(gameId);
   const laneAvailable = laneResult !== null;
   const turnAvailable = Boolean(turnNotice && !hasPendingLaneAnimation);
   const stealAvailable = stealDecisionVisible && !handledStealOffer && !hasPendingLaneAnimation;
   const inactivityAvailable = inactivityWarningVisible && !hasPendingLaneAnimation;
   const roomExitAvailable = Boolean(roomExitReason);
+  const gameplayActionPending = Boolean(
+    activeAction || roomExitAvailable || laneAvailable || turnAvailable || stealAvailable || inactivityAvailable
+  );
+  const activeChatNotification = chatNotifications[0];
+
+  useEffect(() => {
+    if (previousGameIdRef.current === gameId) return;
+    previousGameIdRef.current = gameId;
+    hasHydratedChatSnapshotRef.current = false;
+    lastSeenChatMessageIdRef.current = Math.max(0, ...chatMessages.map((message) => message.id));
+    setChatNotifications([]);
+  }, [chatMessages, gameId]);
+
+  useEffect(() => {
+    if (!chatMessagesHydrated) return;
+    if (!hasHydratedChatSnapshotRef.current) {
+      lastSeenChatMessageIdRef.current = Math.max(0, ...chatMessages.map((message) => message.id));
+      hasHydratedChatSnapshotRef.current = true;
+      return;
+    }
+
+    const newMessages = chatMessages
+      .filter((message) => message.id > lastSeenChatMessageIdRef.current)
+      .sort((a, b) => a.id - b.id);
+    if (newMessages.length === 0) return;
+
+    lastSeenChatMessageIdRef.current = newMessages[newMessages.length - 1].id;
+    if (!chatNotificationsEnabled) return;
+
+    const incomingMessages = newMessages.filter(
+      (message) => Number(message.user_id) !== Number(currentUserId)
+    );
+    if (incomingMessages.length === 0) return;
+
+    onUnreadMessages(incomingMessages.length);
+    setChatNotifications((current) => {
+      const queuedIds = new Set(current.map((message) => message.id));
+      return [...current, ...incomingMessages.filter((message) => !queuedIds.has(message.id))];
+    });
+  }, [chatMessages, chatMessagesHydrated, chatNotificationsEnabled, currentUserId, onUnreadMessages]);
+
+  useEffect(() => {
+    if (!chatNotificationsEnabled) setChatNotifications([]);
+  }, [chatNotificationsEnabled]);
 
   useEffect(() => {
     if (!stealDecisionVisible) setHandledStealOffer(false);
@@ -117,6 +181,15 @@ export function GameActionQueue({
 
   return (
     <>
+      <Toast
+        key={activeChatNotification?.id ?? 'no-chat-notification'}
+        icon={<MessageCircle color="#fbbf24" size={21} strokeWidth={2.3} />}
+        onClose={() => setChatNotifications((current) => current.slice(1))}
+        subtitle={activeChatNotification?.message}
+        title={activeChatNotification?.user?.name ?? (isBs ? 'Nova poruka' : 'New message')}
+        visible={Boolean(activeChatNotification && chatNotificationsEnabled && !gameplayActionPending && !toastBlocked)}
+      />
+
       <LaneModal
         failureMessage={roomExitReason === 'player_inactive'
           ? isBs ? 'UKLONJEN SI NAKON 60 SEKUNDI NEAKTIVNOSTI' : 'YOU WERE REMOVED AFTER 60 SECONDS OF INACTIVITY'

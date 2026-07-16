@@ -1,6 +1,6 @@
 import { BlurView } from 'expo-blur';
-import { ReactNode, useEffect, useRef, useState } from 'react';
-import { Animated, StyleProp, Text, View, ViewStyle } from 'react-native';
+import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, PanResponder, StyleProp, Text, View, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ToastProps {
@@ -9,25 +9,40 @@ interface ToastProps {
   subtitle?: string;
   icon?: ReactNode;
   autoClose?: boolean;
+  onClose?: () => void;
   style?: StyleProp<ViewStyle>;
 }
 
-export function Toast({ visible, title, subtitle, icon, autoClose = true, style }: ToastProps) {
+export function Toast({ visible, title, subtitle, icon, autoClose = true, onClose, style }: ToastProps) {
   const insets = useSafeAreaInsets();
   const [autoClosed, setAutoClosed] = useState(false);
   const progress = useRef(new Animated.Value(visible ? 1 : 0)).current;
+  const dragY = useRef(new Animated.Value(0)).current;
+  const onCloseRef = useRef(onClose);
+  const dismissedRef = useRef(false);
   const presented = visible && !autoClosed;
 
   useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
     if (!visible) {
+      dismissedRef.current = false;
+      dragY.setValue(0);
       setAutoClosed(false);
       return undefined;
     }
     if (!autoClose) return undefined;
 
-    const timeout = setTimeout(() => setAutoClosed(true), 3500);
+    const timeout = setTimeout(() => {
+      if (dismissedRef.current) return;
+      dismissedRef.current = true;
+      setAutoClosed(true);
+      onCloseRef.current?.();
+    }, 3500);
     return () => clearTimeout(timeout);
-  }, [autoClose, visible]);
+  }, [autoClose, dragY, visible]);
 
   useEffect(() => {
     Animated.spring(progress, {
@@ -39,11 +54,62 @@ export function Toast({ visible, title, subtitle, icon, autoClose = true, style 
     }).start();
   }, [presented, progress]);
 
+  const dismissFromSwipe = useCallback(() => {
+    if (dismissedRef.current) return;
+    dismissedRef.current = true;
+    Animated.parallel([
+      Animated.timing(dragY, {
+        duration: 150,
+        toValue: -110,
+        useNativeDriver: true,
+      }),
+      Animated.timing(progress, {
+        duration: 150,
+        toValue: 0,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      dragY.setValue(0);
+      setAutoClosed(true);
+      onCloseRef.current?.();
+    });
+  }, [dragY, progress]);
+
+  const panResponder = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_, gesture) => (
+      presented && gesture.dy < -4 && Math.abs(gesture.dy) > Math.abs(gesture.dx)
+    ),
+    onPanResponderMove: (_, gesture) => {
+      dragY.setValue(Math.max(-110, Math.min(0, gesture.dy)));
+    },
+    onPanResponderRelease: (_, gesture) => {
+      if (gesture.dy <= -34 || gesture.vy <= -0.55) {
+        dismissFromSwipe();
+        return;
+      }
+      Animated.spring(dragY, {
+        damping: 18,
+        stiffness: 240,
+        toValue: 0,
+        useNativeDriver: true,
+      }).start();
+    },
+    onPanResponderTerminate: () => {
+      Animated.spring(dragY, {
+        damping: 18,
+        stiffness: 240,
+        toValue: 0,
+        useNativeDriver: true,
+      }).start();
+    },
+  }), [dismissFromSwipe, dragY, presented]);
+
   return (
     <Animated.View
+      {...panResponder.panHandlers}
       accessibilityLiveRegion="polite"
       accessibilityRole="alert"
-      pointerEvents="none"
+      pointerEvents={presented ? 'auto' : 'none'}
       style={[
         {
           elevation: 9999,
@@ -53,7 +119,10 @@ export function Toast({ visible, title, subtitle, icon, autoClose = true, style 
           right: 12,
           top: insets.top + 8,
           transform: [{
-            translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [-28, 0] }),
+            translateY: Animated.add(
+              progress.interpolate({ inputRange: [0, 1], outputRange: [-28, 0] }),
+              dragY,
+            ),
           }],
           zIndex: 9999,
         },

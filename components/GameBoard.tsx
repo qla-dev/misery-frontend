@@ -154,6 +154,7 @@ export default function GameBoard({
   const [isLaneCollapsing, setIsLaneCollapsing] = useState(false);
   const [connectionWarningVisible, setConnectionWarningVisible] = useState(false);
   const [chatMessages, setChatMessages] = useState<ApiChatMessage[]>([]);
+  const [chatMessagesHydrated, setChatMessagesHydrated] = useState(false);
   const [hiddenChatMessageIds, setHiddenChatMessageIds] = useState<number[]>([]);
   const [shakeCard, setShakeCard] = useState(false);
   const [isLaneSheetOpen, setIsLaneSheetOpen] = useState(false);
@@ -169,6 +170,11 @@ export default function GameBoard({
   const [serverWinnerId, setServerWinnerId] = useState<number | null>(null);
   const [lastStealWasFromLocalPlayer, setLastStealWasFromLocalPlayer] = useState(false);
   const [isTurnInactive, setIsTurnInactive] = useState(false);
+
+  useEffect(() => {
+    setChatMessages([]);
+    setChatMessagesHydrated(false);
+  }, [gameId]);
   const [inactivityWarningVisible, setInactivityWarningVisible] = useState(false);
   const [inactivityWarningCount, setInactivityWarningCount] = useState(0);
   const [inactivitySecondsRemaining, setInactivitySecondsRemaining] = useState<number | null>(null);
@@ -608,6 +614,7 @@ export default function GameBoard({
         setServerTurnOwnerId(game.turn_owner_id);
         setServerWinnerId(game.winner_id);
         setChatMessages([...(game.chat_messages ?? [])].sort((a, b) => a.id - b.id));
+        setChatMessagesHydrated(true);
         nextPollDelay = Math.max(250, Number(game.ingame_polling_interval_ms) || 3000);
         const latestMove = game.moves[0];
         const handCardCount = Object.values(game.hands).reduce((total, hand) => total + hand.length, 0);
@@ -1347,6 +1354,7 @@ export default function GameBoard({
       isDrawnCardScoreRevealed,
       guessHistory: gameState.guessHistory,
       chatMessages,
+      chatMessagesHydrated,
       hiddenChatMessageIds,
       reportChatMessageLocally,
       sendChatMessage,
@@ -1384,7 +1392,7 @@ export default function GameBoard({
         (!gameId || Number(activeStealer.id) === Number(userId))
       ),
     });
-  }, [chatMessages, connectionWarningVisible, currentActingPlayer, gameId, gameState, hasPendingLocalTurnStartNotice, hiddenChatMessageIds, inactivitySecondsRemaining, inactivityWarningCount, inactivityWarningVisible, isAwaitingTurnFinish, isDrawnCardFlipped, isDrawnCardScoreRevealed, isLaneCollapsing, isServerTurnReady, isSubmittingMove, isTurnInactive, laneResult, lastInsertedCardId, lastResultCardScore, lastStealWasFromLocalPlayer, localPlayer, reportChatMessageLocally, roomExitReason, selectedSlotIndex, selectedSlotResult, sendChatMessage, serverCurrentPlayerId, setGameRuntime, userId]);
+  }, [chatMessages, chatMessagesHydrated, connectionWarningVisible, currentActingPlayer, gameId, gameState, hasPendingLocalTurnStartNotice, hiddenChatMessageIds, inactivitySecondsRemaining, inactivityWarningCount, inactivityWarningVisible, isAwaitingTurnFinish, isDrawnCardFlipped, isDrawnCardScoreRevealed, isLaneCollapsing, isServerTurnReady, isSubmittingMove, isTurnInactive, laneResult, lastInsertedCardId, lastResultCardScore, lastStealWasFromLocalPlayer, localPlayer, reportChatMessageLocally, roomExitReason, selectedSlotIndex, selectedSlotResult, sendChatMessage, serverCurrentPlayerId, setGameRuntime, userId]);
 
   useEffect(() => {
     if (!didLocalWin || winnerCelebratedRef.current) return;

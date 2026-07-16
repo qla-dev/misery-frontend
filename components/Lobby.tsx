@@ -6,7 +6,7 @@ import * as Google from 'expo-auth-session/providers/google';
 import * as Haptics from 'expo-haptics';
 import * as WebBrowser from 'expo-web-browser';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Check, Copy, Crown, Flame, Heart, Laugh, Loader2, LockKeyhole, PartyPopper, Share2, ShieldAlert, Skull, Sparkles, User, X, Zap } from 'lucide-react-native';
+import { Check, ChevronRight, Copy, Crown, Flame, Heart, Laugh, Loader2, LockKeyhole, PartyPopper, Share2, ShieldAlert, Skull, Sparkles, User, X, Zap } from 'lucide-react-native';
 import LottieView from 'lottie-react-native';
 import { ActivityIndicator, Animated, BackHandler, Easing, Keyboard, KeyboardAvoidingView, LayoutAnimation, Platform, Pressable, ScrollView, Share, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -1424,15 +1424,15 @@ export default function Lobby() {
               {(game.stack ?? 'normal') !== 'normal' && (
                 <View
                   accessibilityLabel={isBs ? 'Potreban je Misery PRO' : 'Misery PRO required'}
-                  className="absolute left-2 top-2"
+                  className="absolute"
                   pointerEvents="none"
-                  style={{ zIndex: 2 }}
+                  style={{ left: -5, top: -5, zIndex: 2 }}
                 >
-                  <Crown color="#facc15" fill="#facc15" size={14} strokeWidth={2.2} />
+                  <Crown color="#facc15" fill="#facc15" size={16} strokeWidth={2.2} />
                 </View>
               )}
               <View className="flex-row items-center justify-between" style={{ gap: 12 }}>
-                <View className="flex-1" style={{ paddingLeft: (game.stack ?? 'normal') !== 'normal' ? 14 : 0 }}>
+                <View className="flex-1">
                   <Text className="text-sm font-black uppercase text-neutral-100">
                     {game.members[0]?.name ?? (isBs ? 'Soba za igru' : 'Game room')}
                   </Text>
@@ -1440,9 +1440,30 @@ export default function Lobby() {
                     {game.code} • {game.members.length}/8 {isBs ? 'igrača' : 'players'}
                   </Text>
                 </View>
-                <ButtonTab category="button" type="primary" size="auto" onPress={() => void handleJoinWithCode(game.code)}>
-                  {isBs ? 'PRIDRUŽI SE' : 'JOIN'}
-                </ButtonTab>
+                <GlassView
+                  colorScheme="dark"
+                  glassEffectStyle="regular"
+                  isInteractive
+                  style={{
+                    backgroundColor: 'rgba(255,255,255,0.055)',
+                    borderColor: 'rgba(255,255,255,0.09)',
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    height: 40,
+                    overflow: 'hidden',
+                    width: 40,
+                  }}
+                  tintColor="rgba(255,255,255,0.08)"
+                >
+                  <Pressable
+                    accessibilityLabel={isBs ? 'Pridruži se sobi' : 'Join room'}
+                    accessibilityRole="button"
+                    className="h-full w-full items-center justify-center"
+                    onPress={() => void handleJoinWithCode(game.code)}
+                  >
+                    <ChevronRight color="#d4d4d4" size={20} strokeWidth={2.5} />
+                  </Pressable>
+                </GlassView>
               </View>
             </Card>
           ))}

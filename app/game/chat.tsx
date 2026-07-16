@@ -2,7 +2,6 @@ import { ChatComposer } from '@/components/ChatComposer';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { useGame } from '@/context/GameContext';
 import { ApiChatMessage } from '@/lib/api';
-import { CHAT_LAYOUT_DEBUG } from '@/lib/chatDebug';
 import { playHaptic } from '@/lib/sound';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
@@ -14,50 +13,6 @@ const PLAYER_COLORS: Record<string, string> = {
   yellow: '#facc15', blue: '#60a5fa', emerald: '#10b981', purple: '#c084fc',
   rose: '#fb7185', red: '#ef4444', orange: '#f97316', brown: '#a16207', silver: '#d4d4d4',
 };
-
-const DEBUG_CURRENT_USER_ID = 9001;
-const DEBUG_MESSAGES: ApiChatMessage[] = [
-  {
-    id: 1,
-    game_id: 1,
-    user_id: 9002,
-    message: 'Jesi spreman?',
-    user: { id: 9002, name: 'Kila', email: null, color: 'purple' },
-    created_at: new Date(Date.now() - 7 * 60_000).toISOString(),
-  },
-  {
-    id: 2,
-    game_id: 1,
-    user_id: 9002,
-    message: 'Ovo ide prenisko.',
-    user: { id: 9002, name: 'Kila', email: null, color: 'purple' },
-    created_at: new Date(Date.now() - 6 * 60_000).toISOString(),
-  },
-  {
-    id: 3,
-    game_id: 1,
-    user_id: DEBUG_CURRENT_USER_ID,
-    message: 'Ne bih rekao.',
-    user: { id: DEBUG_CURRENT_USER_ID, name: 'Ti', email: null, color: 'yellow' },
-    created_at: new Date(Date.now() - 5 * 60_000).toISOString(),
-  },
-  {
-    id: 4,
-    game_id: 1,
-    user_id: 9003,
-    message: 'Stavi ga između.',
-    user: { id: 9003, name: 'Mia', email: null, color: 'rose' },
-    created_at: new Date(Date.now() - 3 * 60_000).toISOString(),
-  },
-  {
-    id: 5,
-    game_id: 1,
-    user_id: DEBUG_CURRENT_USER_ID,
-    message: 'Idemo probati.',
-    user: { id: DEBUG_CURRENT_USER_ID, name: 'Ti', email: null, color: 'yellow' },
-    created_at: new Date(Date.now() - 60_000).toISOString(),
-  },
-];
 
 function playerColor(value?: string | null) {
   if (!value) return '#facc15';
@@ -74,15 +29,10 @@ export default function ChatScreen() {
   const { gameRuntime, language, session } = useGame();
   const insets = useSafeAreaInsets();
   const isBs = language === 'bs';
-  const [debugMessages, setDebugMessages] = useState<ApiChatMessage[]>(DEBUG_MESSAGES);
-  const [debugHiddenMessageIds, setDebugHiddenMessageIds] = useState<number[]>([]);
-  const hiddenMessageIds: number[] = CHAT_LAYOUT_DEBUG
-    ? debugHiddenMessageIds
-    : gameRuntime?.hiddenChatMessageIds ?? [];
-  const sourceMessages = CHAT_LAYOUT_DEBUG ? debugMessages : gameRuntime?.chatMessages ?? [];
-  const messages: ApiChatMessage[] = sourceMessages
+  const hiddenMessageIds: number[] = gameRuntime?.hiddenChatMessageIds ?? [];
+  const messages: ApiChatMessage[] = (gameRuntime?.chatMessages ?? [])
     .filter((message: ApiChatMessage) => !hiddenMessageIds.includes(message.id));
-  const currentUserId = CHAT_LAYOUT_DEBUG ? DEBUG_CURRENT_USER_ID : session?.userId;
+  const currentUserId = session?.userId;
   const listRef = useRef<FlatList<ApiChatMessage>>(null);
   const [selectedMessage, setSelectedMessage] = useState<ApiChatMessage | null>(null);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -110,21 +60,6 @@ export default function ChatScreen() {
   }, [keyboardVisible]);
 
   const send = async (message: string) => {
-    if (CHAT_LAYOUT_DEBUG) {
-      setDebugMessages((current) => [
-        ...current,
-        {
-          id: Math.max(0, ...current.map((item) => item.id)) + 1,
-          game_id: 1,
-          user_id: DEBUG_CURRENT_USER_ID,
-          message,
-          user: { id: DEBUG_CURRENT_USER_ID, name: 'Ti', email: null, color: 'yellow' },
-          created_at: new Date().toISOString(),
-        },
-      ]);
-      return;
-    }
-
     try {
       if (!gameRuntime?.sendChatMessage) throw new Error(isBs ? 'Chat još nije spreman.' : 'Chat is not ready yet.');
       await gameRuntime.sendChatMessage(message);
@@ -140,11 +75,7 @@ export default function ChatScreen() {
   const reportSelectedMessage = () => {
     if (!selectedMessage) return;
     const playerName = selectedMessage.user?.name ?? (isBs ? 'Igrač' : 'Player');
-    if (CHAT_LAYOUT_DEBUG) {
-      setDebugHiddenMessageIds((current) => [...current, selectedMessage.id]);
-    } else {
-      gameRuntime?.reportChatMessageLocally?.(selectedMessage.id);
-    }
+    gameRuntime?.reportChatMessageLocally?.(selectedMessage.id);
     setSelectedMessage(null);
     Alert.alert(
       isBs ? 'PRIJAVA ZABILJEŽENA' : 'REPORT RECORDED',

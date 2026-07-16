@@ -7,7 +7,7 @@ import { router, Stack, usePathname } from 'expo-router';
 import { useGame } from '@/context/GameContext';
 import { playHaptic, setGameMusicActive, setGameMusicMuted, setLobbyMusicActive } from '@/lib/sound';
 import { ImageSourcePropType, Pressable, Text, View } from 'react-native';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import HelpIcon from '@expo/material-symbols/help.xml';
 import VolumeOffIcon from '@expo/material-symbols/volume_off.xml';
 import VolumeUpIcon from '@expo/material-symbols/volume_up.xml';
@@ -52,14 +52,22 @@ export default function GameTabsLayout() {
     turnNotices,
   } = useGame();
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
   const returningToGameSettingsRef = useRef(false);
   const isBs = language === 'bs';
   const isChatOpen = pathname.endsWith('/chat');
+  const handleUnreadMessages = useCallback((count: number) => {
+    setUnreadChatCount((current) => current + count);
+  }, []);
   const turnNotice = turnNotices[0];
   const activePlayerName = gameRuntime?.currentActingPlayer?.name ?? session?.players[0]?.name;
   const activePlayerColor = playerColor(gameRuntime?.currentActingPlayer?.color ?? session?.players[0]?.color);
   const laneCardsAdded = Math.max(0, (gameRuntime?.localPlayer?.lane?.length ?? 3) - 3);
   const laneCardsNeeded = session?.targetScore ?? 0;
+
+  useEffect(() => {
+    setUnreadChatCount(0);
+  }, [isChatOpen, session?.gameId]);
   const isLocalLaneResult = Boolean(
     laneResultPlayerName && laneResultPlayerName === gameRuntime?.localPlayer?.name
   );
@@ -283,6 +291,8 @@ export default function GameTabsLayout() {
         </>
       )}
       <NativeTabs
+        badgeBackgroundColor="#ef4444"
+        badgeTextColor="#ffffff"
         disableTransparentOnScrollEdge
         hidden={isGameCountingDown || isGameFinished || isChatOpen}
         screenListeners={{ tabPress: () => playHaptic() }}
@@ -311,6 +321,9 @@ export default function GameTabsLayout() {
         <NativeTabs.Trigger name="chat" contentStyle={{ backgroundColor: '#0a0a0a' }}>
           <NativeTabs.Trigger.Icon sf={{ default: 'message', selected: 'message.fill' } as any} md="chat" />
           <NativeTabs.Trigger.Label>{isBs ? 'Razgovor' : 'Chat'}</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Badge hidden={unreadChatCount === 0}>
+            {unreadChatCount > 99 ? '99+' : String(unreadChatCount)}
+          </NativeTabs.Trigger.Badge>
         </NativeTabs.Trigger>
       </NativeTabs>
       <InfoModal onLeaveGame={() => setIsExitConfirmOpen(true)} />
@@ -323,6 +336,11 @@ export default function GameTabsLayout() {
       />
       <GameActionQueue
         activeStealerName={gameRuntime?.activeStealer?.name}
+        chatMessages={gameRuntime?.chatMessages ?? []}
+        chatMessagesHydrated={Boolean(gameRuntime?.chatMessagesHydrated)}
+        chatNotificationsEnabled={!isChatOpen}
+        currentUserId={session?.userId}
+        gameId={session?.gameId}
         hasPendingLaneAnimation={Boolean(gameRuntime?.hasPendingLaneAnimation)}
         inactivitySecondsRemaining={gameRuntime?.inactivitySecondsRemaining}
         inactivityWarningCount={gameRuntime?.inactivityWarningCount}
@@ -339,6 +357,7 @@ export default function GameTabsLayout() {
           gameRuntime?.dismissInactivityWarning?.();
           router.replace(gameRuntime?.isDrawnCardFlipped ? '/game/lane' : '/game');
         }}
+        onUnreadMessages={handleUnreadMessages}
         onLaneResultComplete={() => {
           setLaneResult(null);
           setLaneResultPlayerName(null);
@@ -349,6 +368,7 @@ export default function GameTabsLayout() {
         stealDecisionVisible={Boolean(gameRuntime?.stealDecisionVisible)}
         turnNotice={turnNotice}
         roomExitReason={gameRuntime?.roomExitReason}
+        toastBlocked={Boolean(gameRuntime?.connectionWarningVisible)}
       />
       <ConfirmModal
         cancelLabel={isBs ? 'NAPUSTI IGRU' : 'LEAVE GAME'}

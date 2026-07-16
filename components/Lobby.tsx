@@ -34,9 +34,9 @@ import { api, ApiError, ApiGame, ApiStack, ApiUser } from '@/lib/api';
 import { subscribeToGameUpdates } from '@/lib/gameRealtime';
 import { DeckType } from '@/context/game-types';
 
-const HOST_LOBBY_INACTIVITY_MS = 120_000;
-const HOST_LOBBY_WARNING_MS = 30_000;
-const HOST_LOBBY_FINAL_COUNTDOWN_SECONDS = 10;
+const HOST_LOBBY_EXPIRY_MS = 120_000;
+const HOST_LOBBY_WARNING_MS = 60_000;
+const HOST_LOBBY_FINAL_COUNTDOWN_SECONDS = 3;
 
 const AVAILABLE_COLORS = [
   { id: 'yellow', hex: '#facc15', nameEn: 'Amber Gold', nameBs: 'Zlatni Ćilibar', bgClass: 'bg-yellow-400', borderClass: 'border-yellow-400 bg-yellow-400/5 text-yellow-400' },
@@ -50,9 +50,9 @@ const AVAILABLE_COLORS = [
 ];
 
 const FALLBACK_STACKS: ApiStack[] = [
-  { id: 1, name: 'Normal', slug: 'normal', color: '#facc15', icon_key: 'sparkles', description: 'Funny and awkward situations', description_bs: 'Smiješne i čudne situacije', is_premium: false },
-  { id: 2, name: 'Spicy', slug: 'spicy', color: '#fb7185', icon_key: 'flame', description: 'Friendly, absurd and wildly unfortunate', description_bs: 'Prijateljski, apsurdno i divlje', is_premium: true },
-  { id: 3, name: '18+', slug: '18-plus', color: '#ef4444', icon_key: 'shield-alert', description: 'Explicit sexual situations for adults only', description_bs: 'Eksplicitne seksualne situacije samo za odrasle', is_premium: true },
+  { id: 1, name: 'Normal', slug: 'normal', color: '#facc15', icon_key: 'sparkles', description: 'Funny and awkward situations', description_bs: 'Smiješne i čudne situacije', is_premium: false, active_cards_count: 0 },
+  { id: 2, name: 'Spicy', slug: 'spicy', color: '#fb7185', icon_key: 'flame', description: 'Friendly, absurd and wildly unfortunate', description_bs: 'Prijateljski, apsurdno i divlje', is_premium: true, active_cards_count: 0 },
+  { id: 3, name: '18+', slug: '18-plus', color: '#ef4444', icon_key: 'shield-alert', description: 'Explicit sexual situations for adults only', description_bs: 'Eksplicitne seksualne situacije samo za odrasle', is_premium: true, active_cards_count: 0 },
 ];
 
 function iconForStack(iconKey: string, color: string) {
@@ -66,6 +66,26 @@ function iconForStack(iconKey: string, color: string) {
   const DeckIcon = icons[componentName] ?? icons.Sparkles;
 
   return <DeckIcon color={color} size={18} />;
+}
+
+function StackedCardsCount({ color, count }: { color: string; count: number }) {
+  return (
+    <View
+      accessibilityLabel={`${count} active cards`}
+      className="absolute right-3 top-2.5 flex-row items-center"
+      style={{ gap: 4 }}
+    >
+      <Svg height={18} viewBox="0 0 24 20" width={21}>
+        <Path d="M3.2 4.8 15.7 1.4a2 2 0 0 1 2.45 1.42l2.4 9" fill="none" opacity={0.35} stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} />
+        <Path d="m2.35 8.25 13.3-2.35a2 2 0 0 1 2.32 1.62l1.7 9.55" fill="none" opacity={0.65} stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} />
+        <Path d="M3.8 9.25h13.4a2 2 0 0 1 2 2v5.15a2 2 0 0 1-2 2H3.8a2 2 0 0 1-2-2v-5.15a2 2 0 0 1 2-2Z" fill={`${color}16`} stroke={color} strokeLinejoin="round" strokeWidth={1.7} />
+        <Path d="M5.1 12.25h5.3" opacity={0.7} stroke={color} strokeLinecap="round" strokeWidth={1.45} />
+      </Svg>
+      <Text style={{ color, fontFamily: 'JetBrainsMono_700Bold', fontSize: 10 }}>
+        {count}
+      </Text>
+    </View>
+  );
 }
 
 function deckToStack(deck: DeckType) {
@@ -502,6 +522,7 @@ export default function Lobby() {
   const authButtonsOpacity = useRef(new Animated.Value(1)).current;
   const authButtonsTransitioningRef = useRef(false);
   const joinPendingRef = useRef(false);
+  const createRoomPendingRef = useRef(false);
   const codeInputFocusedRef = useRef(false);
   const copyResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lobbyOpeningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -543,9 +564,8 @@ export default function Lobby() {
     message: '',
   });
   const [hostLobbyWarningVisible, setHostLobbyWarningVisible] = useState(false);
-  const [hostLobbyWarningCount, setHostLobbyWarningCount] = useState(0);
   const [hostLobbyFinalCountdown, setHostLobbyFinalCountdown] = useState<number | null>(null);
-  const [hostLobbyInactivityResetKey, setHostLobbyInactivityResetKey] = useState(0);
+  const [hostLobbyTimerResetKey, setHostLobbyTimerResetKey] = useState(0);
   const deckCardWidth = deckChooserWidth ? Math.max(196, Math.min(224, deckChooserWidth * 0.68)) : 220;
   const deckSnapInterval = deckCardWidth + 10;
   const serverStartedRef = useRef(false);
@@ -563,15 +583,8 @@ export default function Lobby() {
     if (!option) return;
     if (lastDeckSnapIndexRef.current !== index) void Haptics.selectionAsync();
     lastDeckSnapIndexRef.current = index;
-    if (option.is_premium && !isPremium) {
-      router.navigate('/pro');
-      const selectedIndex = Math.max(0, deckOptions.findIndex((item) => item.slug === selectedDeck));
-      lastDeckSnapIndexRef.current = selectedIndex;
-      requestAnimationFrame(() => deckScrollRef.current?.scrollTo({ animated: true, x: selectedIndex * deckSnapInterval }));
-      return;
-    }
     setSelectedDeck(option.slug);
-  }, [deckOptions, deckSnapInterval, isPremium, selectedDeck, setSelectedDeck]);
+  }, [deckOptions, setSelectedDeck]);
 
   useEffect(() => {
     if (!deckChooserWidth) return;
@@ -868,7 +881,12 @@ export default function Lobby() {
   }, [lobbyView, setRoomExitWarningOpen]);
 
   const handleCreateRoom = async () => {
-    if (isCreatingRoom) return;
+    if (createRoomPendingRef.current) return;
+    createRoomPendingRef.current = true;
+    if (requestFailureModalTimerRef.current) {
+      clearTimeout(requestFailureModalTimerRef.current);
+      requestFailureModalTimerRef.current = null;
+    }
     Keyboard.dismiss();
     setIsKeyboardVisible(false);
     setIsCreatingRoom(true);
@@ -881,7 +899,6 @@ export default function Lobby() {
       applyServerGame(result.game);
       setIsCopied(false);
       setLobbyView('ROOM_CREATED');
-      requestAnimationFrame(() => setIsCreatingRoom(false));
     } catch (error) {
       const isBackendUnavailable = error instanceof ApiError && (error.status === 0 || error.status >= 500);
       const message = isBackendUnavailable
@@ -901,7 +918,10 @@ export default function Lobby() {
             : isBs ? 'SOBA NIJE KREIRANA' : 'CREATE ROOM FAILED',
           message,
         });
-      }, Platform.OS === 'ios' ? 350 : 50);
+      }, Platform.OS === 'ios' ? 350 : 180);
+    } finally {
+      createRoomPendingRef.current = false;
+      setIsCreatingRoom(false);
     }
   };
 
@@ -910,86 +930,76 @@ export default function Lobby() {
       && Boolean(serverGameId)
       && Boolean(serverUserId)
       && Number(serverOwnerId) === Number(serverUserId)
+      && session === null
+      && !isGameCountingDown
       && !isStartingGame;
+
     if (!isHostWaitingInLobby || !serverGameId || !serverUserId) {
       hostLobbyExpiryInFlightRef.current = false;
       setHostLobbyWarningVisible(false);
-      setHostLobbyWarningCount(0);
       setHostLobbyFinalCountdown(null);
       return;
     }
 
-    const deadline = Date.now() + HOST_LOBBY_INACTIVITY_MS;
     let cancelled = false;
+    const deadline = Date.now() + HOST_LOBBY_EXPIRY_MS;
     hostLobbyExpiryInFlightRef.current = false;
     setHostLobbyWarningVisible(false);
-    setHostLobbyWarningCount(0);
     setHostLobbyFinalCountdown(null);
 
-    const warningTimers = [1, 2, 3].map((warningNumber) => setTimeout(() => {
-      if (cancelled) return;
-      setHostLobbyWarningCount(warningNumber);
-      setHostLobbyWarningVisible(true);
-      playSound('bell');
-    }, warningNumber * HOST_LOBBY_WARNING_MS));
+    const warningTimer = setTimeout(() => {
+      if (!cancelled) setHostLobbyWarningVisible(true);
+    }, HOST_LOBBY_WARNING_MS);
 
     const countdownTimer = setInterval(() => {
       const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
       setHostLobbyFinalCountdown(
         remaining > 0 && remaining <= HOST_LOBBY_FINAL_COUNTDOWN_SECONDS ? remaining : null,
       );
-    }, 1_000);
+    }, 250);
 
     const expiryTimer = setTimeout(() => {
       if (cancelled || hostLobbyExpiryInFlightRef.current) return;
       hostLobbyExpiryInFlightRef.current = true;
       setHostLobbyWarningVisible(false);
       setHostLobbyFinalCountdown(null);
-      void api.expireInactivePlayer(serverGameId, serverUserId)
+      void api.deleteGame(serverGameId, serverUserId)
         .then(() => {
           if (cancelled) return;
-          setServerGameId(null);
-          setServerUserId(null);
-          setServerOwnerId(null);
-          setSession(null);
-          setRoomCode('');
-          setRoomPlayers([]);
-          setLobbyView('SETUP');
+          transitionLobbyView('SETUP', () => {
+            setServerGameId(null);
+            setServerUserId(null);
+            setServerOwnerId(null);
+            setRoomCode('');
+            setRoomPlayers([]);
+          });
           setStartModal({
             visible: true,
-            title: isBs ? 'SOBA JE ZATVORENA' : 'ROOM CLOSED',
+            title: isBs ? 'SOBA JE OBRISANA' : 'ROOM DELETED',
             message: isBs
-              ? 'Soba je zatvorena jer domaćin nije pokrenuo igru u roku od 2 minute.'
-              : 'The room was closed because the host did not start the game within 2 minutes.',
+              ? 'Soba je obrisana jer igra nije pokrenuta u roku od 2 minute.'
+              : 'The room was deleted because the game was not started within 2 minutes.',
           });
         })
         .catch((error) => {
           if (cancelled) return;
           hostLobbyExpiryInFlightRef.current = false;
-          setHostLobbyInactivityResetKey((current) => current + 1);
+          setHostLobbyTimerResetKey((current) => current + 1);
           setStartModal({
             visible: true,
-            title: isBs ? 'SERVER NIJE DOSTUPAN' : 'SERVER UNAVAILABLE',
+            title: isBs ? 'BRISANJE NIJE USPJELO' : 'DELETE ROOM FAILED',
             message: error instanceof Error ? error.message : (isBs ? 'Pokušaj ponovo.' : 'Please try again.'),
           });
         });
-    }, HOST_LOBBY_INACTIVITY_MS);
+    }, HOST_LOBBY_EXPIRY_MS);
 
     return () => {
       cancelled = true;
-      warningTimers.forEach(clearTimeout);
+      clearTimeout(warningTimer);
       clearInterval(countdownTimer);
       clearTimeout(expiryTimer);
     };
-  }, [hostLobbyInactivityResetKey, isBs, isStartingGame, lobbyView, serverGameId, serverOwnerId, serverUserId, setLobbyView, setRoomCode, setRoomPlayers, setSession]);
-
-  const dismissHostLobbyFinalCountdown = () => {
-    hostLobbyExpiryInFlightRef.current = false;
-    setHostLobbyWarningVisible(false);
-    setHostLobbyWarningCount(0);
-    setHostLobbyFinalCountdown(null);
-    setHostLobbyInactivityResetKey((current) => current + 1);
-  };
+  }, [hostLobbyTimerResetKey, isBs, isGameCountingDown, isStartingGame, lobbyView, serverGameId, serverOwnerId, serverUserId, session]);
 
   const handleLeaveRoom = () => {
     const gameId = serverGameId;
@@ -1177,8 +1187,8 @@ export default function Lobby() {
     try {
       await Share.share({
         message: isBs
-          ? `Pridruži se mojoj Misery Meter sobi: https://miserymeter.app/code/${roomCode}`
-          : `Join my Misery Meter room: https://miserymeter.app/code/${roomCode}`,
+          ? `Pridruži se mojoj Misery Meter sobi: https://miserymeter.app/code/${roomCode}?v=2`
+          : `Join my Misery Meter room: https://miserymeter.app/code/${roomCode}?v=2`,
         title: 'Misery Meter',
       });
     } catch {
@@ -1440,7 +1450,7 @@ export default function Lobby() {
       requestFailureModalTimerRef.current = setTimeout(() => {
         requestFailureModalTimerRef.current = null;
         setStartModal({ visible: true, title: isBs ? 'SERVER NIJE DOSTUPAN' : 'SERVER UNAVAILABLE', message });
-      }, Platform.OS === 'ios' ? 350 : 50);
+      }, Platform.OS === 'ios' ? 350 : 180);
       return;
     }
     console.log('[StartGame] clicked', {
@@ -1484,7 +1494,7 @@ export default function Lobby() {
               : isBs ? 'POKRETANJE NIJE USPJELO' : 'START FAILED',
             message,
           });
-        }, Platform.OS === 'ios' ? 350 : 50);
+        }, Platform.OS === 'ios' ? 350 : 180);
         return;
       }
     }
@@ -1750,6 +1760,9 @@ export default function Lobby() {
     );
   };
 
+  const selectedDeckRequiresPro = !isPremium
+    && Boolean(deckOptions.find((option) => option.slug === selectedDeck)?.is_premium);
+
   const renderSetupAction = (fixed = false) => (
     <View
       className="bg-neutral-950"
@@ -1766,10 +1779,29 @@ export default function Lobby() {
         category="button"
         type="primary"
         size="100"
-        disabled={setupTab === 'CREATE' || setupTab === 'PUBLIC' ? !hasPlayerIdentity : !hasPlayerIdentity || !hasValidRoomCode}
-        onPress={setupTab === 'CREATE' ? handleCreateRoom : setupTab === 'PUBLIC' ? () => transitionLobbyView('PUBLIC_GAMES') : () => void handleJoinWithCode()}
+        disabled={selectedDeckRequiresPro && setupTab === 'CREATE'
+          ? false
+          : setupTab === 'CREATE' || setupTab === 'PUBLIC'
+            ? !hasPlayerIdentity
+            : !hasPlayerIdentity || !hasValidRoomCode}
+        onPress={selectedDeckRequiresPro && setupTab === 'CREATE'
+          ? () => router.navigate('/pro')
+          : setupTab === 'CREATE'
+            ? handleCreateRoom
+            : setupTab === 'PUBLIC'
+              ? () => transitionLobbyView('PUBLIC_GAMES')
+              : () => void handleJoinWithCode()}
       >
-        {setupTab === 'CREATE'
+        {selectedDeckRequiresPro && setupTab === 'CREATE'
+          ? (
+            <>
+              <Crown color="#0a0a0a" fill="#0a0a0a" size={18} strokeWidth={2.4} />
+              <Text className="text-sm font-black uppercase tracking-wider text-neutral-950">
+                {isBs ? 'OTKLJUČAJ MISERY PRO' : 'UNLOCK MISERY PRO'}
+              </Text>
+            </>
+          )
+          : setupTab === 'CREATE'
           ? !hasPlayerIdentity
             ? isBs ? 'UNESI IME' : 'ENTER NAME'
             : isBs ? 'Započni igru' : 'Start Game'
@@ -2214,10 +2246,6 @@ export default function Lobby() {
                       <Pressable
                         key={option.slug}
                         onPress={() => {
-                          if (option.is_premium && !isPremium) {
-                            selectDeckAtIndex(index);
-                            return;
-                          }
                           if (!deckChooserWidth || selected) {
                             selectDeckAtIndex(index);
                             return;
@@ -2228,10 +2256,14 @@ export default function Lobby() {
                         style={{ backgroundColor: selected ? `${accent}0D` : 'transparent', borderColor: selected ? accent : '#171717', minHeight: 82, width: deckCardWidth }}
                       >
                         {premium && !isPremium && (
-                          <View className="absolute right-3 top-3">
+                          <View className="absolute left-3 top-3">
                             <Crown size={14} color="#facc15" fill="#facc15" />
                           </View>
                         )}
+                        <StackedCardsCount
+                          color={selected ? accent : '#737373'}
+                          count={option.active_cards_count}
+                        />
                         {iconForStack(option.icon_key, selected ? accent : '#737373')}
                         <Text style={{ color: selected ? accent : '#737373', fontFamily: 'Outfit_700Bold', fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}>
                           {option.name}
@@ -2635,8 +2667,8 @@ export default function Lobby() {
           </Text>
         </View>
       </ConfirmModal>
-      <LoadingOverlay isBs={isBs} visible={isCreatingRoom} />
-      <LoadingOverlay isBs={isBs} mode="start" visible={isStartingGame} />
+      <LoadingOverlay isBs={isBs} visible={isCreatingRoom && !startModal.visible} />
+      <LoadingOverlay isBs={isBs} mode="start" visible={isStartingGame && !startModal.visible} />
       <LaneModal
         bell
         failureMessage=""
@@ -2644,17 +2676,17 @@ export default function Lobby() {
         onComplete={() => setHostLobbyWarningVisible(false)}
         success
         successMessage={isBs
-          ? `POKRENI IGRU. SOBA SE ZATVARA ZA ${Math.max(30, 120 - hostLobbyWarningCount * 30)} SEKUNDI`
-              : `START THE GAME. THE ROOM CLOSES IN ${Math.max(30, 120 - hostLobbyWarningCount * 30)} SECONDS`}
-        successTitle={isBs ? 'SOBA ČEKA DOMAĆINA' : 'ROOM IS WAITING FOR HOST'}
-        visible={hostLobbyWarningVisible}
+          ? 'POKRENI IGRU. SOBA ĆE BITI OBRISANA ZA 1 MINUTU.'
+          : 'START THE GAME. THE ROOM WILL BE DELETED IN 1 MINUTE.'}
+        successTitle={isBs ? 'SOBA JE NEAKTIVNA' : 'ROOM INACTIVE'}
+        visible={hostLobbyWarningVisible && lobbyView === 'ROOM_CREATED' && session === null && !isGameCountingDown && !isStartingGame}
         warning
       />
       <InactivityKickCountdown
         isBs={isBs}
-        message={isBs ? 'SOBA ĆE BITI ZATVORENA ZBOG NEAKTIVNOSTI' : 'THE ROOM WILL BE CLOSED FOR INACTIVITY'}
-        onDismiss={dismissHostLobbyFinalCountdown}
-        value={hostLobbyFinalCountdown}
+        message={isBs ? 'SOBA ĆE BITI OBRISANA' : 'THE ROOM WILL BE DELETED'}
+        onDismiss={() => undefined}
+        value={lobbyView === 'ROOM_CREATED' && session === null && !isGameCountingDown && !isStartingGame ? hostLobbyFinalCountdown : null}
       />
       <LaneModal
         failureMessage=""

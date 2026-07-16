@@ -38,6 +38,8 @@ export function ConfirmModal({
     onCancel?.();
   };
 
+  if (!visible) return null;
+
   return (
     <Modal
       animationType="fade"

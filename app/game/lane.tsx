@@ -4,6 +4,7 @@ import { type ReactNode, useEffect, useRef } from 'react';
 import { Animated, Pressable, ScrollView, Text, View } from 'react-native';
 import { TabFadeView } from '@/components/TabFadeView';
 import { cardDescription, cardTitle } from '@/lib/cardText';
+import { INSERT_SLOT_FADE_MS } from '@/lib/gameTiming';
 
 function SelectedInsertSlot({ isBs, onFadeComplete, result, shouldFade }: { isBs: boolean; onFadeComplete?: () => void; result: 'success' | 'failure'; shouldFade: boolean }) {
   const opacity = useRef(new Animated.Value(1)).current;
@@ -16,7 +17,7 @@ function SelectedInsertSlot({ isBs, onFadeComplete, result, shouldFade }: { isBs
   useEffect(() => {
     if (!shouldFade) return;
     const animation = Animated.timing(opacity, {
-      duration: 850,
+      duration: INSERT_SLOT_FADE_MS,
       toValue: 0,
       useNativeDriver: true,
     });

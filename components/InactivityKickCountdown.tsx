@@ -30,8 +30,10 @@ export function InactivityKickCountdown({ isBs, message, onDismiss, value }: Ina
     }).start();
   }, [dismissed, scale, value]);
 
+  if (value === null || dismissed) return null;
+
   return (
-    <Modal animationType="fade" statusBarTranslucent transparent visible={value !== null && !dismissed}>
+    <Modal animationType="fade" statusBarTranslucent transparent visible>
       <View className="flex-1 items-center justify-center bg-red-500 px-8">
         <Pressable
           accessibilityLabel={isBs ? 'Zatvori upozorenje' : 'Close warning'}

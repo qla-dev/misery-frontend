@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Check, Crown, Flame, LockKeyhole, Sparkles, Trophy, Zap } from 'lucide-react-native';
+import { Check, Crown, Flame, LockKeyhole, ShieldAlert, Sparkles, Trophy, Zap } from 'lucide-react-native';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import LottieView from 'lottie-react-native';
 import { useGame } from '@/context/GameContext';
@@ -14,6 +14,7 @@ const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
 const FEATURES = [
   { icon: LockKeyhole, en: 'Private game rooms', bs: 'Privatne sobe za igru', detailEn: 'Create locked rooms hidden from Public Games.', detailBs: 'Kreiraj zaključane sobe koje nisu vidljive u Javnim igrama.' },
   { icon: Flame, en: 'Unlock the Spicy deck', bs: 'Otključaj Ljuti špil', detailEn: 'Extreme and bizarre misery cards.', detailBs: 'Ekstremne i bizarne karte nesreće.' },
+  { icon: ShieldAlert, en: 'Unlock the 18+ pack', bs: 'Otključaj 18+ paket', detailEn: 'Explicit misery cards made strictly for adults.', detailBs: 'Eksplicitne karte nesreće namijenjene isključivo odraslima.' },
   { icon: Sparkles, en: 'Every premium pack', bs: 'Svi premium špilovi', detailEn: 'New themed packs as they arrive.', detailBs: 'Novi tematski špilovi čim stignu.' },
   { icon: Trophy, en: 'Exclusive game content', bs: 'Ekskluzivni sadržaj', detailEn: 'More ways to make game night miserable.', detailBs: 'Još više načina za nesretnu noć igre.' },
   { icon: Zap, en: 'Future Pro features', bs: 'Buduće Pro mogućnosti', detailEn: 'All upcoming Pro additions included.', detailBs: 'Sve buduće Pro funkcije su uključene.' },

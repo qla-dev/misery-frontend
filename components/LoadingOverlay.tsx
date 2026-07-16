@@ -77,11 +77,13 @@ export function LoadingOverlay({ isBs = false, mode = 'create', visible }: Loadi
     return () => clearInterval(timer);
   }, [copy.steps.length, opacity, visible]);
 
+  if (!visible) return null;
+
   const message = copy.steps[stepIndex];
 
   return (
     <Modal
-      animationType="fade"
+      animationType="none"
       onRequestClose={() => undefined}
       statusBarTranslucent
       transparent

@@ -16,6 +16,7 @@ import { VictoryConfetti } from './VictoryConfetti';
 import { DrawnCardFace } from './DrawnCardFace';
 import { CardBackDecoration } from './CardBackDecoration';
 import { logGameAction } from '@/lib/gameDiagnostics';
+import { INSERT_SLOT_FADE_MS } from '@/lib/gameTiming';
 import { cardDescription, cardTitle } from '@/lib/cardText';
 import { DeckType } from '@/context/game-types';
 import { subscribeToGameUpdates } from '@/lib/gameRealtime';
@@ -178,8 +179,6 @@ export default function GameBoard({
   const [inactivityWarningVisible, setInactivityWarningVisible] = useState(false);
   const [inactivityWarningCount, setInactivityWarningCount] = useState(0);
   const [inactivitySecondsRemaining, setInactivitySecondsRemaining] = useState<number | null>(null);
-  const [inactivityFinalCountdown, setInactivityFinalCountdown] = useState<number | null>(null);
-  const [inactivityResetKey, setInactivityResetKey] = useState(0);
   const [roomExitReason, setRoomExitReason] = useState<string | null>(null);
 
   useEffect(() => {
@@ -1089,11 +1088,11 @@ export default function GameBoard({
 
   useEffect(() => {
     if (laneResult !== null || selectedSlotResult === null || isLaneCollapsing) return;
-    logGameAction('lane-animation.fade-start', { durationMs: 850, result: selectedSlotResult });
+    logGameAction('lane-animation.fade-start', { durationMs: INSERT_SLOT_FADE_MS, result: selectedSlotResult });
     const timer = setTimeout(() => {
       logGameAction('lane-animation.fade-complete', { result: selectedSlotResult });
       handleLaneResultFadeComplete();
-    }, 850);
+    }, INSERT_SLOT_FADE_MS);
     return () => clearTimeout(timer);
     // The timer is intentionally driven only by the lane animation state. Poll renders
     // must not restart it while the same insertion marker is fading.
@@ -1246,7 +1245,6 @@ export default function GameBoard({
       setInactivityWarningVisible(false);
       setInactivityWarningCount(0);
       setInactivitySecondsRemaining(null);
-      setInactivityFinalCountdown(null);
       return;
     }
 
@@ -1256,7 +1254,6 @@ export default function GameBoard({
     inactivityKickInFlightRef.current = false;
     setInactivityWarningCount(0);
     setInactivitySecondsRemaining(null);
-    setInactivityFinalCountdown(null);
 
     const warningTimers = [1, 2, 3].map((warningNumber) => setTimeout(() => {
       inactivityWarningCountRef.current = warningNumber;
@@ -1272,14 +1269,12 @@ export default function GameBoard({
     const countdownTimer = setInterval(() => {
       const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
       if (inactivityWarningCountRef.current >= 3) setInactivitySecondsRemaining(remaining);
-      setInactivityFinalCountdown(remaining > 0 && remaining <= 3 ? remaining : null);
     }, 1_000);
 
     const kickTimer = setTimeout(() => {
       if (inactivityKickInFlightRef.current) return;
       inactivityKickInFlightRef.current = true;
       setInactivityWarningVisible(false);
-      setInactivityFinalCountdown(null);
       logGameAction('inactivity.kick.start', { gameId, playerId: userId, timeoutMs: INACTIVITY_KICK_MS });
       void api.expireInactivePlayer(gameId, userId)
         .then((game) => {
@@ -1303,19 +1298,7 @@ export default function GameBoard({
       clearInterval(countdownTimer);
       clearTimeout(kickTimer);
     };
-  }, [gameId, inactivityResetKey, inactivityTurnKey, userId]);
-
-  const handleInactivityCountdownDismiss = () => {
-    logGameAction('inactivity.countdown.dismissed', { gameId, playerId: userId });
-    inactivityWarningCountRef.current = 0;
-    inactivityKickInFlightRef.current = false;
-    setIsTurnInactive(false);
-    setInactivityWarningVisible(false);
-    setInactivityWarningCount(0);
-    setInactivitySecondsRemaining(null);
-    setInactivityFinalCountdown(null);
-    setInactivityResetKey((current) => current + 1);
-  };
+  }, [gameId, inactivityTurnKey, userId]);
 
   const faceDownPrompt = gameId && !isLocalServerTurn
     ? !isAwaitingTurnFinish && currentActingPlayer?.name
@@ -1502,7 +1485,6 @@ export default function GameBoard({
       inactivityWarningVisible,
       inactivityWarningCount,
       inactivitySecondsRemaining,
-      inactivityFinalCountdown,
       roomExitReason,
       connectionWarningVisible,
       isTurnInactive,
@@ -1510,7 +1492,6 @@ export default function GameBoard({
         setIsTurnInactive(false);
         setInactivityWarningVisible(false);
       },
-      dismissInactivityCountdown: handleInactivityCountdownDismiss,
       laneResult,
       selectedSlotIndex,
       selectedSlotResult,
@@ -1525,7 +1506,7 @@ export default function GameBoard({
         (!gameId || Number(activeStealer.id) === Number(userId))
       ),
     });
-  }, [chatMessages, chatMessagesHydrated, connectionWarningVisible, currentActingPlayer, gameId, gameState, hasPendingLocalTurnStartNotice, hiddenChatMessageIds, inactivityFinalCountdown, inactivitySecondsRemaining, inactivityWarningCount, inactivityWarningVisible, isAwaitingTurnFinish, isDrawnCardFlipped, isDrawnCardScoreRevealed, isLaneCollapsing, isServerTurnReady, isSubmittingMove, isTurnInactive, laneResult, lastInsertedCardId, lastResultCardScore, lastStealWasFromLocalPlayer, localPlayer, reportChatMessageLocally, roomExitReason, selectedSlotIndex, selectedSlotResult, sendChatMessage, serverCurrentPlayerId, setGameRuntime, userId]);
+  }, [chatMessages, chatMessagesHydrated, connectionWarningVisible, currentActingPlayer, gameId, gameState, hasPendingLocalTurnStartNotice, hiddenChatMessageIds, inactivitySecondsRemaining, inactivityWarningCount, inactivityWarningVisible, isAwaitingTurnFinish, isDrawnCardFlipped, isDrawnCardScoreRevealed, isLaneCollapsing, isServerTurnReady, isSubmittingMove, isTurnInactive, laneResult, lastInsertedCardId, lastResultCardScore, lastStealWasFromLocalPlayer, localPlayer, reportChatMessageLocally, roomExitReason, selectedSlotIndex, selectedSlotResult, sendChatMessage, serverCurrentPlayerId, setGameRuntime, userId]);
 
   useEffect(() => {
     if (!didLocalWin || winnerCelebratedRef.current) return;

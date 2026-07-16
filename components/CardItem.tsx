@@ -58,7 +58,7 @@ export default function CardItem({
             width: cardSize.width,
             height: cardSize.height,
             backgroundColor: '#0a0a0a',
-            borderColor: 'rgba(251,191,36,0.8)',
+            borderColor: 'rgba(250,204,21,0.8)',
             borderWidth: size === 'xl' ? 6 : 2,
             borderRadius: size === 'xl' ? 36 : 14,
             padding: size === 'xl' ? 24 : 16,
@@ -88,7 +88,7 @@ export default function CardItem({
         <View className="flex-1 items-center justify-center z-10">
           <View className={`${size === 'xl' ? 'w-36 h-36' : 'w-14 h-14'} rounded-full bg-amber-400/5 border-2 border-amber-400/30 items-center justify-center`}>
             <View style={{ width: size === 'xl' ? 96 : 32, height: size === 'xl' ? 96 : 32 }}>
-              <Illustration type="lightning" className={size === 'xl' ? 'w-24 h-24' : 'w-8 h-8'} color="#fbbf24" />
+              <Illustration type="lightning" className={size === 'xl' ? 'w-24 h-24' : 'w-8 h-8'} color="#facc15" />
             </View>
           </View>
         </View>
@@ -165,7 +165,7 @@ export default function CardItem({
       <View>
         {state === 'mystery' ? (
           <LinearGradient
-            colors={['#fbbf24', '#facc15', '#fbbf24']}
+            colors={['#facc15', '#facc15', '#facc15']}
             className={`${size === 'xl' ? 'py-5 rounded-b-[28px]' : 'py-2 rounded-b-xl'} items-center justify-center`}
           >
             <Text className="text-[7px] font-extrabold tracking-widest leading-none text-neutral-950 opacity-80 uppercase">
@@ -177,7 +177,7 @@ export default function CardItem({
           </LinearGradient>
         ) : (
           <LinearGradient
-            colors={['#fbbf24', '#facc15', '#fbbf24']}
+            colors={['#facc15', '#facc15', '#facc15']}
             className={`${size === 'xl' ? 'py-5 rounded-b-[28px]' : 'py-2 rounded-b-xl'} items-center justify-center`}
           >
             <Text className="text-[7px] font-extrabold tracking-widest leading-none text-neutral-950 opacity-80 uppercase">

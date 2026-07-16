@@ -76,7 +76,7 @@ export function DrawnCardFace({
       />
       <View
         pointerEvents="none"
-        style={{ borderColor: 'rgba(251,191,36,0.35)', borderRadius: 11, borderWidth: 2, bottom: 9, left: 9, position: 'absolute', right: 9, top: 9, zIndex: 5 }}
+        style={{ borderColor: 'rgba(250,204,21,0.35)', borderRadius: 11, borderWidth: 2, bottom: 9, left: 9, position: 'absolute', right: 9, top: 9, zIndex: 5 }}
       />
       <View className="w-full items-center px-3 pt-8" style={{ zIndex: 2 }}>
         <Text
@@ -183,6 +183,7 @@ export function DrawnCardFace({
             minimumFontScale={0.65}
             numberOfLines={1}
             style={{
+              color: '#facc15',
               fontFamily: 'BebasNeue_400Regular',
               fontSize: 15,
               letterSpacing: 1.2,
@@ -196,7 +197,7 @@ export function DrawnCardFace({
         </View>
         <LinearGradient
           colors={['#facc15', '#facc15']}
-          style={{ alignItems: 'center', bottom: 0, height: 70, justifyContent: 'center', padding: 8, position: 'absolute', width: scoreTabWidth }}
+          style={{ alignItems: 'center', bottom: -2, height: 70, justifyContent: 'center', padding: 8, position: 'absolute', width: scoreTabWidth }}
         >
           <Animated.Text
             className="text-neutral-950"

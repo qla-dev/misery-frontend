@@ -89,7 +89,7 @@ interface GameContextValue {
 
 export interface TurnNotice {
   id: number;
-  type: 'start' | 'hold' | 'end' | 'finish';
+  type: 'start' | 'hold' | 'end' | 'finish' | 'departure';
   steal?: boolean;
   playerName?: string;
 }

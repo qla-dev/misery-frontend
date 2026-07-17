@@ -355,7 +355,7 @@ export default function TabLayout() {
               : debugOverlay === 'other-wrong'
                 ? { label: isBs ? 'STAZA OD' : 'LANE OF', playerName: DEBUG_PLAYER_NAME, count: 3, target: 7, addsCard: false }
                 : undefined}
-        score={debugOverlay === 'right' || debugOverlay === 'wrong' || debugOverlay === 'right-no-player' || debugOverlay === 'wrong-no-player' || debugOverlay === 'steal' || debugOverlay === 'other-right' || debugOverlay === 'other-wrong' || debugOverlay === 'other-steal'
+        score={debugOverlay === 'right' || debugOverlay === 'right-no-player' || debugOverlay === 'steal' || debugOverlay === 'other-right' || debugOverlay === 'other-steal'
           ? DEBUG_CARD.index
           : undefined}
         success={debugOverlay !== 'wrong' && debugOverlay !== 'wrong-no-player' && debugOverlay !== 'other-wrong'}

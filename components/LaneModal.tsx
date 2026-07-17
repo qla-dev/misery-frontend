@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Modal, Pressable, Text, View } from 'react-native';
-import { Ban, BellRing, Check, Pause, Play, ShieldAlert, Square, X } from 'lucide-react-native';
+import { Ban, BellRing, Check, LogOut, Pause, Play, ShieldAlert, Square, X } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
 import { playHaptic } from '@/lib/sound';
 import { LaneProgress, LaneProgressBadge } from '@/components/LaneProgressBadge';
@@ -113,6 +113,7 @@ type LaneModalProps = {
   holding?: boolean;
   persistent?: boolean;
   bell?: boolean;
+  leaving?: boolean;
 };
 
 export function LaneModal({
@@ -133,6 +134,7 @@ export function LaneModal({
   holding = false,
   persistent = false,
   bell = false,
+  leaving = false,
 }: LaneModalProps) {
   const [rendered, setRendered] = useState(false);
   const [scoreAnimationRun, setScoreAnimationRun] = useState(0);
@@ -261,7 +263,9 @@ export function LaneModal({
           style={{ gap: contentGap, transform: [{ translateY: -31 }, { scale }, { rotate }], width: '100%' }}
         >
           <View className={`h-40 w-40 items-center justify-center rounded-full border-[6px] ${darkForeground ? 'border-neutral-950 bg-neutral-950/5' : 'border-white bg-white/15'}`}>
-            {holding ? (
+            {leaving ? (
+              <LogOut color={darkForeground ? '#0a0a0a' : '#ffffff'} size={82} strokeWidth={3.2} />
+            ) : holding ? (
               <Pause
                 color={darkForeground ? '#0a0a0a' : '#ffffff'}
                 fill={darkForeground ? '#0a0a0a' : '#ffffff'}

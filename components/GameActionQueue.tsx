@@ -81,7 +81,7 @@ export function GameActionQueue({
   const hasHydratedChatSnapshotRef = useRef(false);
   const previousGameIdRef = useRef(gameId);
   const laneAvailable = laneResult !== null;
-  const turnAvailable = Boolean(turnNotice && !hasPendingLaneAnimation);
+  const turnAvailable = Boolean(turnNotice && (turnNotice.type === 'departure' || !hasPendingLaneAnimation));
   const stealAvailable = stealDecisionVisible && !handledStealOffer && !hasPendingLaneAnimation;
   const inactivityAvailable = inactivityWarningVisible && !hasPendingLaneAnimation;
   const roomExitAvailable = Boolean(roomExitReason);
@@ -222,7 +222,7 @@ export function GameActionQueue({
         successTitle={laneResult === 'steal'
           ? isBs ? 'KARTA UKRADENA' : 'CARD STOLEN'
           : isBs ? 'TAČNO' : 'CORRECT'}
-        score={lastResultCardScore ?? undefined}
+        score={laneResult === 'failure' ? undefined : lastResultCardScore ?? undefined}
         scoreLabel={isBs ? 'STOPA PATNJE' : 'MISERY RATE'}
         visible={activeAction === 'lane-result'}
         warning={laneResult === 'steal'}
@@ -234,10 +234,13 @@ export function GameActionQueue({
         failureMessage=""
         failureTitle=""
         holding={turnNotice?.type === 'hold'}
+        leaving={turnNotice?.type === 'departure'}
         neutral={turnNotice?.type !== 'hold'}
         onComplete={() => complete('turn-notice', onTurnNoticeComplete)}
         success
-        successMessage={turnNotice?.type === 'finish'
+        successMessage={turnNotice?.type === 'departure'
+          ? ''
+          : turnNotice?.type === 'finish'
           ? isBs ? 'KONAČNI POREDAK JE SPREMAN' : 'YOUR FINAL STANDINGS ARE READY'
           : turnNotice?.type === 'hold'
             ? isBs
@@ -252,7 +255,9 @@ export function GameActionQueue({
             : turnNotice?.steal
               ? isBs ? 'DODIRNI KARTU I POKUŠAJ KRAĐU' : 'TAP THE CARD TO TRY TO STEAL'
               : isBs ? 'DODIRNI KARTU ZA IGRU' : 'TAP THE CARD TO PLAY'}
-        successTitle={turnNotice?.type === 'finish'
+        successTitle={turnNotice?.type === 'departure'
+          ? turnNotice.playerName ?? (isBs ? 'IGRAČ' : 'PLAYER')
+          : turnNotice?.type === 'finish'
           ? isBs ? 'IGRA JE ZAVRŠENA' : 'GAME FINISHED'
           : turnNotice?.type === 'hold'
             ? isBs ? 'NA \u010CEKANJU SI' : `YOU'RE ON HOLD`
@@ -261,6 +266,9 @@ export function GameActionQueue({
             : turnNotice?.steal
               ? isBs ? 'POKU\u0160AJ KRA\u0110E' : 'YOUR STEAL ATTEMPT'
               : isBs ? 'TVOJ POTEZ JE PO\u010CEO' : 'YOUR TURN STARTED'}
+        successTitleDetail={turnNotice?.type === 'departure'
+          ? isBs ? 'JE NAPUSTIO SOBU' : 'LEFT THE ROOM'
+          : undefined}
         visible={activeAction === 'turn-notice'}
         warning={turnNotice?.type === 'hold'}
       />

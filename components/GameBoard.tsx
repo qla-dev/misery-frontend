@@ -120,6 +120,11 @@ export default function GameBoard({
   const observedTurnRef = useRef<{ actorId: number; cardId: string; isSteal: boolean; announced: boolean } | null>(null);
   const observedTurnOwnerIdRef = useRef<number | null>(null);
   const turnNoticeIdRef = useRef(0);
+  const knownServerMembersRef = useRef(new Map(
+    initialPlayers
+      .filter((player) => player.id !== undefined)
+      .map((player) => [Number(player.id), player.name] as const)
+  ));
   const gameFinishedAnnouncedRef = useRef(false);
   const winnerCelebratedRef = useRef(false);
   const finishedExitInProgressRef = useRef(false);
@@ -713,6 +718,26 @@ export default function GameBoard({
         const exitReason = game.terminated_at
           ? game.termination_reason ?? 'host_left'
           : !isStillMember ? 'player_inactive' : null;
+        const nextServerMembers = new Map(game.members.map((member) => [Number(member.id), member.name] as const));
+        if (!exitReason) {
+          const departedPlayers = [...knownServerMembersRef.current.entries()]
+            .filter(([memberId]) => memberId !== Number(userId) && !nextServerMembers.has(memberId));
+          if (departedPlayers.length > 0) {
+            setTurnNotices((current) => [
+              ...departedPlayers.map(([, playerName]) => ({
+                id: ++turnNoticeIdRef.current,
+                playerName,
+                type: 'departure' as const,
+              })),
+              ...current,
+            ]);
+            logGameAction('room.member-departure-notice', {
+              gameId,
+              players: departedPlayers.map(([memberId, playerName]) => ({ memberId, playerName })),
+            });
+          }
+        }
+        knownServerMembersRef.current = nextServerMembers;
         if (exitReason) {
           setRoomExitReason(exitReason);
           logGameAction('room.exit-detected', { gameId, reason: exitReason, userId });
@@ -1382,6 +1407,7 @@ export default function GameBoard({
   }, [cardPromptFloat, isGameOverPhase, isVictoryPhase]);
 
   useEffect(() => {
+    if (serverWinnerId || gameState.phase === 'VICTORY' || gameState.phase === 'GAME_OVER') return;
     if (!gameId || !userId || !isServerTurnReady || !gameState.drawnCard || !serverCurrentPlayerId) return;
     const currentTurn = {
       actorId: Number(serverCurrentPlayerId),
@@ -1426,9 +1452,13 @@ export default function GameBoard({
       }
       return next;
     });
-  }, [activeStealer, gameId, gameState.drawnCard, isServerTurnReady, serverCurrentPlayerId, setTurnNotices, userId]);
+  }, [activeStealer, gameId, gameState.drawnCard, gameState.phase, isServerTurnReady, serverCurrentPlayerId, serverWinnerId, setTurnNotices, userId]);
 
   useEffect(() => {
+    if (serverWinnerId || gameState.phase === 'VICTORY' || gameState.phase === 'GAME_OVER') {
+      setPendingHoldNotice(null);
+      return;
+    }
     if (laneResult !== null || selectedSlotResult !== null || isLaneCollapsing) return;
     if (!pendingHoldNotice) return;
     setPendingHoldNotice(null);
@@ -1439,9 +1469,10 @@ export default function GameBoard({
       steal: true,
       playerName: pendingHoldNotice.playerName,
     }]);
-  }, [isLaneCollapsing, laneResult, pendingHoldNotice, selectedSlotResult, setTurnNotices]);
+  }, [gameState.phase, isLaneCollapsing, laneResult, pendingHoldNotice, selectedSlotResult, serverWinnerId, setTurnNotices]);
 
   useEffect(() => {
+    if (serverWinnerId || gameState.phase === 'VICTORY' || gameState.phase === 'GAME_OVER') return;
     if (!gameId || !userId || serverTurnOwnerId === null) return;
     const previousOwnerId = observedTurnOwnerIdRef.current;
     observedTurnOwnerIdRef.current = Number(serverTurnOwnerId);
@@ -1457,7 +1488,7 @@ export default function GameBoard({
         type: 'end',
       }]);
     }
-  }, [gameId, serverTurnOwnerId, setTurnNotices, userId]);
+  }, [gameId, gameState.phase, serverTurnOwnerId, serverWinnerId, setTurnNotices, userId]);
 
   useEffect(() => {
     setGameRuntime({

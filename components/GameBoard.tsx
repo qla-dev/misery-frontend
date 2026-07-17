@@ -67,6 +67,7 @@ interface GameBoardProps {
   deckType?: DeckType;
   gameId?: number;
   userId?: number;
+  debugVictory?: boolean;
 }
 
 type QueuedLaneResult = {
@@ -83,6 +84,7 @@ export default function GameBoard({
   deckType = 'normal',
   gameId,
   userId,
+  debugVictory = false,
 }: GameBoardProps) {
   const {
     language,
@@ -411,6 +413,14 @@ export default function GameBoard({
       });
     }
 
+    if (debugVictory) {
+      playersList.forEach((player, index) => {
+        const extraCards = index === 0 ? targetScore : Math.max(1, targetScore - index - 1);
+        player.lane.push(...shuffledDeck.splice(0, extraCards));
+        player.lane.sort((a, b) => a.index - b.index);
+      });
+    }
+
     const firstDraw = shuffledDeck.pop() || null;
 
     setGameState({
@@ -420,13 +430,13 @@ export default function GameBoard({
       drawnCard: firstDraw,
       deck: shuffledDeck,
       discardPile: [],
-      phase: 'PLAYING',
+      phase: debugVictory ? 'VICTORY' : 'PLAYING',
       targetScore,
       guessHistory: [],
     });
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, initialPlayers, targetScore, deckType]);
+  }, [mode, initialPlayers, targetScore, deckType, debugVictory]);
 
   const verifySlotChoice = (lane: Card[], drawnCard: Card, slotIdx: number): boolean => {
     const prevCard = slotIdx > 0 ? lane[slotIdx - 1] : null;
@@ -1567,7 +1577,7 @@ export default function GameBoard({
           className="px-5 space-y-4"
           style={{
             paddingBottom: isVictoryPhase || isGameOverPhase ? 132 + safeAreaInsets.bottom : 128,
-            paddingTop: isVictoryPhase || isGameOverPhase ? 118 : 104,
+            paddingTop: isVictoryPhase ? 73 : isGameOverPhase ? 118 : 104,
           }}
         >
           {mode === 'MULTIPLAYER' && !isVictoryPhase && !isGameOverPhase && (
@@ -1710,7 +1720,7 @@ export default function GameBoard({
           )}
           {isVictoryPhase && (
             <View className="w-full items-center">
-              <Animated.View style={{ height: 92, opacity: victoryTrophyFloat.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] }), transform: [{ translateY: victoryTrophyFloat.interpolate({ inputRange: [0, 1], outputRange: [2, -3] }) }], width: 92 }}>
+              <Animated.View style={{ height: 120, opacity: victoryTrophyFloat.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] }), transform: [{ translateY: victoryTrophyFloat.interpolate({ inputRange: [0, 1], outputRange: [2, -3] }) }], width: 120 }}>
                 <Image accessibilityLabel={isBs ? 'Pobjednički pehar' : 'Victory trophy'} resizeMode="contain" source={VICTORY_TROPHY_IMAGE} style={{ height: '100%', width: '100%' }} />
               </Animated.View>
               <Text className="mt-4 text-center font-mono text-[10px] font-black uppercase tracking-[4px] text-amber-300">

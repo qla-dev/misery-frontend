@@ -19,10 +19,16 @@ import { WebAppCard } from '@/components/WebAppCard';
 import { Card } from '@/types';
 import { X } from 'lucide-react-native';
 import { API_BASE_URL, ApiCard } from '@/lib/api';
+import GameBoard from '@/components/GameBoard';
 
 type DebugOverlay = 'right' | 'wrong' | 'right-no-player' | 'wrong-no-player' | 'yellow' | 'white' | 'steal' | 'other-right' | 'other-wrong' | 'other-steal';
 const DEBUG_PLAYER_NAME = 'NEDIM KULASIN';
 const SHOW_DEBUG_LOGS_BUTTON = false;
+const DEBUG_VICTORY_PLAYERS = [
+  { id: 1, name: 'YOU', color: 'border-yellow-400 bg-yellow-400/5 text-yellow-400' },
+  { id: 2, name: 'NEDIM KULASIN', color: 'border-blue-400 bg-blue-400/5 text-blue-400' },
+  { id: 3, name: 'MISERY BOT', color: 'border-emerald-400 bg-emerald-400/5 text-emerald-400', isBot: true },
+];
 
 const DEBUG_CARD: Card = {
   id: 'debug-card',
@@ -98,6 +104,7 @@ export default function TabLayout() {
   const [debugOverlay, setDebugOverlay] = useState<DebugOverlay | null>(null);
   const [debugCard, setDebugCard] = useState<Card | null>(null);
   const [debugWebCardVisible, setDebugWebCardVisible] = useState(false);
+  const [debugVictoryVisible, setDebugVictoryVisible] = useState(false);
   const debugCardWidth = Math.min(width - 32, 420);
   const debugCardHeight = Math.min(height - insets.top - insets.bottom - 72, debugCardWidth * 1.48, 680);
   const showDebugOverlay = (overlay: DebugOverlay) => {
@@ -308,6 +315,17 @@ export default function TabLayout() {
             category="button"
             onPress={() => {
               setDebugMenuOpen(false);
+              requestAnimationFrame(() => setDebugVictoryVisible(true));
+            }}
+            size="100"
+            type="success"
+          >
+            FINISH SCREEN — I WON
+          </ButtonTab>
+          <ButtonTab
+            category="button"
+            onPress={() => {
+              setDebugMenuOpen(false);
               requestAnimationFrame(() => setDebugWebCardVisible(true));
             }}
             size="100"
@@ -397,6 +415,30 @@ export default function TabLayout() {
             accessibilityRole="button"
             onPress={() => setDebugWebCardVisible(false)}
             style={{ alignItems: 'center', backgroundColor: 'rgba(64,64,64,0.9)', borderRadius: 22, height: 44, justifyContent: 'center', position: 'absolute', right: 18, top: insets.top + 12, width: 44 }}
+          >
+            <X color="#ffffff" size={22} strokeWidth={2.6} />
+          </Pressable>
+        </View>
+      </Modal>
+      <Modal
+        animationType="slide"
+        onRequestClose={() => setDebugVictoryVisible(false)}
+        presentationStyle="fullScreen"
+        statusBarTranslucent
+        visible={debugVictoryVisible}
+      >
+        <View className="flex-1 bg-neutral-950">
+          <GameBoard
+            debugVictory
+            initialPlayers={DEBUG_VICTORY_PLAYERS}
+            mode="MULTIPLAYER"
+            targetScore={5}
+          />
+          <Pressable
+            accessibilityLabel="Close finish screen preview"
+            accessibilityRole="button"
+            onPress={() => setDebugVictoryVisible(false)}
+            style={{ alignItems: 'center', backgroundColor: 'rgba(64,64,64,0.9)', borderRadius: 22, height: 44, justifyContent: 'center', position: 'absolute', right: 18, top: insets.top + 12, width: 44, zIndex: 100 }}
           >
             <X color="#ffffff" size={22} strokeWidth={2.6} />
           </Pressable>

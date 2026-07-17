@@ -1856,7 +1856,7 @@ export default function Lobby() {
                     SERY
                   </Text>
                 </View>
-                <Text className="text-center text-[66px] font-black uppercase leading-[66px] tracking-tight text-white" style={{ marginTop: -16 }}>
+                <Text className="text-center text-[66px] font-black uppercase leading-[66px] tracking-tight text-white" style={{ marginTop: -16, paddingBottom: 5 }}>
                   METER
                 </Text>
               </View>

@@ -1,7 +1,9 @@
 import { useGame } from '@/context/GameContext';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useMemo, useState } from 'react';
-import { Image, Text, View } from 'react-native';
+import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Easing, Image, Text, View } from 'react-native';
+import { BellRing, Check, Pause, Play, X } from 'lucide-react-native';
+import Svg, { Path } from 'react-native-svg';
 import { API_BASE_URL, ApiCard, api } from '@/lib/api';
 import { CARD_DECK } from '@/data/cards';
 import { Card } from '@/types';
@@ -9,7 +11,38 @@ import { MiseryLogo } from './MiseryLogo';
 import { cardTitle } from '@/lib/cardText';
 
 const DEFAULT_CARD_IMAGE = require('../assets/images/def-card.png');
-const RULEBOOK_SPECTRUM_IMAGE = require('../assets/images/rulebook-misery-spectrum.jpg');
+const RULEBOOK_SPECTRUM_IMAGE = require('../assets/images/rulebook-misery-spectrum-transparent.png');
+const RULEBOOK_TIMER_IMAGE = require('../assets/images/rulebook-60-second-timer-transparent.png');
+const RULEBOOK_TROPHY_IMAGE = require('../assets/images/rulebook-victory-trophy.png');
+
+function FloatingRuleArt({ children, style }: { children: ReactNode; style?: object }) {
+  const progress = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(progress, { duration: 1800, easing: Easing.inOut(Easing.sin), toValue: 1, useNativeDriver: true }),
+        Animated.timing(progress, { duration: 1800, easing: Easing.inOut(Easing.sin), toValue: 0, useNativeDriver: true }),
+      ]),
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [progress]);
+
+  return (
+    <Animated.View
+      style={[
+        style,
+        {
+          opacity: progress.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] }),
+          transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [2, -3] }) }],
+        },
+      ]}
+    >
+      {children}
+    </Animated.View>
+  );
+}
 
 function toLocalCard(card: ApiCard): Card {
   const image = card.image && card.image !== '0'
@@ -85,7 +118,7 @@ function RulebookGameCard({ card, hidden = false, isBs, width }: { card: Card; h
         {!compact ? <Text style={{ color: '#facc15', fontFamily: 'BebasNeue_400Regular', fontSize: 8, letterSpacing: 0.7 }}>{isBs ? 'STOPA PATNJE' : 'MISERY RATE'}</Text> : null}
         <View style={{ alignItems: 'center', backgroundColor: '#facc15', height: compact ? 25 : 42, justifyContent: 'center', width: compact ? 34 : 64 }}>
           <Text style={{ color: '#090909', fontFamily: 'BebasNeue_400Regular', fontSize: compact ? 15 : 25, lineHeight: compact ? 17 : 28 }}>
-            {hidden ? '?' : card.index.toFixed(1)}
+            {hidden ? '?.??' : card.index.toFixed(1)}
           </Text>
         </View>
       </View>
@@ -154,9 +187,9 @@ function ScoreScale({ cards, isBs }: { cards: Card[]; isBs: boolean }) {
 
 function RulebookSpectrumIllustration() {
   return (
-    <View className="w-full items-center justify-center overflow-hidden" style={{ aspectRatio: 1 }}>
+    <FloatingRuleArt style={{ alignItems: 'center', aspectRatio: 1, justifyContent: 'center', overflow: 'hidden', width: '100%' }}>
       <Image accessibilityLabel="Misery meter pointing from bad through awful to WTF" resizeMode="contain" source={RULEBOOK_SPECTRUM_IMAGE} style={{ height: '100%', width: '100%' }} />
-    </View>
+    </FloatingRuleArt>
   );
 }
 
@@ -170,9 +203,9 @@ function AnatomyCard({ card, isBs }: { card: Card; isBs: boolean }) {
           </View>
         ))}
       </View>
-      <View className="w-[48%] items-center">
+      <FloatingRuleArt style={{ alignItems: 'center', width: '48%' }}>
         <RulebookGameCard card={card} isBs={isBs} width={142} />
-      </View>
+      </FloatingRuleArt>
     </View>
   );
 }
@@ -192,10 +225,18 @@ function LaneExample({ cards, hidden = false, isBs }: { cards: Card[]; hidden?: 
   );
 }
 
-function Outcome({ color, description, title }: { color: string; description: string; title: string }) {
+function CarnivalMaskIcon({ color = '#0a0a0a', size = 28 }: { color?: string; size?: number }) {
+  return (
+    <Svg height={size} viewBox="0 0 530.25 530.251" width={size}>
+      <Path d="M511.086 187.131c-37.584-20.402-77.071-34.679-120.667-33.221-24.969.843-49.149 6.877-73.324 12.632-13.353 3.173-26.705 6.403-39.988 9.887-4.051 1.066-8.036 1.528-11.982 1.682-3.943-.147-7.929-.616-11.976-1.682-13.287-3.484-26.635-6.714-39.992-9.887-24.178-5.75-48.355-11.789-73.324-12.632-43.6-1.458-83.086 12.823-120.667 33.221-17.105 9.285-21.56 17.524-18.052 32.65 4.172 17.987 9.73 35.785 17.702 52.374 7.078 14.739 14.834 29.23 23.48 43.306 14.003 22.785 29.139 43.353 55.571 52.846 16.043 5.759 32.413 8.97 49.392 7.948 9.458-.574 18.027-4.621 26.472-8.807 8.387-4.163 16.956-8 24.498-13.623 7.488-5.587 15.45-10.791 21.951-17.408 0 0 26.892-26.174 44.946-30.196 18.064 4.027 44.946 30.196 44.946 30.196 6.501 6.617 14.464 11.821 21.959 17.408 7.537 5.623 16.115 9.455 24.497 13.623 8.438 4.186 17.007 8.232 26.472 8.807 16.979 1.021 33.347-2.189 49.392-7.948 26.43-9.488 41.574-30.061 55.566-52.846 8.648-14.071 16.4-28.566 23.48-43.306 7.967-16.589 13.525-34.382 17.702-52.374 3.506-15.126-.951-23.365-18.052-32.65zM132.998 288.92c-33.932-11.542-51.534-50.034-51.534-50.034s37.416-19.77 71.348-8.233 51.527 50.029 51.527 50.029-37.414 19.775-71.341 8.238zm264.258 0c-33.93 11.537-71.35-8.237-71.35-8.237s17.604-38.492 51.538-50.029c33.925-11.537 71.341 8.233 71.341 8.233s-17.594 38.491-51.529 50.033z" fill={color} />
+    </Svg>
+  );
+}
+
+function Outcome({ color, description, icon, title }: { color: string; description: string; icon: ReactNode; title: string }) {
   return (
     <View className="flex-row items-start" style={{ gap: 12 }}>
-      <View style={{ backgroundColor: color, borderRadius: 999, height: 24, marginTop: 1, width: 24 }} />
+      <View style={{ alignItems: 'center', backgroundColor: color, borderColor: color === '#ffffff' ? '#d4d4d4' : color, borderRadius: 999, borderWidth: 1, height: 44, justifyContent: 'center', marginTop: 1, width: 44 }}>{icon}</View>
       <View className="flex-1">
         <Text className="text-xs font-black uppercase text-neutral-900">{title}</Text>
         <Text className="mt-1 text-sm leading-5 text-neutral-700">{description}</Text>
@@ -296,13 +337,13 @@ export function RulebookContent({ compact = false }: { compact?: boolean }) {
           : 'Each player starts with three cards already arranged from the lowest to the highest Misery Rate. Those cards form the beginning of your Misery Lane.'}
       </Text>
       <View className="mt-4 bg-amber-400 px-3 py-1">
-        <Text className="text-center uppercase text-neutral-900" style={{ fontFamily: 'AmaticSC_Bold', fontSize: 29, letterSpacing: 2 }}>MISERY LANE</Text>
+        <Text className="text-center uppercase text-neutral-900" style={{ fontFamily: 'AmaticSC_Bold', fontSize: 29, letterSpacing: 2 }}>{isBs ? 'STAZA PATNJE' : 'MISERY LANE'}</Text>
       </View>
       <LaneExample cards={ruleCards} hidden isBs={isBs} />
       <Text className="mt-4 text-sm leading-5 text-neutral-800">
         {isBs
-          ? 'Na tvom potezu nova kartica prvo ulazi u stazu sa znakom ?. Izaberi mjesto između postojećih ocjena gdje misliš da pripada. Ne pogađaš broj, nego njen pravilan položaj.'
-          : 'On your turn, the new card first enters the lane with a ?. Choose the place between the known scores where you think it belongs. You are not guessing the number, only its correct position.'}
+          ? 'Na tvom potezu nova kartica prvo ulazi u stazu sa znakom ?.??. Izaberi mjesto između postojećih ocjena gdje misliš da pripada. Ne pogađaš broj, nego njen pravilan položaj.'
+          : 'On your turn, the new card first enters the lane with a ?.??. Choose the place between the known scores where you think it belongs. You are not guessing the number, only its correct position.'}
       </Text>
       <LaneExample cards={ruleCards} isBs={isBs} />
       <Text className="mt-3 text-sm leading-5 text-neutral-800">
@@ -310,46 +351,83 @@ export function RulebookContent({ compact = false }: { compact?: boolean }) {
       </Text>
 
       <Fold />
-      <RuleHeader number="6" title="GAME MASTER" />
+      <RuleHeader number="6" title={isBs ? 'VRIJEME ZA ODGOVOR' : 'TIME TO ANSWER'} />
+      <View className="mt-4 flex-row items-center bg-amber-400 p-4" style={{ gap: 12 }}>
+        <Text className="flex-1 text-xs leading-[17px] text-neutral-900">
+          {isBs ? 'Svaki igrač ima ' : 'Each player has '}
+          <Text className="font-black">{isBs ? 'jednu minutu' : 'one minute'}</Text>
+          {isBs ? ' da odgovori ili završi potrebnu radnju na svom potezu, ' : ' to answer or complete the required action on every turn, '}
+          <Text className="italic">{isBs ? 'uključujući pokušaj krađe' : 'including a steal attempt'}</Text>
+          {isBs ? '. Odbrojavanje počinje čim tvoj potez postane aktivan.' : '. The countdown begins as soon as your turn becomes active.'}
+        </Text>
+        <FloatingRuleArt style={{ aspectRatio: 1, width: '42%' }}>
+          <Image
+            accessibilityLabel={isBs ? 'Ilustracija vremenskog ograničenja od 60 sekundi' : '60-second time-limit illustration'}
+            resizeMode="contain"
+            source={RULEBOOK_TIMER_IMAGE}
+            style={{ height: '100%', width: '100%' }}
+          />
+        </FloatingRuleArt>
+      </View>
+      <View className="flex-row items-start bg-amber-100 p-4" style={{ gap: 12 }}>
+        <View className="h-11 w-11 items-center justify-center rounded-full bg-amber-400">
+          <BellRing color="#171717" size={23} strokeWidth={2.6} />
+        </View>
+        <View className="flex-1">
+          <Text className="text-xs font-black uppercase text-neutral-900">{isBs ? 'UPOZORENJA · 15 / 30 / 45 SEKUNDI' : 'WARNINGS · 15 / 30 / 45 SECONDS'}</Text>
+          <Text className="mt-2 text-sm leading-5 text-neutral-700">
+            {isBs
+              ? 'Ako igrač ne reaguje u roku od 60 sekundi, izbacuje se. Igra se nastavlja kada ode obični igrač; ako host napusti igru ili postane neaktivan, cijela igra se završava.'
+              : 'If the player does not act within 60 seconds, they are removed. The game continues when a regular player leaves; if the host leaves or becomes inactive, the entire game ends.'}
+          </Text>
+        </View>
+      </View>
+
+      <Fold />
+      <RuleHeader number="7" title="GAME MASTER" />
       <Text className="mt-3 text-sm leading-5 text-neutral-800">
         {isBs
-          ? 'Aplikacija je vaš Game Master. Vodi redoslijed poteza, prikazuje čiji je potez, zaključava nedostupne akcije, otkriva ocjene i kroz posebne overlay poruke objašnjava svaki rezultat, krađu i pobjedu.'
-          : 'The app is your Game Master. It manages turn order, shows whose turn it is, locks unavailable actions, reveals scores, and uses dedicated overlays to explain every result, steal, and victory.'}
+          ? 'Aplikacija je vaš Game Master. Vodi redoslijed poteza, prikazuje čiji je potez, zaključava nedostupne akcije, otkriva ocjene i kroz posebne flash poruke objašnjava svaki rezultat, krađu i pobjedu.'
+          : 'The app is your Game Master. It manages turn order, shows whose turn it is, locks unavailable actions, reveals scores, and uses dedicated flash messages to explain every result, steal, and victory.'}
       </Text>
-      <View className="mt-4 bg-amber-100 p-4">
-        <Text className="text-xs font-black uppercase text-neutral-900">{isBs ? 'NEAKTIVNOST · 60 SEKUNDI' : 'INACTIVITY · 60 SECONDS'}</Text>
-        <Text className="mt-2 text-sm leading-5 text-neutral-700">
-          {isBs
-            ? 'Aktivni igrač dobija upozorenja nakon 15, 30 i 45 sekundi. Ako ne reaguje u roku od 60 sekundi, izbacuje se. Igra se nastavlja ako je otišao obični igrač; ako host napusti igru ili postane neaktivan, cijela igra se završava.'
-            : 'The active player is warned after 15, 30, and 45 seconds. If they do not act within 60 seconds, they are removed. The game continues when a regular player leaves; if the host leaves or becomes inactive, the entire game ends.'}
-        </Text>
-      </View>
 
       <Fold />
-      <RuleHeader number="7" title={isBs ? 'TAČNO ILI POGREŠNO' : 'RIGHT OR WRONG'} />
+      <RuleHeader number="8" title={isBs ? 'FLASH PORUKE' : 'FLASH MESSAGES'} />
       <Text className="mt-3 text-sm leading-5 text-neutral-800">
-        {isBs ? 'Nakon otkrivanja ocjene, Game Master preko cijelog ekrana prikazuje rezultat poteza:' : 'After revealing the score, the Game Master displays the result in a full overlay:'}
+        {isBs ? 'Game Master koristi flash poruke preko cijelog ekrana da jasno pokaže trenutno stanje igre:' : 'The Game Master uses full-screen flash messages to clearly show the current game state:'}
       </Text>
       <View className="mt-4" style={{ gap: 14 }}>
-        <Outcome color="#10b981" description={isBs ? 'Zeleni overlay znači da je položaj tačan. Kartica ostaje u tvojoj stazi.' : 'A green overlay means the position is correct. The card stays in your lane.'} title={isBs ? 'TAČNO' : 'RIGHT'} />
-        <Outcome color="#ef4444" description={isBs ? 'Crveni overlay znači da je procjena bila previsoka ili preniska. Kartica ne ulazi u tvoju stazu.' : 'A red overlay means your guess was too high or too low. The card does not enter your lane.'} title={isBs ? 'POGREŠNO' : 'WRONG'} />
+        <Outcome color="#10b981" description={isBs ? 'Zelena flash poruka znači da je položaj tačan. Kartica ostaje u tvojoj stazi.' : 'A green flash message means the position is correct. The card stays in your lane.'} icon={<Check color="#ffffff" size={26} strokeWidth={3.2} />} title={isBs ? 'TAČNO' : 'RIGHT'} />
+        <Outcome color="#ef4444" description={isBs ? 'Crvena flash poruka znači da je procjena bila previsoka ili preniska. Kartica ne ulazi u tvoju stazu.' : 'A red flash message means your guess was too high or too low. The card does not enter your lane.'} icon={<X color="#ffffff" size={27} strokeWidth={3.2} />} title={isBs ? 'POGREŠNO' : 'WRONG'} />
+        <Outcome color="#facc15" description={isBs ? 'Žuta flash poruka znači da je igra privremeno na čekanju dok drugi igrač završi svoju odluku.' : 'A yellow flash message means the game is on hold while another player completes their decision.'} icon={<Pause color="#171717" fill="#171717" size={24} strokeWidth={2.5} />} title={isBs ? 'NA ČEKANJU' : 'ON HOLD'} />
+        <Outcome color="#ffffff" description={isBs ? 'Bijela flash poruka znači da je tvoj potez i da sada biraš dostupnu akciju.' : 'A white flash message means it is your turn and you can choose an available action.'} icon={<Play color="#171717" fill="#171717" size={24} strokeWidth={2.5} />} title={isBs ? 'TVOJ POTEZ' : 'YOUR TURN'} />
       </View>
 
       <Fold />
-      <RuleHeader number="8" title={isBs ? 'KRAĐA' : 'STEALING'} />
+      <RuleHeader number="9" title={isBs ? 'KRAĐA' : 'STEALING'} />
       <View className="mt-4">
-        <Outcome color="#facc15" description={isBs ? 'Nakon pogrešnog poteza, ostali igrači redom dobijaju posebni overlay sa izborom da prihvate ili preskoče krađu. Ko prihvati, pokušava pravilno postaviti istu karticu u svoju stazu. Uspješna krađa dodaje karticu kradljivcu; ako svi preskoče ili pogriješe, kartica se odbacuje.' : 'After a wrong move, the other players receive a dedicated overlay in order and may accept or pass the steal. Whoever accepts tries to place the same card correctly in their own lane. A successful steal adds it to the stealer’s lane; if everyone passes or misses, the card is discarded.'} title={isBs ? 'PRILIKA ZA KRAĐU' : 'STEAL CHANCE'} />
+        <Outcome color="#facc15" description={isBs ? 'Nakon pogrešnog poteza, ostali igrači redom dobijaju posebnu flash poruku sa izborom da prihvate ili preskoče krađu. Ko prihvati, pokušava pravilno postaviti istu karticu u svoju stazu. Uspješna krađa dodaje karticu kradljivcu; ako svi preskoče ili pogriješe, kartica se odbacuje.' : 'After a wrong move, the other players receive a dedicated flash message in order and may accept or pass the steal. Whoever accepts tries to place the same card correctly in their own lane. A successful steal adds it to the stealer’s lane; if everyone passes or misses, the card is discarded.'} icon={<CarnivalMaskIcon />} title={isBs ? 'PRILIKA ZA KRAĐU' : 'STEAL CHANCE'} />
       </View>
 
       <Fold />
-      <RuleHeader number="9" title={isBs ? 'KAKO POBIJEDITI' : 'HOW TO WIN'} />
-      <View className="mt-4 bg-neutral-900 p-4">
-        <Text className="text-center text-sm font-black uppercase leading-5 text-amber-400">
-          {isBs ? 'PRVI IGRAČ KOJI DODA CILJANI BROJ KARTICA U SVOJU STAZU POBJEĐUJE.' : 'THE FIRST PLAYER TO ADD THE TARGET NUMBER OF CARDS TO THEIR LANE WINS.'}
-        </Text>
-        <Text className="mt-2 text-center text-xs leading-5 text-neutral-300">
-          {isBs ? 'Ciljani broj kartica bira se prije početka igre.' : 'The target number of cards is selected before the game starts.'}
-        </Text>
+      <RuleHeader number="10" title={isBs ? 'KAKO POBIJEDITI' : 'HOW TO WIN'} />
+      <View className="mt-4 flex-row items-center p-4" style={{ gap: 12 }}>
+        <View className="flex-1 justify-center">
+          <Text className="text-left text-sm font-black uppercase leading-5 text-neutral-900">
+            {isBs ? 'CILJANI BROJ KARTICA BIRA SE PRIJE POČETKA IGRE.' : 'THE TARGET NUMBER OF CARDS IS SELECTED BEFORE THE GAME STARTS.'}
+          </Text>
+          <Text className="mt-2 text-left text-xs leading-5 text-neutral-900">
+            {isBs ? 'Prvi igrač koji doda ciljani broj kartica u svoju stazu pobjeđuje.' : 'The first player to add the target number of cards to their lane wins.'}
+          </Text>
+        </View>
+        <FloatingRuleArt style={{ alignItems: 'center', alignSelf: 'center', aspectRatio: 1, justifyContent: 'center', width: '42%' }}>
+          <Image
+            accessibilityLabel={isBs ? 'Pobjednički pehar' : 'Victory trophy'}
+            resizeMode="contain"
+            source={RULEBOOK_TROPHY_IMAGE}
+            style={{ height: '100%', width: '100%' }}
+          />
+        </FloatingRuleArt>
       </View>
       </View>
     </View>

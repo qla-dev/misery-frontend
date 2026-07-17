@@ -17,6 +17,7 @@ export type LaneProgress = {
 type LaneProgressBadgeProps = LaneProgress & {
   dark?: boolean;
   emphasized?: boolean;
+  plusColor?: string;
 };
 
 /**
@@ -24,7 +25,7 @@ type LaneProgressBadgeProps = LaneProgress & {
  * When a card is added it animates a "+1" that fades in above the count digit,
  * then blends down into it while the count ticks up (0 -> 1).
  */
-export function LaneProgressBadge({ label, playerName, count, target, addsCard, dark = false, emphasized = false }: LaneProgressBadgeProps) {
+export function LaneProgressBadge({ label, playerName, count, target, addsCard, dark = false, emphasized = false, plusColor }: LaneProgressBadgeProps) {
   const [displayCount, setDisplayCount] = useState(count);
   const plusOpacity = useRef(new Animated.Value(0)).current;
   const plusTranslate = useRef(new Animated.Value(0)).current;
@@ -51,7 +52,7 @@ export function LaneProgressBadge({ label, playerName, count, target, addsCard, 
         Animated.timing(plusTranslate, {
           duration: 260,
           easing: Easing.out(Easing.quad),
-          toValue: -16,
+          toValue: -8,
           useNativeDriver: true,
         }),
       ]),
@@ -67,7 +68,7 @@ export function LaneProgressBadge({ label, playerName, count, target, addsCard, 
         Animated.timing(plusTranslate, {
           duration: 240,
           easing: Easing.in(Easing.quad),
-          toValue: 6,
+          toValue: 4,
           useNativeDriver: true,
         }),
       ]),
@@ -129,17 +130,16 @@ export function LaneProgressBadge({ label, playerName, count, target, addsCard, 
             className="absolute text-center text-2xl font-black uppercase tracking-wider"
             pointerEvents="none"
             style={{
-              bottom: '100%',
-              color,
+              top: -5,
+              color: plusColor ?? color,
               fontFamily: emphasized ? 'BebasNeue_400Regular' : undefined,
-              fontSize: emphasized ? 30 : undefined,
-              left: '50%',
-              marginLeft: -24,
+              fontSize: emphasized ? 18 : 16,
+              left: -10,
               opacity: plusOpacity,
               position: 'absolute',
               textAlign: 'center',
               transform: [{ translateY: plusTranslate }],
-              width: 48,
+              width: 24,
             }}
           >
             +1
@@ -170,13 +170,13 @@ export function LaneProgressBadge({ label, playerName, count, target, addsCard, 
         </View>
       ) : null}
       <View className="items-center justify-center" style={{ paddingHorizontal: 8, width: '100%' }}>
-        <View className="flex-row items-end justify-center" style={{ alignSelf: 'center', maxWidth: '100%', width: '100%' }}>
+        <View className="flex-row items-end justify-center" style={{ alignSelf: 'center', maxWidth: '100%' }}>
           {resolvedPlayerName ? (
             <Text
               className="text-4xl font-black uppercase tracking-wider"
               ellipsizeMode="tail"
               numberOfLines={1}
-              style={[{ color, flex: 1, marginRight: 8, minWidth: 0, textAlign: 'right' }, emphasizedLabelStyle]}
+              style={[{ color, flexShrink: 1, marginRight: 8, maxWidth: '75%', minWidth: 0, textAlign: 'right' }, emphasizedLabelStyle]}
             >
               {resolvedPlayerName}
             </Text>

@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { router, useFocusEffect } from 'expo-router';
-import { AlertOctagon, Crown, Loader2, Medal, Trophy, X } from 'lucide-react-native';
+import { AlertOctagon, Crown, Loader2, Medal, X } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { Animated, AppState, Easing, LayoutAnimation, Modal, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { Animated, AppState, Easing, Image, LayoutAnimation, Modal, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { Card, Player, Language, GameState, GameMode } from '@/types';
 import { CARD_DECK } from '@/data/cards';
 import Illustration from './Illustration';
 import { useGame } from '@/context/GameContext';
-import { playSound } from '@/lib/sound';
+import { playClickSound, playSound } from '@/lib/sound';
 import { ButtonTab } from './ButtonTab';
 import { api, ApiCard, ApiChatMessage, ApiGame, API_BASE_URL } from '@/lib/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,6 +22,8 @@ import { DeckType } from '@/context/game-types';
 import { subscribeToGameUpdates } from '@/lib/gameRealtime';
 
 import { MiseryLogo } from './MiseryLogo';
+
+const VICTORY_TROPHY_IMAGE = require('../assets/images/rulebook-victory-trophy.png');
 const INACTIVITY_KICK_MS = 60_000;
 const INACTIVITY_WARNING_MS = 15_000;
 
@@ -108,6 +110,7 @@ export default function GameBoard({
   const cardPromptFloat = useRef(new Animated.Value(0)).current;
   const finishedScreenOpacity = useRef(new Animated.Value(1)).current;
   const scoreReveal = useRef(new Animated.Value(0)).current;
+  const victoryTrophyFloat = useRef(new Animated.Value(0)).current;
   const optimisticLaneCardsRef = useRef<Record<string, Card[]>>({});
   const pendingPlacementRef = useRef<{ actingPlayerId: string; card: Card; slotIdx: number } | null>(null);
   const lastObservedMoveIdRef = useRef<number | null>(null);
@@ -454,7 +457,7 @@ export default function GameBoard({
       });
       return;
     }
-    triggerSound('click');
+    playClickSound();
     const actingPlayerIndex = activeStealerIndex !== undefined ? activeStealerIndex : currentPlayerIndex;
     const actingPlayer = players[actingPlayerIndex];
     const isCorrect = verifySlotChoice(actingPlayer.lane, drawnCard, slotIdx);
@@ -1515,6 +1518,19 @@ export default function GameBoard({
   }, [didLocalWin]);
 
   useEffect(() => {
+    if (!isVictoryPhase) {
+      victoryTrophyFloat.setValue(0);
+      return undefined;
+    }
+    const animation = Animated.loop(Animated.sequence([
+      Animated.timing(victoryTrophyFloat, { duration: 1800, easing: Easing.inOut(Easing.sin), toValue: 1, useNativeDriver: true }),
+      Animated.timing(victoryTrophyFloat, { duration: 1800, easing: Easing.inOut(Easing.sin), toValue: 0, useNativeDriver: true }),
+    ]));
+    animation.start();
+    return () => animation.stop();
+  }, [isVictoryPhase, victoryTrophyFloat]);
+
+  useEffect(() => {
     const finished = gameState.phase === 'VICTORY' || gameState.phase === 'GAME_OVER';
     if (!finished || gameFinishedAnnouncedRef.current) return;
     gameFinishedAnnouncedRef.current = true;
@@ -1694,9 +1710,9 @@ export default function GameBoard({
           )}
           {isVictoryPhase && (
             <View className="w-full items-center">
-              <View className="h-16 w-16 items-center justify-center rounded-full border border-amber-200/50 bg-amber-400 shadow-lg">
-                <Trophy size={34} color="#0a0a0a" strokeWidth={2.7} />
-              </View>
+              <Animated.View style={{ height: 92, opacity: victoryTrophyFloat.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] }), transform: [{ translateY: victoryTrophyFloat.interpolate({ inputRange: [0, 1], outputRange: [2, -3] }) }], width: 92 }}>
+                <Image accessibilityLabel={isBs ? 'Pobjednički pehar' : 'Victory trophy'} resizeMode="contain" source={VICTORY_TROPHY_IMAGE} style={{ height: '100%', width: '100%' }} />
+              </Animated.View>
               <Text className="mt-4 text-center font-mono text-[10px] font-black uppercase tracking-[4px] text-amber-300">
                 {isBs ? 'KONAČNI POREDAK' : 'FINAL STANDINGS'}
               </Text>
@@ -1728,8 +1744,8 @@ export default function GameBoard({
                           className="w-full items-center rounded-t-2xl border border-white/10 pt-3"
                           style={{ backgroundColor: isWinner ? '#facc15' : 'rgba(38,38,38,0.86)', height: podiumHeight }}
                         >
-                          <Text style={{ color: isWinner ? '#0a0a0a' : medalColor, fontFamily: 'BebasNeue_400Regular', fontSize: 34, lineHeight: 38 }}>{rank}</Text>
-                          <Text className={`mt-1 font-mono text-[10px] font-black uppercase ${isWinner ? 'text-neutral-950/70' : 'text-neutral-400'}`}>
+                          <Text style={{ color: isWinner ? '#0a0a0a' : medalColor, fontFamily: 'BebasNeue_400Regular', fontSize: 34, fontWeight: '700', lineHeight: 38 }}>{rank}</Text>
+                          <Text className={`mt-1 text-[16px] font-black uppercase leading-[18px] ${isWinner ? 'text-neutral-950/80' : 'text-neutral-300'}`} style={{ fontFamily: 'BebasNeue_400Regular', letterSpacing: 0.8 }}>
                             {pointsFromLane(player.lane)} PTS
                           </Text>
                         </View>

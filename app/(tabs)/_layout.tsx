@@ -20,7 +20,7 @@ import { Card } from '@/types';
 import { X } from 'lucide-react-native';
 import { API_BASE_URL, ApiCard } from '@/lib/api';
 
-type DebugOverlay = 'right' | 'wrong' | 'yellow' | 'white' | 'steal' | 'other-right' | 'other-wrong' | 'other-steal';
+type DebugOverlay = 'right' | 'wrong' | 'right-no-player' | 'wrong-no-player' | 'yellow' | 'white' | 'steal' | 'other-right' | 'other-wrong' | 'other-steal';
 const DEBUG_PLAYER_NAME = 'NEDIM KULASIN';
 const SHOW_DEBUG_LOGS_BUTTON = false;
 
@@ -292,8 +292,10 @@ export default function TabLayout() {
           <Text className="mb-1 text-center text-lg font-black uppercase tracking-wider text-amber-400">
             OVERLAY DEBUG
           </Text>
-          <ButtonTab category="button" onPress={() => showDebugOverlay('right')} size="100" type="success">RIGHT</ButtonTab>
-          <ButtonTab category="button" onPress={() => showDebugOverlay('wrong')} size="100" type="danger">WRONG</ButtonTab>
+          <ButtonTab category="button" onPress={() => showDebugOverlay('right')} size="100" type="success">RIGHT — PLAYER ROW</ButtonTab>
+          <ButtonTab category="button" onPress={() => showDebugOverlay('wrong')} size="100" type="danger">WRONG — PLAYER ROW</ButtonTab>
+          <ButtonTab category="button" onPress={() => showDebugOverlay('right-no-player')} size="100" type="success">RIGHT — NO PLAYER ROW</ButtonTab>
+          <ButtonTab category="button" onPress={() => showDebugOverlay('wrong-no-player')} size="100" type="danger">WRONG — NO PLAYER ROW</ButtonTab>
           <ButtonTab category="button" onPress={() => showDebugOverlay('yellow')} size="100" type="primary">YELLOW</ButtonTab>
           <ButtonTab category="button" onPress={() => showDebugOverlay('white')} size="100" type="third">WHITE</ButtonTab>
           <ButtonTab category="button" onPress={() => showDebugOverlay('steal')} size="100" type="primary">CARD STOLEN + SCORE</ButtonTab>
@@ -326,13 +328,19 @@ export default function TabLayout() {
           ? { label: isBs ? 'STAZA OD' : 'LANE OF', playerName: DEBUG_PLAYER_NAME, count: 3, target: 7, addsCard: true }
           : debugOverlay === 'wrong'
             ? { label: isBs ? 'STAZA OD' : 'LANE OF', playerName: DEBUG_PLAYER_NAME, count: 3, target: 7, addsCard: false }
+            : debugOverlay === 'right-no-player'
+              ? { label: isBs ? 'STAZA OD' : 'LANE OF', count: 3, target: 7, addsCard: true }
+              : debugOverlay === 'wrong-no-player'
+                ? { label: isBs ? 'STAZA OD' : 'LANE OF', count: 3, target: 7, addsCard: false }
             : debugOverlay === 'other-right' || debugOverlay === 'other-steal'
               ? { label: isBs ? 'STAZA OD' : 'LANE OF', playerName: DEBUG_PLAYER_NAME, count: 3, target: 7, addsCard: true }
               : debugOverlay === 'other-wrong'
                 ? { label: isBs ? 'STAZA OD' : 'LANE OF', playerName: DEBUG_PLAYER_NAME, count: 3, target: 7, addsCard: false }
                 : undefined}
-        score={debugOverlay === 'steal' || debugOverlay === 'other-steal' ? DEBUG_CARD.index : undefined}
-        success={debugOverlay !== 'wrong' && debugOverlay !== 'other-wrong'}
+        score={debugOverlay === 'right' || debugOverlay === 'wrong' || debugOverlay === 'right-no-player' || debugOverlay === 'wrong-no-player' || debugOverlay === 'steal' || debugOverlay === 'other-right' || debugOverlay === 'other-wrong' || debugOverlay === 'other-steal'
+          ? DEBUG_CARD.index
+          : undefined}
+        success={debugOverlay !== 'wrong' && debugOverlay !== 'wrong-no-player' && debugOverlay !== 'other-wrong'}
         successMessage={debugOverlay === 'yellow'
           ? `${DEBUG_PLAYER_NAME}'S CARD IS OFFERED TO THE NEXT PLAYER — WAIT FOR THEIR DECISION`
           : debugOverlay === 'white'

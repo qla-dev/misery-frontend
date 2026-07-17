@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   content: { alignItems: 'center', transform: [{ translateY: -31 }], width: '100%' },
-  titleBlock: { alignItems: 'center', marginBottom: -15 },
+  titleBlock: { alignItems: 'center', marginBottom: -20 },
   titleRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'center' },
   titleAmber: {
     color: '#fbbf24',

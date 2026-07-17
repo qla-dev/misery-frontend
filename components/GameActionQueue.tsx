@@ -222,9 +222,7 @@ export function GameActionQueue({
         successTitle={laneResult === 'steal'
           ? isBs ? 'KARTA UKRADENA' : 'CARD STOLEN'
           : isBs ? 'TAČNO' : 'CORRECT'}
-        score={laneResult === 'steal' && lastResultCardScore !== null
-          ? lastResultCardScore
-          : undefined}
+        score={lastResultCardScore ?? undefined}
         scoreLabel={isBs ? 'STOPA PATNJE' : 'MISERY RATE'}
         visible={activeAction === 'lane-result'}
         warning={laneResult === 'steal'}
@@ -301,7 +299,8 @@ export function GameActionQueue({
           : isDrawnCardFlipped
             ? isBs ? 'POSTAVI KARTU NA STAZU PATNJE' : 'PLACE YOUR CARD ON MISERY LANE'
             : isBs ? 'OKRENI KARTU' : 'FLIP YOUR CARD'}
-        successTitle={isBs ? 'TVOJ POTEZ \u010CEKA' : 'YOUR TURN IS WAITING'}
+        successTitle={isBs ? 'TVOJ POTEZ' : 'YOUR TURN'}
+        successTitleDetail={isBs ? '\u010CEKA' : 'IS WAITING'}
         visible={activeAction === 'inactivity'}
         warning
       />

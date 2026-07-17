@@ -204,7 +204,7 @@ export default function ChatScreen() {
       </View>
       <ConfirmModal
         cancelLabel={isBs ? 'ODUSTANI' : 'CANCEL'}
-        confirmLabel={isBs ? 'PRIJAVI' : 'REPORT'}
+        confirmLabel={isBs ? 'PRIJAVI I SAKRIJ' : 'REPORT AND HIDE'}
         confirmType="danger"
         onCancel={() => setSelectedMessage(null)}
         onConfirm={reportSelectedMessage}

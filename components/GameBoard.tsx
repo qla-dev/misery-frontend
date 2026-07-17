@@ -8,7 +8,7 @@ import { Card, Player, Language, GameState, GameMode } from '@/types';
 import { CARD_DECK } from '@/data/cards';
 import Illustration from './Illustration';
 import { useGame } from '@/context/GameContext';
-import { playClickSound, playSound } from '@/lib/sound';
+import { playClickSound, playHaptic, playSound } from '@/lib/sound';
 import { ButtonTab } from './ButtonTab';
 import { api, ApiCard, ApiChatMessage, ApiGame, API_BASE_URL } from '@/lib/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -473,6 +473,7 @@ export default function GameBoard({
       return;
     }
     playClickSound();
+    playHaptic();
     const actingPlayerIndex = activeStealerIndex !== undefined ? activeStealerIndex : currentPlayerIndex;
     const actingPlayer = players[actingPlayerIndex];
     const isCorrect = verifySlotChoice(actingPlayer.lane, drawnCard, slotIdx);
@@ -662,7 +663,9 @@ export default function GameBoard({
           pendingRealtimeRefresh = true;
           if (!cancelled && !paused && !activeController) {
             if (timer) clearTimeout(timer);
-            timer = setTimeout(() => void poll(), 0);
+            // A single gameplay action can emit several realtime events in a tight
+            // burst. Coalesce them before fetching and rebuilding the full snapshot.
+            timer = setTimeout(() => void poll(), 80);
           }
         },
         port: game.reverb?.port,
@@ -755,7 +758,9 @@ export default function GameBoard({
         setServerWinnerId(game.winner_id);
         setChatMessages([...(game.chat_messages ?? [])].sort((a, b) => a.id - b.id));
         setChatMessagesHydrated(true);
-        nextPollDelay = Math.max(250, Number(game.ingame_polling_interval_ms) || 3000);
+        // Full snapshots are intentionally heavy. Never allow fallback polling
+        // configuration to drive them fast enough to starve navigation or touches.
+        nextPollDelay = Math.max(1000, Number(game.ingame_polling_interval_ms) || 3000);
         const latestMove = game.moves[0];
         const handCardCount = Object.values(game.hands).reduce((total, hand) => total + hand.length, 0);
         // Chat delivery must not rebuild gameplay state. Realtime chat events can
@@ -872,7 +877,7 @@ export default function GameBoard({
         if (!cancelled && !paused) {
           const shouldSchedule = pendingRealtimeRefresh || !strictRealtime;
           const delay = pendingRealtimeRefresh
-            ? 0
+            ? 80
             : realtimeEnabled ? 30_000 : Math.max(0, nextPollDelay - requestDuration);
           pendingRealtimeRefresh = false;
           if (shouldSchedule) timer = setTimeout(() => void poll(), delay);

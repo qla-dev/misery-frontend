@@ -30,6 +30,7 @@ type GameActionQueueProps = {
   laneStealMessage: string;
   laneSuccessMessage: string;
   lastResultCardScore?: number | null;
+  suppressLaneResultHaptic?: boolean;
   onInactivityComplete: () => void;
   onChatNotificationPress: () => void;
   onUnreadMessages: (count: number) => void;
@@ -62,6 +63,7 @@ export function GameActionQueue({
   laneStealMessage,
   laneSuccessMessage,
   lastResultCardScore,
+  suppressLaneResultHaptic = false,
   onInactivityComplete,
   onChatNotificationPress,
   onUnreadMessages,
@@ -224,6 +226,7 @@ export function GameActionQueue({
           : isBs ? 'TAČNO' : 'CORRECT'}
         score={laneResult === 'failure' ? undefined : lastResultCardScore ?? undefined}
         scoreLabel={isBs ? 'STOPA PATNJE' : 'MISERY RATE'}
+        suppressHaptic={suppressLaneResultHaptic}
         visible={activeAction === 'lane-result'}
         warning={laneResult === 'steal'}
       />

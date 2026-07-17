@@ -114,6 +114,7 @@ type LaneModalProps = {
   persistent?: boolean;
   bell?: boolean;
   leaving?: boolean;
+  suppressHaptic?: boolean;
 };
 
 export function LaneModal({
@@ -135,6 +136,7 @@ export function LaneModal({
   persistent = false,
   bell = false,
   leaving = false,
+  suppressHaptic = false,
 }: LaneModalProps) {
   const [rendered, setRendered] = useState(false);
   const [scoreAnimationRun, setScoreAnimationRun] = useState(0);
@@ -158,7 +160,9 @@ export function LaneModal({
 
     setRendered(true);
     setScoreAnimationRun((run) => run + 1);
-    playHaptic(bell ? 'bell' : holding || neutral ? 'click' : warning ? 'steal' : success ? 'correct' : 'wrong');
+    if (!suppressHaptic) {
+      playHaptic(bell ? 'bell' : holding || neutral ? 'click' : warning ? 'steal' : success ? 'correct' : 'wrong');
+    }
     opacity.setValue(0);
     scale.setValue(0.25);
     rotation.setValue(success ? -0.18 : -0.1);
@@ -204,7 +208,7 @@ export function LaneModal({
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [bell, holding, neutral, opacity, persistent, rotation, scale, success, visible, warning]);
+  }, [bell, holding, neutral, opacity, persistent, rotation, scale, success, suppressHaptic, visible, warning]);
 
   const rotate = rotation.interpolate({
     inputRange: [-1, 1],

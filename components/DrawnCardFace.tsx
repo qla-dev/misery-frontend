@@ -1,10 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Image, Text, View } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Card, Language } from '@/types';
 import { cardDescription, cardTitle } from '@/lib/cardText';
+import { LazyCardArtwork } from './LazyCardArtwork';
 
-const DEFAULT_CARD_IMAGE = require('../assets/images/def-card.png');
 const SCORE_FOOTER_HEIGHT = 104;
 const SCORE_TAB_HEIGHT = 70;
 const SCORE_TAB_BOTTOM = -2;
@@ -36,7 +36,6 @@ export function DrawnCardFace({
   const isBs = language === 'bs';
   const localizedTitle = cardTitle(card, language);
   const localizedDescription = cardDescription(card, language);
-  const [imageFailed, setImageFailed] = useState(false);
   const staticScoreReveal = useRef(new Animated.Value(scoreRevealed ? 1 : 0)).current;
   const staticPromptFloat = useRef(new Animated.Value(0)).current;
   const revealAnimation = scoreReveal ?? staticScoreReveal;
@@ -54,7 +53,6 @@ export function DrawnCardFace({
   const titleFontSize = Math.min(30, Math.max(25, height * 0.052));
   const scoreTabWidth = 112;
 
-  useEffect(() => setImageFailed(false), [card.image]);
   useEffect(() => staticScoreReveal.setValue(scoreRevealed ? 1 : 0), [scoreRevealed, staticScoreReveal]);
 
   return (
@@ -128,26 +126,7 @@ export function DrawnCardFace({
             overflow: 'hidden',
           }}
         >
-          {card.image && !imageFailed ? (
-            <Image
-              accessibilityLabel={localizedTitle}
-              onError={() => setImageFailed(true)}
-              resizeMode="cover"
-              source={{ uri: card.image }}
-              style={{ height: '100%', width: '100%' }}
-            />
-          ) : (
-            <Image
-              accessibilityLabel="Default Misery Meter card artwork"
-              resizeMode="contain"
-              source={DEFAULT_CARD_IMAGE}
-              style={{
-                height: '78%',
-                transform: [{ translateY: 10 }],
-                width: '78%',
-              }}
-            />
-          )}
+          <LazyCardArtwork card={card} style={{ height: '100%', width: '100%' }} />
         </View>
       </View>
       {showFinishPrompt && (

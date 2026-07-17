@@ -358,6 +358,7 @@ export default function GameTabsLayout() {
         laneStealMessage={laneStealMessage}
         laneSuccessMessage={laneSuccessMessage}
         lastResultCardScore={gameRuntime?.lastResultCardScore}
+        suppressLaneResultHaptic={isLocalLaneResult}
         onInactivityComplete={() => {
           gameRuntime?.dismissInactivityWarning?.();
           router.replace(gameRuntime?.isDrawnCardFlipped ? '/game/lane' : '/game');

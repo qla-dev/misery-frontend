@@ -59,17 +59,17 @@ export default function ChatScreen() {
     requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
   }, [keyboardVisible]);
 
-  const send = async (message: string) => {
-    try {
-      if (!gameRuntime?.sendChatMessage) throw new Error(isBs ? 'Chat još nije spreman.' : 'Chat is not ready yet.');
-      await gameRuntime.sendChatMessage(message);
-    } catch (error) {
+  const send = (message: string) => {
+    if (!gameRuntime?.sendChatMessage) {
+      Alert.alert(isBs ? 'Poruka nije poslana' : 'Message not sent', isBs ? 'Chat još nije spreman.' : 'Chat is not ready yet.');
+      return;
+    }
+    void Promise.resolve(gameRuntime.sendChatMessage(message)).catch((error) => {
       Alert.alert(
         isBs ? 'Poruka nije poslana' : 'Message not sent',
         error instanceof Error ? error.message : (isBs ? 'Pokušaj ponovo.' : 'Please try again.'),
       );
-      throw error;
-    }
+    });
   };
 
   const reportSelectedMessage = () => {

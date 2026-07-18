@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import Purchases, {
   CustomerInfo,
@@ -32,11 +32,15 @@ export const REVENUECAT_PRODUCT_IDENTIFIERS: Record<PremiumPlan, string> = {
 let configured = false;
 let configuredUserId: string | null = null;
 
+const hasNativePurchasesModule = () => Platform.OS === 'web' || NativeModules.RNPurchases != null;
+
 const appUserIdForBackendUser = (userId: number | null) => userId ? `misery-user-${userId}` : null;
 
 const getApiKey = () => {
   const config = Constants.expoConfig?.extra?.revenueCat ?? {};
-  if (Constants.appOwnership === 'expo') return config.testStoreApiKey || '';
+  const isExpoGo = Constants.appOwnership === 'expo' || Constants.executionEnvironment === 'storeClient';
+  if (isExpoGo) return config.testStoreApiKey || '';
+  if (!hasNativePurchasesModule()) return '';
   if (Platform.OS === 'ios') return process.env.EXPO_PUBLIC_REVENUECAT_APPLE_API_KEY || config.iosApiKey || '';
   if (Platform.OS === 'android') return process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY || config.androidApiKey || '';
   return '';

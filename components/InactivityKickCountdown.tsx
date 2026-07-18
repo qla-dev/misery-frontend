@@ -32,6 +32,22 @@ export function InactivityKickCountdown({ isBs, message, onDismiss, value }: Ina
 
   if (value === null || dismissed) return null;
 
+  const words = message?.trim().split(/\s+/) ?? [];
+  const title = message
+    ? words.slice(0, -1).join(' ')
+    : isBs ? 'BIT ĆEŠ' : 'YOU WILL BE';
+  const titleDetail = message
+    ? words.at(-1) ?? ''
+    : isBs ? 'UKLONJEN' : 'REMOVED';
+  const titleStyle = {
+    fontFamily: 'BebasNeue_400Regular',
+    fontSize: 48,
+    includeFontPadding: false,
+    letterSpacing: 1.2,
+    lineHeight: 50,
+    width: '100%' as const,
+  };
+
   return (
     <Modal animationType="fade" statusBarTranslucent transparent visible>
       <View className="flex-1 items-center justify-center bg-red-500 px-8">
@@ -69,9 +85,28 @@ export function InactivityKickCountdown({ isBs, message, onDismiss, value }: Ina
         >
           {value}
         </Animated.Text>
-        <Text className="text-center font-black uppercase tracking-[2px] text-white/90" style={{ fontSize: 18 }}>
-          {message ?? (isBs ? 'BIT \u0106E\u0160 UKLONJEN ZBOG NEAKTIVNOSTI' : 'YOU WILL BE REMOVED FOR INACTIVITY')}
-        </Text>
+        <View className="items-center justify-center" style={{ marginTop: 14, width: '100%' }}>
+          <Text
+            adjustsFontSizeToFit
+            className="text-center font-black uppercase text-white/90"
+            minimumFontScale={0.72}
+            numberOfLines={1}
+            style={titleStyle}
+          >
+            {title}
+          </Text>
+          <View className="items-center justify-center" style={{ width: '100%' }}>
+            <Text
+              adjustsFontSizeToFit
+              className="text-center font-black uppercase text-white"
+              minimumFontScale={0.72}
+              numberOfLines={1}
+              style={titleStyle}
+            >
+              {titleDetail}
+            </Text>
+          </View>
+        </View>
       </View>
     </Modal>
   );

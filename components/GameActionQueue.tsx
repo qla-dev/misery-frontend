@@ -39,6 +39,7 @@ type GameActionQueueProps = {
   onStealChoice: (accept: boolean) => void;
   onTurnNoticeComplete: () => void;
   stealDecisionVisible: boolean;
+  stealDecisionKey?: string | null;
   turnNotice?: TurnNotice;
   roomExitReason?: string | null;
   toastBlocked?: boolean;
@@ -72,20 +73,22 @@ export function GameActionQueue({
   onStealChoice,
   onTurnNoticeComplete,
   stealDecisionVisible,
+  stealDecisionKey = null,
   turnNotice,
   roomExitReason,
   toastBlocked = false,
 }: GameActionQueueProps) {
   const [activeAction, setActiveAction] = useState<ActionKind | null>(null);
   const [chatNotifications, setChatNotifications] = useState<ApiChatMessage[]>([]);
-  const [handledStealOffer, setHandledStealOffer] = useState(false);
+  const [handledStealOfferKey, setHandledStealOfferKey] = useState<string | null>(null);
+  const [handledInactivityWarning, setHandledInactivityWarning] = useState(false);
   const lastSeenChatMessageIdRef = useRef(Math.max(0, ...chatMessages.map((message) => message.id)));
   const hasHydratedChatSnapshotRef = useRef(false);
   const previousGameIdRef = useRef(gameId);
   const laneAvailable = laneResult !== null;
   const turnAvailable = Boolean(turnNotice && (turnNotice.type === 'departure' || !hasPendingLaneAnimation));
-  const stealAvailable = stealDecisionVisible && !handledStealOffer && !hasPendingLaneAnimation;
-  const inactivityAvailable = inactivityWarningVisible && !hasPendingLaneAnimation;
+  const stealAvailable = stealDecisionVisible && handledStealOfferKey !== stealDecisionKey && !hasPendingLaneAnimation;
+  const inactivityAvailable = inactivityWarningVisible && !handledInactivityWarning && !hasPendingLaneAnimation;
   const roomExitAvailable = Boolean(roomExitReason);
   const gameplayActionPending = Boolean(
     activeAction || roomExitAvailable || laneAvailable || turnAvailable || stealAvailable || inactivityAvailable
@@ -133,8 +136,16 @@ export function GameActionQueue({
   }, [chatNotificationsEnabled]);
 
   useEffect(() => {
-    if (!stealDecisionVisible) setHandledStealOffer(false);
+    if (!stealDecisionVisible) setHandledStealOfferKey(null);
   }, [stealDecisionVisible]);
+
+  useEffect(() => {
+    if (!inactivityWarningVisible) setHandledInactivityWarning(false);
+  }, [inactivityWarningVisible]);
+
+  useEffect(() => {
+    setHandledInactivityWarning(false);
+  }, [inactivityWarningCount]);
 
   useEffect(() => {
     logGameAction('action-queue.state', {
@@ -155,6 +166,11 @@ export function GameActionQueue({
       setActiveAction('room-exit');
       return;
     }
+    if (inactivityAvailable && activeAction !== 'inactivity') {
+      logGameAction('action-queue.preempt', { action: 'inactivity', previousAction: activeAction });
+      setActiveAction('inactivity');
+      return;
+    }
     const available: Record<ActionKind, boolean> = {
       'room-exit': roomExitAvailable,
       'lane-result': laneAvailable,
@@ -169,16 +185,21 @@ export function GameActionQueue({
       return;
     }
 
-    const next = (['room-exit', 'lane-result', 'turn-notice', 'steal-decision', 'inactivity'] as ActionKind[])
+    const mandatoryStealNotice = turnNotice?.type === 'start' && Boolean(turnNotice.steal);
+    const priority: ActionKind[] = mandatoryStealNotice
+      ? ['room-exit', 'turn-notice', 'lane-result', 'steal-decision', 'inactivity']
+      : ['room-exit', 'lane-result', 'steal-decision', 'turn-notice', 'inactivity'];
+    const next = priority
       .find((action) => available[action]);
     if (!next) return;
     logGameAction('action-queue.show', { action: next });
     setActiveAction(next);
-  }, [activeAction, inactivityAvailable, laneAvailable, roomExitAvailable, stealAvailable, turnAvailable]);
+  }, [activeAction, inactivityAvailable, laneAvailable, roomExitAvailable, stealAvailable, turnAvailable, turnNotice?.steal, turnNotice?.type]);
 
   const complete = (action: ActionKind, callback: () => void) => {
     logGameAction('action-queue.complete', { action });
-    if (action === 'steal-decision') setHandledStealOffer(true);
+    if (action === 'steal-decision') setHandledStealOfferKey(stealDecisionKey);
+    if (action === 'inactivity') setHandledInactivityWarning(true);
     setActiveAction(null);
     callback();
   };
@@ -240,6 +261,8 @@ export function GameActionQueue({
         leaving={turnNotice?.type === 'departure'}
         neutral={turnNotice?.type !== 'hold'}
         onComplete={() => complete('turn-notice', onTurnNoticeComplete)}
+        dismissImmediately={turnNotice?.type === 'start'}
+        passThroughTouches={turnNotice?.type === 'start'}
         success
         successMessage={turnNotice?.type === 'departure'
           ? ''
@@ -273,6 +296,7 @@ export function GameActionQueue({
           ? isBs ? 'JE NAPUSTIO SOBU' : 'LEFT THE ROOM'
           : undefined}
         visible={activeAction === 'turn-notice'}
+        visibleDurationMs={turnNotice?.steal && turnNotice?.type === 'start' ? 2200 : undefined}
         warning={turnNotice?.type === 'hold'}
       />
 

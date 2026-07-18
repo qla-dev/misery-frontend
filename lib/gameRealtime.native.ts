@@ -1,6 +1,5 @@
-import { Pusher, PusherEvent } from '@pusher/pusher-websocket-react-native';
+import type { PusherEvent } from '@pusher/pusher-websocket-react-native';
 import * as Ably from 'ably';
-import PusherJs from 'pusher-js';
 
 type SubscriptionOptions = {
   channel: string;
@@ -22,9 +21,83 @@ type ChannelState = {
   releaseTimer: ReturnType<typeof setTimeout> | null;
 };
 
-const pusher = Pusher.getInstance();
 const channels = new Map<string, ChannelState>();
 let initializedFor = '';
+
+function getNativePusher() {
+  try {
+    const { Pusher } = require('@pusher/pusher-websocket-react-native') as typeof import('@pusher/pusher-websocket-react-native');
+    return Pusher.getInstance();
+  } catch {
+    throw new Error('Native Pusher is unavailable; polling fallback will be used.');
+  }
+}
+
+function subscribeToReverb(options: SubscriptionOptions): Promise<() => Promise<void>> {
+  if (!options.key || !options.host) throw new Error('Reverb public configuration is missing.');
+  const secure = options.scheme !== 'http';
+  const defaultPort = secure ? 443 : 80;
+  const port = Number(options.port) || defaultPort;
+  const authority = `${options.host}${port === defaultPort ? '' : `:${port}`}`;
+  const url = `${secure ? 'wss' : 'ws'}://${authority}/app/${encodeURIComponent(options.key)}?protocol=7&client=misery-native&version=1.0&flash=false`;
+
+  return new Promise((resolve, reject) => {
+    const socket = new WebSocket(url);
+    let connected = false;
+    let released = false;
+    const timeout = setTimeout(() => {
+      if (connected || released) return;
+      released = true;
+      socket.close();
+      reject(new Error('Reverb connection timed out.'));
+    }, 8_000);
+
+    socket.onmessage = (message) => {
+      try {
+        const payload = JSON.parse(String(message.data));
+        if (payload.event === 'pusher:connection_established') {
+          socket.send(JSON.stringify({
+            event: 'pusher:subscribe',
+            data: { auth: '', channel: options.channel },
+          }));
+          return;
+        }
+        if (payload.event === 'pusher_internal:subscription_succeeded' && payload.channel === options.channel) {
+          if (connected || released) return;
+          connected = true;
+          clearTimeout(timeout);
+          resolve(async () => {
+            if (released) return;
+            released = true;
+            if (socket.readyState === WebSocket.OPEN) {
+              socket.send(JSON.stringify({
+                event: 'pusher:unsubscribe',
+                data: { channel: options.channel },
+              }));
+            }
+            socket.close();
+          });
+          return;
+        }
+        if (payload.event === options.event && payload.channel === options.channel) options.onUpdate();
+      } catch {
+        // Ignore malformed transport frames; snapshots remain the authority.
+      }
+    };
+    socket.onerror = () => {
+      if (connected || released) return;
+      released = true;
+      clearTimeout(timeout);
+      reject(new Error('Reverb connection failed.'));
+    };
+    socket.onclose = () => {
+      if (connected || released) return;
+      released = true;
+      clearTimeout(timeout);
+      reject(new Error('Reverb connection closed before subscription.'));
+    };
+  });
+}
 
 function dispatchEvent(event: PusherEvent) {
   const state = channels.get(event.channelName);
@@ -52,28 +125,11 @@ export async function subscribeToGameUpdates(options: SubscriptionOptions): Prom
   }
 
   if (options.provider === 'reverb') {
-    if (!options.key || !options.host) throw new Error('Reverb public configuration is missing.');
-    const port = Number(options.port) || (options.scheme === 'http' ? 80 : 443);
-    const client = new PusherJs(options.key, {
-      cluster: 'mt1',
-      disableStats: true,
-      enabledTransports: ['ws', 'wss'],
-      forceTLS: options.scheme !== 'http',
-      wsHost: options.host,
-      wsPort: port,
-      wssPort: port,
-    });
-    const channel = client.subscribe(options.channel);
-    channel.bind(options.event, options.onUpdate);
-
-    return async () => {
-      channel.unbind(options.event, options.onUpdate);
-      client.unsubscribe(options.channel);
-      client.disconnect();
-    };
+    return subscribeToReverb(options);
   }
 
   if (!options.key || !options.cluster) throw new Error('Pusher public configuration is missing.');
+  const pusher = getNativePusher();
   const identity = `${options.key}:${options.cluster}`;
   if (initializedFor && initializedFor !== identity) {
     channels.clear();

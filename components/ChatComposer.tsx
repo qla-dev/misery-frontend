@@ -1,43 +1,41 @@
 import { Send } from 'lucide-react-native';
-import { useState } from 'react';
-import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Pressable, Text, TextInput, View } from 'react-native';
 import { playHaptic } from '@/lib/sound';
 
 interface ChatComposerProps {
   isBs: boolean;
-  onSend: (message: string) => Promise<void>;
+  onSend: (message: string) => void;
 }
 
 export function ChatComposer({ isBs, onSend }: ChatComposerProps) {
   const [message, setMessage] = useState('');
-  const [sending, setSending] = useState(false);
+  const inputRef = useRef<TextInput>(null);
   const trimmed = message.trim();
   const composerHeight = 40;
 
-  const submit = async () => {
-    if (!trimmed || sending) return;
+  const submit = () => {
+    if (!trimmed) return;
     playHaptic('click');
-    setSending(true);
-    try {
-      await onSend(trimmed);
-      setMessage('');
-    } finally {
-      setSending(false);
-    }
+    onSend(trimmed);
+    setMessage('');
+    requestAnimationFrame(() => inputRef.current?.focus());
   };
 
   return (
     <View style={{ alignItems: 'center', flexDirection: 'row', gap: 10, height: composerHeight, width: '100%' }}>
       <View style={{ backgroundColor: '#303036', borderRadius: composerHeight / 2, flex: 1, height: composerHeight, justifyContent: 'center' }}>
         <TextInput
+          ref={inputRef}
           accessibilityLabel={isBs ? 'Poruka' : 'Message'}
-          editable={!sending}
+          blurOnSubmit={false}
           maxLength={20}
           onChangeText={setMessage}
-          onSubmitEditing={() => void submit()}
+          onSubmitEditing={submit}
           placeholder={isBs ? 'Poruka' : 'Message'}
           placeholderTextColor="#737373"
           returnKeyType="send"
+          submitBehavior="submit"
           style={{ borderWidth: 0, color: '#f1f5f9', fontFamily: 'Outfit_400Regular', fontSize: 15, height: composerHeight, paddingHorizontal: 14, paddingRight: 44, paddingVertical: 0 }}
           underlineColorAndroid="transparent"
           value={message}
@@ -48,9 +46,9 @@ export function ChatComposer({ isBs, onSend }: ChatComposerProps) {
       </View>
       <Pressable
         accessibilityRole="button"
-        accessibilityState={{ disabled: !trimmed || sending }}
+        accessibilityState={{ disabled: !trimmed }}
         hitSlop={4}
-        onPress={() => void submit()}
+        onPress={submit}
         style={{
           backgroundColor: trimmed ? '#facc15' : '#ffffff',
           borderRadius: composerHeight / 2,
@@ -73,9 +71,7 @@ export function ChatComposer({ isBs, onSend }: ChatComposerProps) {
           width: composerHeight,
         }}
       >
-        {sending
-          ? <ActivityIndicator color="#09090b" size="small" />
-          : <Send color={trimmed ? '#09090b' : '#52525b'} fill={trimmed ? '#09090b' : 'transparent'} size={17} />}
+        <Send color={trimmed ? '#09090b' : '#52525b'} fill={trimmed ? '#09090b' : 'transparent'} size={17} />
       </View>
       </Pressable>
     </View>

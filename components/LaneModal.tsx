@@ -1,11 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Modal, Pressable, Text, View } from 'react-native';
+import { Animated, Easing, Modal, Platform, Pressable, Text, View } from 'react-native';
 import { Ban, BellRing, Check, LogOut, Pause, Play, ShieldAlert, Square, X } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
+import { FullWindowOverlay } from 'react-native-screens';
 import { playHaptic } from '@/lib/sound';
 import { LaneProgress, LaneProgressBadge } from '@/components/LaneProgressBadge';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const OVERLAY_VISIBLE_MS = 1000;
+const OVERLAY_FADE_IN_MS = 90;
+const OVERLAY_FADE_OUT_MS = 80;
 
 function CarnivalMaskIcon({ color = '#0a0a0a', size = 96 }: { color?: string; size?: number }) {
   return (
@@ -25,7 +29,7 @@ function MechanicalDigit({ character, dark, delay, runKey }: { character: string
     progress.setValue(0);
     Animated.timing(progress, {
       delay,
-      duration: 320,
+      duration: 160,
       easing: Easing.out(Easing.back(1.15)),
       toValue: 1,
       useNativeDriver: true,
@@ -87,7 +91,7 @@ function MechanicalScoreHeader({ dark, label, runKey, score }: { dark: boolean; 
           if (character !== '.') digitIndex += 1;
           const delay = character === '.'
             ? 0
-            : 220 + (digitCount <= 1 ? 0 : digitIndex * (1210 / (digitCount - 1)));
+            : 90 + (digitCount <= 1 ? 0 : digitIndex * (420 / (digitCount - 1)));
           return <MechanicalDigit character={character} dark={dark} delay={delay} key={`${character}-${index}`} runKey={runKey} />;
         })}
       </View>
@@ -115,6 +119,9 @@ type LaneModalProps = {
   bell?: boolean;
   leaving?: boolean;
   suppressHaptic?: boolean;
+  visibleDurationMs?: number;
+  dismissImmediately?: boolean;
+  passThroughTouches?: boolean;
 };
 
 export function LaneModal({
@@ -137,6 +144,9 @@ export function LaneModal({
   bell = false,
   leaving = false,
   suppressHaptic = false,
+  visibleDurationMs = OVERLAY_VISIBLE_MS,
+  dismissImmediately = false,
+  passThroughTouches = false,
 }: LaneModalProps) {
   const [rendered, setRendered] = useState(false);
   const [scoreAnimationRun, setScoreAnimationRun] = useState(0);
@@ -145,11 +155,18 @@ export function LaneModal({
   const rotation = useRef(new Animated.Value(0)).current;
   const onCompleteRef = useRef(onComplete);
   const closingRef = useRef(false);
+  const completionPendingRef = useRef(false);
   const dismissRef = useRef<() => void>(() => undefined);
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
   }, [onComplete]);
+
+  const notifyNativeDismissed = () => {
+    if (!completionPendingRef.current) return;
+    completionPendingRef.current = false;
+    onCompleteRef.current?.();
+  };
 
   useEffect(() => {
     if (!visible) {
@@ -169,7 +186,7 @@ export function LaneModal({
 
     Animated.parallel([
       Animated.timing(opacity, {
-        duration: 180,
+        duration: OVERLAY_FADE_IN_MS,
         easing: Easing.out(Easing.quad),
         toValue: 1,
         useNativeDriver: true,
@@ -192,23 +209,30 @@ export function LaneModal({
     const dismiss = () => {
       if (closingRef.current) return;
       closingRef.current = true;
+      if (dismissImmediately) {
+        completionPendingRef.current = true;
+        setRendered(false);
+        if (passThroughTouches || Platform.OS !== 'ios') setTimeout(notifyNativeDismissed, 0);
+        return;
+      }
       Animated.timing(opacity, {
-        duration: 180,
+        duration: OVERLAY_FADE_OUT_MS,
         easing: Easing.in(Easing.quad),
         toValue: 0,
         useNativeDriver: true,
       }).start(() => {
+        completionPendingRef.current = true;
         setRendered(false);
-        onCompleteRef.current?.();
+        if (Platform.OS !== 'ios') setTimeout(notifyNativeDismissed, 80);
       });
     };
     dismissRef.current = dismiss;
-    const timer = persistent ? null : setTimeout(dismiss, 2000);
+    const timer = persistent ? null : setTimeout(dismiss, visibleDurationMs);
 
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [bell, holding, neutral, opacity, persistent, rotation, scale, success, suppressHaptic, visible, warning]);
+  }, [bell, dismissImmediately, holding, neutral, opacity, passThroughTouches, persistent, rotation, scale, success, suppressHaptic, visible, visibleDurationMs, warning]);
 
   const rotate = rotation.interpolate({
     inputRange: [-1, 1],
@@ -241,17 +265,7 @@ export function LaneModal({
   const message = success ? successMessage : failureMessage;
   const title = success ? successTitle : failureTitle;
 
-  return (
-    <Modal
-      animationType="none"
-      onRequestClose={() => {
-        playHaptic();
-        dismissRef.current();
-      }}
-      statusBarTranslucent
-      transparent
-      visible={rendered && visible}
-    >
+  const content = (
       <AnimatedPressable
         accessible={false}
         className={`flex-1 items-center justify-center px-8 ${neutral ? 'bg-white' : warning ? 'bg-amber-400' : success ? 'bg-emerald-500' : 'bg-red-500'}`}
@@ -385,6 +399,32 @@ export function LaneModal({
           </Pressable>
         </View>
       </AnimatedPressable>
+  );
+
+  if (passThroughTouches && Platform.OS === 'ios') {
+    if (!rendered || !visible) return null;
+    return (
+      <FullWindowOverlay>
+        <View pointerEvents="none" style={{ flex: 1 }}>
+          {content}
+        </View>
+      </FullWindowOverlay>
+    );
+  }
+
+  return (
+    <Modal
+      animationType="none"
+      onDismiss={notifyNativeDismissed}
+      onRequestClose={() => {
+        playHaptic();
+        dismissRef.current();
+      }}
+      statusBarTranslucent
+      transparent
+      visible={rendered && visible}
+    >
+      {content}
     </Modal>
   );
 }

@@ -322,8 +322,8 @@ function RoomCodeCard({
             >
               <Pressable
               accessibilityLabel={isPrivate
-                ? isBs ? 'Otklju\u010daj sobu' : 'Unlock room'
-                : isBs ? 'Zaklju\u010daj sobu' : 'Lock room'}
+                ? isBs ? 'Otključaj sobu' : 'Unlock room'
+                : isBs ? 'Zaključaj sobu' : 'Lock room'}
                 accessibilityRole="button"
                 className="h-full w-full items-center justify-center"
               disabled={isLocking}
@@ -554,6 +554,7 @@ export default function Lobby() {
   const [serverOwnerId, setServerOwnerId] = useState<number | null>(session?.ownerId ?? null);
   const [hostInLobby, setHostInLobby] = useState(true);
   const [availableGames, setAvailableGames] = useState<ApiGame[]>([]);
+  const [publicGamesNow, setPublicGamesNow] = useState(Date.now());
   const [serverRealtimeConfig, setServerRealtimeConfig] = useState<{
     driver: 'pusher' | 'ably' | 'reverb';
     value: NonNullable<ApiGame['pusher'] | ApiGame['ably'] | ApiGame['reverb']>;
@@ -675,7 +676,13 @@ export default function Lobby() {
         const games = await api.listAvailableGames(requestController.signal);
         if (cancelled || requestController.signal.aborted) return;
         logLobbyTransition('available-games-received', { count: games.length, lobbyView });
-        setAvailableGames(games.filter((game) => !game.started && !game.terminated_at && game.members.length < 8));
+        setAvailableGames(games.filter((game) =>
+          !game.terminated_at && (
+            !game.started ||
+            game.winner_id === null ||
+            game.lobby_member_ids.length > 0
+          )
+        ));
       } catch { /* Retry after the current request has settled. */ }
       finally {
         if (controller === requestController) controller = null;
@@ -688,6 +695,13 @@ export default function Lobby() {
       if (timer) clearTimeout(timer);
       controller?.abort();
     };
+  }, [lobbyView]);
+
+  useEffect(() => {
+    if (lobbyView !== 'PUBLIC_GAMES') return;
+    setPublicGamesNow(Date.now());
+    const timer = setInterval(() => setPublicGamesNow(Date.now()), 1000);
+    return () => clearInterval(timer);
   }, [lobbyView]);
 
   const transitionLobbyView = (nextView: 'WELCOME' | 'SETUP' | 'PUBLIC_GAMES', beforeSwap?: () => void) => {
@@ -1010,13 +1024,14 @@ export default function Lobby() {
 
     joinPendingRef.current = false;
     setRoomExitWarningOpen(false);
-    transitionLobbyView('SETUP', () => {
-      setServerGameId(null);
-      setServerUserId(null);
-      setServerOwnerId(null);
-      setRoomCode('');
-      setRoomPlayers([]);
-    });
+    setSession(null);
+    setIsGameCountingDown(false);
+    setServerGameId(null);
+    setServerUserId(null);
+    setServerOwnerId(null);
+    setRoomCode('');
+    setRoomPlayers([]);
+    transitionLobbyView('SETUP');
     if (gameId && leavingUserId) {
       void api.leaveGame(gameId, leavingUserId)
         .catch((error) => console.warn('[LeaveRoom] Server room leave failed after local exit', error));
@@ -1062,8 +1077,8 @@ export default function Lobby() {
       playSound('wrong');
       setStartModal({
         visible: true,
-        title: isBs ? 'SOBA NIJE ZAKLJU\u010cANA' : 'ROOM NOT LOCKED',
-        message: error instanceof Error ? error.message : isBs ? 'Poku\u0161aj ponovo.' : 'Please try again.',
+        title: isBs ? 'SOBA NIJE ZAKLJUČANA' : 'ROOM NOT LOCKED',
+        message: error instanceof Error ? error.message : isBs ? 'Pokušaj ponovo.' : 'Please try again.',
       });
     } finally {
       setIsLockingRoom(false);
@@ -1695,6 +1710,14 @@ export default function Lobby() {
   );
 
   const renderAvailableGames = () => {
+    const formatGameDuration = (createdAt: string) => {
+      const elapsedSeconds = Math.max(0, Math.floor((publicGamesNow - new Date(createdAt).getTime()) / 1000));
+      const hours = Math.floor(elapsedSeconds / 3600);
+      const minutes = Math.floor((elapsedSeconds % 3600) / 60);
+      const seconds = elapsedSeconds % 60;
+      return `${hours > 0 ? `${String(hours).padStart(2, '0')}:` : ''}${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    };
+
     if (availableGames.length === 0) {
       return (
         <View className="flex-1" style={{ minHeight: 360, transform: [{ translateY: -30 }] }}>
@@ -1707,7 +1730,9 @@ export default function Lobby() {
 
     return (
       <View style={{ gap: 10 }}>
-          {availableGames.map((game) => (
+          {availableGames.map((game) => {
+            const canJoin = !game.started || Boolean(game.winner_id && game.lobby_member_ids.length > 0);
+            return (
             <Card key={game.id}>
               {(game.stack ?? 'normal') !== 'normal' && (
                 <View
@@ -1727,8 +1752,22 @@ export default function Lobby() {
                   <Text className="mt-1 font-mono text-[10px] font-bold uppercase tracking-wider text-neutral-500">
                     {game.code} • {game.members.length}/8 {isBs ? 'igrača' : 'players'}
                   </Text>
+                  {game.winner_id ? (
+                    <Text className="mt-1 font-mono text-[11px] font-black uppercase tracking-wider text-emerald-500">
+                      {isBs ? 'NOVA PARTIJA' : 'REMATCH LOBBY'}
+                    </Text>
+                  ) : null}
                 </View>
-                <GlassView
+                {game.started && !game.winner_id ? (
+                  <View className="items-end justify-center" style={{ minWidth: 92 }}>
+                    <Text className="font-mono text-[10px] font-black uppercase tracking-wider text-red-500">
+                      {isBs ? 'U TOKU' : 'IN PROGRESS'}
+                    </Text>
+                    <Text className="mt-1 font-mono text-xs font-black tabular-nums text-red-500">
+                      {formatGameDuration(game.created_at)}
+                    </Text>
+                  </View>
+                ) : canJoin ? <GlassView
                   colorScheme="dark"
                   glassEffectStyle="regular"
                   isInteractive
@@ -1755,10 +1794,11 @@ export default function Lobby() {
                   >
                     <ChevronRight color="#d4d4d4" size={20} strokeWidth={2.5} />
                   </Pressable>
-                </GlassView>
+                </GlassView> : null}
               </View>
             </Card>
-          ))}
+            );
+          })}
       </View>
     );
   };
@@ -2698,10 +2738,10 @@ export default function Lobby() {
         success
         successMessage={roomPrivacyResult === 'unlocked'
           ? isBs ? 'SOBA JE PONOVO VIDLJIVA U JAVNIM IGRAMA' : 'THIS ROOM IS VISIBLE IN PUBLIC GAMES AGAIN'
-          : isBs ? 'SOBA VI\u0160E NIJE VIDLJIVA U JAVNIM IGRAMA' : 'THIS ROOM IS NO LONGER VISIBLE IN PUBLIC GAMES'}
+          : isBs ? 'SOBA VIŠE NIJE VIDLJIVA U JAVNIM IGRAMA' : 'THIS ROOM IS NO LONGER VISIBLE IN PUBLIC GAMES'}
         successTitle={roomPrivacyResult === 'unlocked'
-          ? isBs ? 'SOBA JE OTKLJU\u010cANA' : 'ROOM UNLOCKED'
-          : isBs ? 'SOBA JE ZAKLJU\u010cANA' : 'ROOM LOCKED'}
+          ? isBs ? 'SOBA JE OTKLJUČANA' : 'ROOM UNLOCKED'
+          : isBs ? 'SOBA JE ZAKLJUČANA' : 'ROOM LOCKED'}
         visible={roomPrivacyResult !== null}
       />
       <LobbyOpeningOverlay

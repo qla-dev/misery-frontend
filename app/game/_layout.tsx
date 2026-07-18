@@ -56,7 +56,8 @@ export default function GameTabsLayout() {
   // Once GameBoard has published its runtime, the countdown is no longer on
   // screen. Keep native chrome visible even if a stale global flag arrives from
   // the still-mounted lobby/realtime lifecycle.
-  const isCountdownVisible = isGameCountingDown && !gameRuntime;
+  const isCountdownVisible = isGameCountingDown;
+  const isPlayerLaneOpen = Boolean(gameRuntime?.isPlayerLaneOpen);
   const returningToGameSettingsRef = useRef(false);
   const isBs = language === 'bs';
   const isChatOpen = pathname.endsWith('/chat');
@@ -156,13 +157,31 @@ export default function GameTabsLayout() {
   }, [isGameFinished]);
 
   useEffect(() => {
-    if (
-      turnNotice?.type !== 'start' ||
-      laneResult !== null ||
-      gameRuntime?.hasPendingLaneAnimation
-    ) return;
-    router.navigate('/game');
-  }, [gameRuntime?.hasPendingLaneAnimation, laneResult, turnNotice?.id, turnNotice?.type]);
+    const gameplayOverlayPending = Boolean(
+      turnNotice ||
+      gameRuntime?.stealDecisionVisible ||
+      gameRuntime?.inactivityWarningVisible ||
+      gameRuntime?.roomExitReason
+    );
+    if (!gameplayOverlayPending || pathname === '/game') return;
+    gameRuntime?.closePlayerLane?.();
+    router.replace('/game');
+  }, [gameRuntime?.inactivityWarningVisible, gameRuntime?.roomExitReason, gameRuntime?.stealDecisionVisible, pathname, turnNotice?.id]);
+
+  useEffect(() => {
+    if (!isPlayerLaneOpen) return;
+    const turnStarted = turnNotice?.type === 'start';
+    const stealOffered = Boolean(gameRuntime?.stealDecisionVisible);
+    const inactivityRequiresAction = Boolean(gameRuntime?.inactivityWarningVisible);
+    if (!turnStarted && !stealOffered && !inactivityRequiresAction) return;
+
+    gameRuntime?.closePlayerLane?.();
+    if (inactivityRequiresAction && gameRuntime?.isDrawnCardFlipped) {
+      router.replace('/game/lane');
+    } else {
+      router.replace('/game');
+    }
+  }, [gameRuntime?.inactivityWarningVisible, gameRuntime?.isDrawnCardFlipped, gameRuntime?.stealDecisionVisible, isPlayerLaneOpen, turnNotice?.id, turnNotice?.type]);
 
   const returnToWelcome = () => {
     playHaptic();
@@ -201,7 +220,7 @@ export default function GameTabsLayout() {
         options={{
           gestureEnabled: false,
           headerBackVisible: false,
-          headerShown: !isCountdownVisible,
+          headerShown: !isCountdownVisible && !isPlayerLaneOpen,
           headerShadowVisible: false,
           headerStyle: { backgroundColor: 'transparent' },
           headerLeft: () => isChatOpen ? (
@@ -277,7 +296,7 @@ export default function GameTabsLayout() {
           headerTransparent: true,
         }}
       />
-      {!isCountdownVisible && !isChatOpen && (
+      {!isCountdownVisible && !isChatOpen && !isPlayerLaneOpen && (
         <>
           <Stack.Toolbar placement="right">
             <Stack.Toolbar.Button
@@ -307,7 +326,7 @@ export default function GameTabsLayout() {
         badgeBackgroundColor="#ef4444"
         badgeTextColor="#ffffff"
         disableTransparentOnScrollEdge
-        hidden={isCountdownVisible || isGameFinished || isChatOpen}
+        hidden={isCountdownVisible || isGameFinished || isChatOpen || isPlayerLaneOpen}
         screenListeners={{ tabPress: () => playHaptic() }}
         iconColor={{ default: '#737373', selected: '#fbbf24' }}
         labelStyle={{
@@ -347,7 +366,7 @@ export default function GameTabsLayout() {
         title={isBs ? 'Slaba veza' : 'Weak connection'}
         visible={Boolean(gameRuntime?.connectionWarningVisible && !isCountdownVisible)}
       />
-      <GameActionQueue
+      {!isCountdownVisible ? <GameActionQueue
         activeStealerName={gameRuntime?.activeStealer?.name}
         chatMessages={gameRuntime?.chatMessages ?? []}
         chatMessagesHydrated={Boolean(gameRuntime?.chatMessagesHydrated)}
@@ -381,10 +400,11 @@ export default function GameTabsLayout() {
         onStealChoice={(accept) => gameRuntime?.handleStealChoice?.(accept)}
         onTurnNoticeComplete={() => setTurnNotices((current) => current.slice(1))}
         stealDecisionVisible={Boolean(gameRuntime?.stealDecisionVisible)}
+        stealDecisionKey={gameRuntime?.stealDecisionKey ?? null}
         turnNotice={turnNotice}
         roomExitReason={gameRuntime?.roomExitReason}
         toastBlocked={Boolean(gameRuntime?.connectionWarningVisible)}
-      />
+      /> : null}
       <ConfirmModal
         cancelLabel={isBs ? 'NAPUSTI IGRU' : 'LEAVE GAME'}
         confirmLabel={isBs ? 'NASTAVI IGRU' : 'KEEP PLAYING'}

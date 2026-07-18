@@ -12,9 +12,9 @@
     "userInterfaceStyle": "dark",
     "owner": "qla-dev",
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "misery.qla.dev",
-      "buildNumber": "30",
+      "buildNumber": "32",
       "icon": "./assets/images/icon-ios.png",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,

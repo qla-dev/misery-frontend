@@ -310,18 +310,26 @@ export function LaneModal({
               style={{ marginTop: success && successTitleDetail ? 14 : 0, width: '100%' }}
             >
               <Text
+                adjustsFontSizeToFit
                 className={`text-center font-black uppercase ${darkForeground ? 'text-neutral-950' : 'text-white'}`}
+                minimumFontScale={0.72}
+                numberOfLines={1}
                 style={success && successTitleDetail ? twoRowTitleStyle : modalTitleStyle}
               >
                 {title}
               </Text>
               {success && successTitleDetail ? (
-                <Text
-                  className={`text-center font-black uppercase ${darkForeground ? 'text-neutral-950' : 'text-white'}`}
-                  style={twoRowTitleStyle}
-                >
-                  {successTitleDetail}
-                </Text>
+                <View className="items-center justify-center" style={{ width: '100%' }}>
+                  <Text
+                    adjustsFontSizeToFit
+                    className={`text-center font-black uppercase ${darkForeground ? 'text-neutral-950' : 'text-white'}`}
+                    minimumFontScale={0.72}
+                    numberOfLines={1}
+                    style={[twoRowTitleStyle, { width: '100%' }]}
+                  >
+                    {successTitleDetail}
+                  </Text>
+                </View>
               ) : null}
             </View>
           ) : null}

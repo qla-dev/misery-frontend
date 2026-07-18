@@ -263,12 +263,12 @@ export function GameActionQueue({
           : turnNotice?.type === 'finish'
           ? isBs ? 'IGRA JE ZAVRŠENA' : 'GAME FINISHED'
           : turnNotice?.type === 'hold'
-            ? isBs ? 'NA \u010CEKANJU SI' : `YOU'RE ON HOLD`
+            ? isBs ? 'NA ČEKANJU SI' : `YOU'RE ON HOLD`
           : turnNotice?.type === 'end'
             ? isBs ? 'TVOJ POTEZ JE ZAVRŠEN' : 'YOUR TURN ENDED'
             : turnNotice?.steal
-              ? isBs ? 'POKU\u0160AJ KRA\u0110E' : 'YOUR STEAL ATTEMPT'
-              : isBs ? 'TVOJ POTEZ JE PO\u010CEO' : 'YOUR TURN STARTED'}
+              ? isBs ? 'POKUŠAJ KRAĐE' : 'YOUR STEAL ATTEMPT'
+              : isBs ? 'TVOJ POTEZ JE POČEO' : 'YOUR TURN STARTED'}
         successTitleDetail={turnNotice?.type === 'departure'
           ? isBs ? 'JE NAPUSTIO SOBU' : 'LEFT THE ROOM'
           : undefined}
@@ -311,7 +311,7 @@ export function GameActionQueue({
             ? isBs ? 'POSTAVI KARTU NA STAZU PATNJE' : 'PLACE YOUR CARD ON MISERY LANE'
             : isBs ? 'OKRENI KARTU' : 'FLIP YOUR CARD'}
         successTitle={isBs ? 'TVOJ POTEZ' : 'YOUR TURN'}
-        successTitleDetail={isBs ? '\u010CEKA' : 'IS WAITING'}
+        successTitleDetail={isBs ? 'ČEKA' : 'IS WAITING'}
         visible={activeAction === 'inactivity'}
         warning
       />

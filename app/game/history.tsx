@@ -56,7 +56,7 @@ export default function HistoryScreen() {
                   {entry.success ? (isBs ? 'TAČNO' : 'CORRECT') : isBs ? 'NETAČNO' : 'WRONG'}
                 </Text>
               </Text>
-              {typeof entry.cardScore === 'number' && (
+              {entry.success && typeof entry.cardScore === 'number' && (
                 <View className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-2.5 py-1.5">
                   <Text className="font-mono text-xs font-black text-amber-400">{entry.cardScore.toFixed(2)}</Text>
                 </View>

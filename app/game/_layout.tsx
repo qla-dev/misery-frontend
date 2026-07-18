@@ -83,8 +83,16 @@ export default function GameTabsLayout() {
     (laneResultPlayerName && laneResultPlayerName === gameRuntime?.localPlayer?.name
       ? gameRuntime?.localPlayer
       : undefined);
-  const laneResultCardsAdded = Math.max(0, (laneResultPlayer?.lane?.length ?? 3) - 3);
   const laneResultAddsCard = laneResult === 'success' || laneResult === 'steal';
+  const resultCardAlreadyInLane = Boolean(
+    laneResultAddsCard &&
+    gameRuntime?.drawnCard?.id &&
+    laneResultPlayer?.lane?.some((card: any) => String(card.id) === String(gameRuntime.drawnCard.id))
+  );
+  const laneResultCardsAdded = Math.max(
+    0,
+    (laneResultPlayer?.lane?.length ?? 3) - 3 - (resultCardAlreadyInLane ? 1 : 0)
+  );
   const laneResultProgress = laneResultPlayerName
     ? {
         label: isBs ? 'STAZA OD' : 'LANE OF',

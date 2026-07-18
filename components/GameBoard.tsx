@@ -22,6 +22,7 @@ import { DeckType } from '@/context/game-types';
 import { subscribeToGameUpdates } from '@/lib/gameRealtime';
 
 import { MiseryLogo } from './MiseryLogo';
+import { PlayerLaneModal } from './PlayerLaneModal';
 
 const VICTORY_TROPHY_IMAGE = require('../assets/images/rulebook-victory-trophy.png');
 const INACTIVITY_KICK_MS = 60_000;
@@ -169,6 +170,7 @@ export default function GameBoard({
   const [hiddenChatMessageIds, setHiddenChatMessageIds] = useState<number[]>([]);
   const [shakeCard, setShakeCard] = useState(false);
   const [isLaneSheetOpen, setIsLaneSheetOpen] = useState(false);
+  const [selectedLanePlayerId, setSelectedLanePlayerId] = useState<string | null>(null);
   const [flippedCardId, setFlippedCardId] = useState<string | null>(null);
   const [lastInsertedCardId, setLastInsertedCardId] = useState<string | null>(null);
   const [isServerTurnReady, setIsServerTurnReady] = useState(!gameId);
@@ -1142,14 +1144,22 @@ export default function GameBoard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLaneCollapsing, laneResult, selectedSlotResult]);
 
-  const handleRestartGame = () => {
+  const handleRestartGame = async () => {
     if (mode !== 'MULTIPLAYER' || !gameId || !userId) {
       leaveFinishedGame('WELCOME');
       return;
     }
     const roomOwnerId = session?.ownerId ?? initialPlayers[0]?.id;
-    if (Number(roomOwnerId) === Number(userId)) {
-      void api.setHostLobbyPresence(gameId, userId, true).catch(() => undefined);
+    try {
+      await api.setLobbyPresence(gameId, userId, true);
+    } catch (error) {
+      logGameAction('rematch.lobby-presence.failure', {
+        gameId,
+        message: error instanceof Error ? error.message : String(error),
+        userId,
+      });
+      setConnectionWarningVisible(true);
+      return;
     }
     leaveFinishedGame(Number(roomOwnerId) === Number(userId) ? 'ROOM_CREATED' : 'ROOM_JOINED');
   };
@@ -1648,6 +1658,7 @@ export default function GameBoard({
                       type={playerTabType}
                       size="auto"
                       glassEffect
+                      onPress={() => setSelectedLanePlayerId(String(p.id))}
                     >
                       <View className="flex-row items-center gap-2">
                         <View
@@ -1879,6 +1890,12 @@ export default function GameBoard({
           </View>
         </View>
       )}
+
+      <PlayerLaneModal
+        language={language}
+        onClose={() => setSelectedLanePlayerId(null)}
+        player={gameState.players.find((player) => String(player.id) === selectedLanePlayerId) ?? null}
+      />
 
       <Modal visible={isLaneSheetOpen && gameState.phase === 'PLAYING'} transparent animationType="slide" onRequestClose={() => setIsLaneSheetOpen(false)}>
         <View className="flex-1 bg-neutral-950">

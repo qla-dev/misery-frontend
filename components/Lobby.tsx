@@ -838,7 +838,10 @@ export default function Lobby() {
     setHostInLobby(game.host_in_lobby ?? true);
     setIsRoomPrivate(Boolean(game.is_private));
     setSelectedDeck(game.stack ?? 'normal');
-    setRoomPlayers(game.members.map((member, index) => ({
+    const visibleMembers = game.winner_id
+      ? game.members.filter((member) => game.lobby_member_ids?.includes(Number(member.id)))
+      : game.members;
+    setRoomPlayers(visibleMembers.map((member, index) => ({
       id: member.id,
       name: member.name,
       color: (AVAILABLE_COLORS.find((color) => color.id === member.color) ?? AVAILABLE_COLORS[index % AVAILABLE_COLORS.length]).borderClass,

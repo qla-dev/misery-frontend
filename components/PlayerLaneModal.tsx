@@ -1,30 +1,9 @@
 import React from 'react';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { X } from 'lucide-react-native';
-import { Card as CardPanel } from '@/components/Card';
-import { cardDescription, cardTitle } from '@/lib/cardText';
+import { LaneCard } from '@/components/LaneCard';
 import { playClickSound, playHaptic } from '@/lib/sound';
 import { Language, Player } from '@/types';
-
-function LaneCard({ card, language }: { card: any; language: Language }) {
-  return (
-    <CardPanel>
-      <View className="flex-row items-center gap-4">
-        <Text className="font-mono text-xl font-black text-amber-400">{card.index.toFixed(2)}</Text>
-        <View className="flex-1">
-          <Text className="text-base font-black uppercase leading-5 text-neutral-100">
-            {cardTitle(card, language)}
-          </Text>
-          {cardDescription(card, language) ? (
-            <Text className="mt-1 text-xs leading-5 text-neutral-500">
-              {cardDescription(card, language)}
-            </Text>
-          ) : null}
-        </View>
-      </View>
-    </CardPanel>
-  );
-}
 
 export function PlayerLaneModal({ language, onClose, player }: {
   language: Language;

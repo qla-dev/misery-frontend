@@ -267,7 +267,9 @@ export function RulebookContent({ compact = false }: { compact?: boolean }) {
           );
         }
       })
-      .catch((error) => console.warn('[Rulebook] Real cards unavailable; using bundled cards.', error));
+      .catch((error) => {
+        if (__DEV__) console.warn('[Rulebook] Real cards unavailable; using bundled cards.', error);
+      });
     return () => { active = false; };
   }, []);
 

@@ -30,7 +30,9 @@ export function Paywall() {
 
   useEffect(() => {
     if (!hasRevenueCatConfig()) return;
-    getPremiumPackages().then(setPackages).catch((error) => console.warn('[RevenueCat] paywall offerings failed', error));
+    getPremiumPackages().then(setPackages).catch((error) => {
+      if (__DEV__) console.warn('[RevenueCat] paywall offerings failed', error);
+    });
   }, []);
 
   const yearlySavings = useMemo(() => {

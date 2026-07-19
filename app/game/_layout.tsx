@@ -426,7 +426,9 @@ export default function GameTabsLayout() {
           const leaveRequest = gameRuntime?.leaveActiveGame?.();
           returnToGameSettings();
           void Promise.resolve(leaveRequest)
-            .catch((error) => console.warn('[LeaveGame] Server leave failed after local exit', error));
+            .catch((error) => {
+              if (__DEV__) console.warn('[LeaveGame] Server leave failed after local exit', error);
+            });
         }}
         onConfirm={() => setIsExitConfirmOpen(false)}
         onRequestClose={() => setIsExitConfirmOpen(false)}

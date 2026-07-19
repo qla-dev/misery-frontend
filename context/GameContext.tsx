@@ -208,7 +208,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       applyPremiumStatus(revenueCatStatus);
       return revenueCatStatus;
     } catch (error) {
-      console.warn('[RevenueCat] account linking failed', error);
+      if (__DEV__) console.warn('[RevenueCat] account linking failed', error);
       return fallbackStatus;
     } finally {
       setPremiumReady(true);
@@ -232,7 +232,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           applyPremiumStatus(nextStatus);
         });
       } catch (error) {
-        console.warn('[RevenueCat] initialization failed', error);
+        if (__DEV__) console.warn('[RevenueCat] initialization failed', error);
       } finally {
         if (active) setPremiumReady(true);
       }
@@ -247,7 +247,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
       if (state !== 'active' || !hasRevenueCatConfig()) return;
-      refreshPremium().catch((error) => console.warn('[RevenueCat] resume sync failed', error));
+      refreshPremium().catch((error) => {
+        if (__DEV__) console.warn('[RevenueCat] resume sync failed', error);
+      });
     });
     return () => subscription.remove();
   }, [refreshPremium]);

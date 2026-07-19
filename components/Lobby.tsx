@@ -127,6 +127,7 @@ const GOOGLE_REDIRECT_URI = GOOGLE_IOS_REVERSED_CLIENT_ID
 WebBrowser.maybeCompleteAuthSession();
 
 function logLobbyTransition(event: string, details: Record<string, unknown> = {}) {
+  if (!__DEV__) return;
   console.info('[LobbyTransition]', new Date().toISOString(), event, {
     platform: Platform.OS,
     expoOs: process.env.EXPO_OS,
@@ -1034,7 +1035,9 @@ export default function Lobby() {
     transitionLobbyView('SETUP');
     if (gameId && leavingUserId) {
       void api.leaveGame(gameId, leavingUserId)
-        .catch((error) => console.warn('[LeaveRoom] Server room leave failed after local exit', error));
+        .catch((error) => {
+          if (__DEV__) console.warn('[LeaveRoom] Server room leave failed after local exit', error);
+        });
     }
 
   };
@@ -1271,7 +1274,7 @@ export default function Lobby() {
       setSigningInProvider(null);
       if (error?.code === 'ERR_REQUEST_CANCELED') return;
       const message = error instanceof Error ? error.message : 'Social sign-in failed.';
-      console.error('[SocialAuth] sign-in failed', { provider, message });
+      if (__DEV__) console.error('[SocialAuth] sign-in failed', { provider, message });
       setStartModal({
         visible: true,
         title: isBs ? 'PRIJAVA NIJE USPJELA' : 'SIGN-IN FAILED',
@@ -1332,7 +1335,7 @@ export default function Lobby() {
         setIsSigningIn(false);
         setSigningInProvider(null);
         const message = error instanceof Error ? error.message : 'Google sign-in failed.';
-        console.error('[SocialAuth] Google sign-in failed', { message });
+        if (__DEV__) console.error('[SocialAuth] Google sign-in failed', { message });
         setStartModal({
           visible: true,
           title: isBs ? 'PRIJAVA NIJE USPJELA' : 'SIGN-IN FAILED',
@@ -1471,7 +1474,7 @@ export default function Lobby() {
       }, Platform.OS === 'ios' ? 350 : 180);
       return;
     }
-    console.log('[StartGame] clicked', {
+    logLobbyTransition('start-game-clicked', {
       gameId: serverGameId,
       userId: serverUserId,
       mode,
@@ -1485,14 +1488,14 @@ export default function Lobby() {
         const stack = deckToStack(deck);
         const game = await api.startGame(serverGameId, serverUserId, stack, tScore);
         ownerId = game.owner_id;
-        console.log('[StartGame] API success', {
+        logLobbyTransition('start-game-api-success', {
           gameId: game.id,
           started: game.started,
           memberCount: game.members.length,
         });
         applyServerGame(game);
       } catch (error) {
-        console.error('[StartGame] API failed', error);
+        if (__DEV__) console.error('[StartGame] API failed', error);
         const isBackendUnavailable = error instanceof ApiError && (error.status === 0 || error.status >= 500);
         const message = isBackendUnavailable
           ? isBs ? 'Server trenutno ne odgovara. Pokušaj ponovo za nekoliko trenutaka.' : 'The server is not responding. Try again in a few moments.'
@@ -1519,7 +1522,7 @@ export default function Lobby() {
     if (serverGameId) serverStartedRef.current = true;
     setIsGameCountingDown(true);
     setSession({ mode, players, targetScore: tScore, deckType: deck, gameId: serverGameId ?? undefined, userId: serverUserId ?? undefined, ownerId });
-    console.log('[StartGame] navigating to game screen');
+    logLobbyTransition('start-game-navigation');
     setTimeout(() => {
       router.push('./game');
       requestAnimationFrame(() => setIsStartingGame(false));
@@ -1655,10 +1658,10 @@ export default function Lobby() {
           timer = setTimeout(poll, 0);
         }).catch((error) => {
           if (realtime.driver !== 'reverb') {
-            console.warn('[Lobby] Hosted realtime unavailable; polling fallback active', error);
+            if (__DEV__) console.warn('[Lobby] Hosted realtime unavailable; polling fallback active', error);
             return;
           }
-          console.warn('[Lobby] Reverb unavailable; retrying without polling fallback', error);
+          if (__DEV__) console.warn('[Lobby] Reverb unavailable; retrying without polling fallback', error);
           if (!cancelled) realtimeRetryTimer = setTimeout(connectRealtime, 3000);
         });
       };
@@ -2482,7 +2485,7 @@ export default function Lobby() {
             size="100"
             disabled={roomPlayers.length < 2}
             onPress={() => {
-              console.log('[GameSettings] BEGIN NOW pressed', {
+              logLobbyTransition('begin-now-pressed', {
                 gameId: serverGameId,
                 userId: serverUserId,
                 playerCount: roomPlayers.length,

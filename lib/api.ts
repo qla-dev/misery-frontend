@@ -88,8 +88,10 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = DEFAULT_
           status: response.status,
           message: body?.message || `API request failed (${response.status})`,
         };
-        if (response.status === 404) console.warn('[API] resource no longer exists', details);
-        else console.error('[API] request failed', details);
+        if (__DEV__) {
+          if (response.status === 404) console.warn('[API] resource no longer exists', details);
+          else console.error('[API] request failed', details);
+        }
         throw new ApiError(details.message, response.status, body);
       }
 

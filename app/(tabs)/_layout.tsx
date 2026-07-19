@@ -142,7 +142,7 @@ export default function TabLayout() {
         index: Number(selected.score),
       });
     } catch (error) {
-      console.error('[Debug] Failed to load connected card artwork', error);
+      if (__DEV__) console.error('[Debug] Failed to load connected card artwork', error);
       showDebugCard(DEBUG_CARD);
     }
   };

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { canOfferLaneInsertion, insertionAnimationTarget, LANE_CARD_HEIGHT, LANE_CARD_SUBTITLE_LINES, LANE_CARD_TITLE_LINES, localMovePresentationPlan, shouldKeepSelectedInputMounted, shouldKeepTopCardVisible } from '../lib/localMovePresentation.ts';
+import { canOfferLaneInsertion, insertionAnimationTarget, LANE_CARD_HEIGHT, LANE_CARD_SUBTITLE_LINES, LANE_CARD_TITLE_LINES, localMovePresentationPlan, shouldKeepSelectedInputMounted, shouldKeepTopCardVisible, shouldReleaseLaneLockOnCardFlip } from '../lib/localMovePresentation.ts';
 
 test('correct input shows one overlay before score reveal and lane clamp', () => {
   assert.deepEqual(localMovePresentationPlan(true, false), {
@@ -10,14 +10,19 @@ test('correct input shows one overlay before score reveal and lane clamp', () =>
       'previous-insert-marker.clear',
       'result-overlay.show',
       'selected-input.remains-mounted-under-overlay',
+      'selected-input.local-color',
       'server-confirm',
       'result-overlay.complete',
       'navigation.lane.pin-after-answer',
       'score-reveal',
       'insert-input.fade-out-complete',
+      'server-confirm-may-arrive-before-or-after-fade',
+      'top-card.visible-until-rendered-lane-contains-card',
       'lane-clamp',
       'inserted-card.pop-and-content-nudge',
       'insert-slots.lock-until-next-local-action',
+      'navigation-pin.separate-from-input-lock',
+      'inputs.unlock-only-when-card-flips',
       'game-master.until-turn-ended',
     ],
   });
@@ -31,14 +36,19 @@ test('wrong input completes its overlay without inserting the card', () => {
       'previous-insert-marker.clear',
       'result-overlay.show',
       'selected-input.remains-mounted-under-overlay',
+      'selected-input.local-color',
       'server-confirm',
       'result-overlay.complete',
       'navigation.lane.pin-after-answer',
       'score-reveal',
       'insert-input.fade-out-complete',
+      'server-confirm-may-arrive-before-or-after-fade',
+      'top-card.visible-until-rendered-lane-contains-card',
       'lane-no-insert',
       'no-card-pop',
       'insert-slots.lock-until-next-local-action',
+      'navigation-pin.separate-from-input-lock',
+      'inputs.unlock-only-when-card-flips',
       'game-master.until-next-action',
     ],
   });
@@ -53,9 +63,10 @@ test('successful steal uses the same single-overlay clamp lifecycle', () => {
 });
 
 test('a correct result cannot hide the top card before it is actually inserted', () => {
-  assert.equal(shouldKeepTopCardVisible('card-9', null), true);
-  assert.equal(shouldKeepTopCardVisible('card-9', 'older-card'), true);
-  assert.equal(shouldKeepTopCardVisible('card-9', 'card-9'), false);
+  assert.equal(shouldKeepTopCardVisible('card-9', null, false), true);
+  assert.equal(shouldKeepTopCardVisible('card-9', 'older-card', false), true);
+  assert.equal(shouldKeepTopCardVisible('card-9', 'card-9', false), true);
+  assert.equal(shouldKeepTopCardVisible('card-9', 'card-9', true), false);
 });
 
 test('insert animation targets only the newly submitted card, never the previous first card', () => {
@@ -90,4 +101,13 @@ test('only the clicked input remains mounted through overlay and owns the fade',
   assert.equal(shouldKeepSelectedInputMounted(null, 2), false);
   const steps = localMovePresentationPlan(true, false).steps;
   assert.ok(steps.indexOf('selected-input.remains-mounted-under-overlay') < steps.indexOf('insert-input.fade-out-complete'));
+});
+
+test('lane inputs unlock only when the actionable card is flipped', () => {
+  assert.equal(shouldReleaseLaneLockOnCardFlip(false), false);
+  assert.equal(shouldReleaseLaneLockOnCardFlip(true), true);
+});
+
+test('a failed steal placement uses the same wrong-answer presentation path', () => {
+  assert.deepEqual(localMovePresentationPlan(false, true), localMovePresentationPlan(false, false));
 });

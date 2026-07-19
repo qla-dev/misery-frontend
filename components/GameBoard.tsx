@@ -20,7 +20,7 @@ import { cardDescription, cardTitle } from '@/lib/cardText';
 import { DeckType } from '@/context/game-types';
 import { subscribeToGameUpdates } from '@/lib/gameRealtime';
 import { gameEventMachineReducer, initialGameEventMachineState } from '@/lib/gameEventMachine';
-import { canOfferLaneInsertion, localMovePresentationPlan } from '@/lib/localMovePresentation';
+import { canOfferLaneInsertion, localMovePresentationPlan, shouldReleaseLaneLockOnCardFlip } from '@/lib/localMovePresentation';
 import { countdownForceReleaseDelay, GAME_COUNTDOWN_FAILSAFE_MS } from '@/lib/gameCountdownGate';
 
 import { MiseryLogo } from './MiseryLogo';
@@ -120,6 +120,8 @@ export default function GameBoard({
   const optimisticLaneCardsRef = useRef<Record<string, Card[]>>({});
   const pendingPlacementRef = useRef<{ actingPlayerId: string; card: Card; slotIdx: number } | null>(null);
   const submittedPlacementRef = useRef<{ actingPlayerId: string; card: Card; slotIdx: number } | null>(null);
+  const selectedInputFadeCompletedRef = useRef(false);
+  const commitPendingPlacementRef = useRef<() => void>(() => undefined);
   const localResultPresentationRef = useRef<{
     completed: boolean;
     result: 'success' | 'failure' | 'steal';
@@ -191,6 +193,7 @@ export default function GameBoard({
   const [lastStealWasFromLocalPlayer, setLastStealWasFromLocalPlayer] = useState(false);
   const [isTurnInactive, setIsTurnInactive] = useState(false);
   const [stayOnLaneAfterAnswer, setStayOnLaneAfterAnswer] = useState(false);
+  const [laneInputsLockedAfterAnswer, setLaneInputsLockedAfterAnswer] = useState(false);
 
   useEffect(() => {
     setChatMessages([]);
@@ -320,6 +323,8 @@ export default function GameBoard({
     lastObservedEventIdRef.current = null;
     setActiveStealOfferEvent(null);
     setTurnNotices([]);
+    setStayOnLaneAfterAnswer(false);
+    setLaneInputsLockedAfterAnswer(false);
   }, [gameId, setTurnNotices]);
 
   const completeCurrentServerEvent = useCallback((expectedTypes?: ApiGameEvent['type'][]) => {
@@ -350,11 +355,21 @@ export default function GameBoard({
       const isLocalResult = Number(payload.player_id) === Number(userId);
       const authoritativeResult = payload.correct ? (payload.is_steal ? 'steal' : 'success') : 'failure';
       if (isLocalResult) {
-        setSelectedSlotResult(payload.correct ? 'success' : 'failure');
+        if (!selectedInputFadeCompletedRef.current) {
+          setSelectedSlotResult(payload.correct ? 'success' : 'failure');
+        }
         if (payload.correct && submittedPlacementRef.current) {
           pendingPlacementRef.current = submittedPlacementRef.current;
         }
         submittedPlacementRef.current = null;
+        if (selectedInputFadeCompletedRef.current) {
+          LayoutAnimation.configureNext({
+            duration: 340,
+            create: { property: LayoutAnimation.Properties.opacity, type: LayoutAnimation.Types.easeInEaseOut },
+            update: { springDamping: 0.82, type: LayoutAnimation.Types.spring },
+          });
+          commitPendingPlacementRef.current();
+        }
       }
       presentedServerEventIdRef.current = event.id;
       const localPresentation = isLocalResult ? localResultPresentationRef.current : null;
@@ -381,6 +396,8 @@ export default function GameBoard({
       return;
     }
     if (event.type === 'TURN_STARTED') {
+      // A new turn returns presentation to Card, but lane inputs remain locked
+      // independently until that new card is actually flipped.
       setStayOnLaneAfterAnswer(false);
       presentedServerEventIdRef.current = event.id;
       setTurnNotices([{ id: event.id, type: 'start' }]);
@@ -470,6 +487,7 @@ export default function GameBoard({
       }),
     }));
   }, []);
+  commitPendingPlacementRef.current = commitPendingPlacement;
 
   const flipDrawnCard = () => {
     const queuedStealOffer = queuedServerEvents.find((event) => event.type === 'STEAL_OFFERED');
@@ -509,6 +527,9 @@ export default function GameBoard({
     playSound('shuffle');
     const nextFlipped = !isDrawnCardFlipped;
     logGameAction('card.flip', { cardId: gameState.drawnCard?.id, flipped: nextFlipped, phase: gameState.phase });
+    if (shouldReleaseLaneLockOnCardFlip(nextFlipped)) {
+      setLaneInputsLockedAfterAnswer(false);
+    }
     setFlippedCardId(nextFlipped ? gameState.drawnCard?.id ?? null : null);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Animated.timing(cardFlip, {
@@ -653,10 +674,14 @@ export default function GameBoard({
     // The marker is set to the new card only after the result overlay completes.
     setLastInsertedCardId(null);
     setStayOnLaneAfterAnswer(true);
+    setLaneInputsLockedAfterAnswer(true);
     setSelectedSlotIndex(slotIdx);
-    if (!gameId) {
-      setSelectedSlotResult(isCorrect ? 'success' : 'failure');
-    } else {
+    selectedInputFadeCompletedRef.current = false;
+    // Ordinary turns and accepted steals share one local lane presentation.
+    // Keep/color the tapped input immediately; server confirmation only
+    // unlocks its fade and the subsequent clamp.
+    setSelectedSlotResult(isCorrect ? 'success' : 'failure');
+    if (gameId) {
       const immediateResult = localMovePresentationPlan(isCorrect, activeStealerIndex !== undefined).result;
       submittedPlacementRef.current = { actingPlayerId: actingPlayer.id, card: drawnCard, slotIdx };
       localResultPresentationRef.current = { completed: false, result: immediateResult };
@@ -703,6 +728,8 @@ export default function GameBoard({
         .catch((error) => {
           submittedPlacementRef.current = null;
           setSelectedSlotIndex(null);
+          setSelectedSlotResult(null);
+          selectedInputFadeCompletedRef.current = false;
           logGameAction('move.submit.failure', {
             durationMs: Date.now() - submitStartedAt,
             message: error instanceof Error ? error.message : String(error),
@@ -1185,6 +1212,8 @@ export default function GameBoard({
     completeCurrentServerEvent(['STEAL_OFFERED']);
     setActiveStealOfferEvent(null);
     if (accept) {
+      // The steal attempt starts from Card. Input availability remains gated
+      // by laneInputsLockedAfterAnswer until the card is flipped.
       setStayOnLaneAfterAnswer(false);
       triggerSound('steal');
       setFlippedCardId(null);
@@ -1303,6 +1332,7 @@ export default function GameBoard({
     setTimeout(finishCollapse, 410);
     setSelectedSlotIndex(null);
     setSelectedSlotResult(null);
+    selectedInputFadeCompletedRef.current = true;
     // The input has now fully faded. Only at this point mount the new card so
     // the lane shifts once and the inserted card owns the entrance animation.
     commitPendingPlacement();
@@ -1604,7 +1634,7 @@ export default function GameBoard({
         Boolean(currentActingPlayer) &&
         !currentActingPlayer?.isBot &&
           (!gameId || (isServerTurnReady && !isSubmittingMove && Number(serverCurrentPlayerId) === Number(userId))),
-        stayOnLaneAfterAnswer,
+        laneInputsLockedAfterAnswer,
       ),
       currentActingPlayer,
       localPlayer,
@@ -1656,7 +1686,7 @@ export default function GameBoard({
         (!gameId || Number(activeStealer.id) === Number(userId))
       ),
     });
-  }, [activeStealOfferEvent, chatMessages, chatMessagesHydrated, completeCurrentServerEvent, completeLaneResultPresentation, connectionWarningVisible, currentActingPlayer, gameId, gameState, hasPendingLocalTurnEndNotice, hasPendingLocalTurnStartNotice, hiddenChatMessageIds, inactivitySecondsRemaining, inactivityWarningCount, inactivityWarningVisible, isDrawnCardFlipped, isDrawnCardScoreRevealed, isLaneCollapsing, isServerTurnReady, isSubmittingMove, isTurnInactive, laneResult, lastInsertedCardId, lastResultCardScore, lastStealWasFromLocalPlayer, localPlayer, reportChatMessageLocally, roomExitReason, selectedLanePlayerId, selectedSlotIndex, selectedSlotResult, sendChatMessage, serverCurrentPlayerId, setGameRuntime, stayOnLaneAfterAnswer, userId]);
+  }, [activeStealOfferEvent, chatMessages, chatMessagesHydrated, completeCurrentServerEvent, completeLaneResultPresentation, connectionWarningVisible, currentActingPlayer, gameId, gameState, hasPendingLocalTurnEndNotice, hasPendingLocalTurnStartNotice, hiddenChatMessageIds, inactivitySecondsRemaining, inactivityWarningCount, inactivityWarningVisible, isDrawnCardFlipped, isDrawnCardScoreRevealed, isLaneCollapsing, isServerTurnReady, isSubmittingMove, isTurnInactive, laneInputsLockedAfterAnswer, laneResult, lastInsertedCardId, lastResultCardScore, lastStealWasFromLocalPlayer, localPlayer, reportChatMessageLocally, roomExitReason, selectedLanePlayerId, selectedSlotIndex, selectedSlotResult, sendChatMessage, serverCurrentPlayerId, setGameRuntime, stayOnLaneAfterAnswer, userId]);
 
   useEffect(() => {
     if (!didLocalWin || winnerCelebratedRef.current) return;

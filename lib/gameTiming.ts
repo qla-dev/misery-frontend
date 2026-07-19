@@ -1,1 +1,1 @@
-export const INSERT_SLOT_FADE_MS = 450;
+export const INSERT_SLOT_FADE_MS = 120;

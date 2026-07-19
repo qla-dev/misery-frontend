@@ -135,6 +135,7 @@ export default function MiseryLaneScreen() {
       {gameRuntime.drawnCard && shouldKeepTopCardVisible(
         gameRuntime.drawnCard.id,
         gameRuntime.lastInsertedCardId,
+        player.lane.some((card: any) => card.id === gameRuntime.drawnCard.id),
       ) ? (
         <PendingCardGlow active={Boolean(gameRuntime.canPlaceCard)}>
           <LaneCard

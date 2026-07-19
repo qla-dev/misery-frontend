@@ -14,3 +14,8 @@ test('answering on lane pins every following notification to lane', () => {
   assert.equal(routeAfterGameplayNotification(false, true), '/game/lane');
   assert.equal(routeAfterGameplayNotification(true, true), '/game/lane');
 });
+
+test('game finished always opens final standings even when lane was pinned', () => {
+  assert.equal(routeAfterGameplayNotification(false, true, true), '/game');
+  assert.equal(routeAfterGameplayNotification(true, true, true), '/game');
+});

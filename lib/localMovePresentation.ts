@@ -19,6 +19,10 @@ export function canOfferLaneInsertion(baseCanPlaceCard: boolean, stayOnLaneAfter
   return baseCanPlaceCard && !stayOnLaneAfterAnswer;
 }
 
+export function shouldKeepSelectedInputMounted(selectedSlotIndex: number | null, slotIndex: number) {
+  return selectedSlotIndex === slotIndex;
+}
+
 export function localMovePresentationPlan(correct: boolean, isSteal: boolean) {
   const result: LocalMoveResult = correct ? (isSteal ? 'steal' : 'success') : 'failure';
   return {
@@ -27,6 +31,7 @@ export function localMovePresentationPlan(correct: boolean, isSteal: boolean) {
       'input',
       'previous-insert-marker.clear',
       'result-overlay.show',
+      'selected-input.remains-mounted-under-overlay',
       'server-confirm',
       'result-overlay.complete',
       'navigation.lane.pin-after-answer',

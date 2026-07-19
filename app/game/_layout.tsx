@@ -168,11 +168,12 @@ export default function GameTabsLayout() {
     const destination = routeAfterGameplayNotification(
       Boolean(gameRuntime?.isDrawnCardFlipped),
       Boolean(gameRuntime?.stayOnLaneAfterAnswer),
+      turnNotice?.type === 'finish' || isGameFinished,
     );
     if (pathname === destination) return;
     gameRuntime?.closePlayerLane?.();
     router.replace(destination);
-  }, [gameRuntime?.inactivityWarningVisible, gameRuntime?.isDrawnCardFlipped, gameRuntime?.roomExitReason, gameRuntime?.stayOnLaneAfterAnswer, gameRuntime?.stealDecisionVisible, pathname, turnNotice?.id]);
+  }, [gameRuntime?.inactivityWarningVisible, gameRuntime?.isDrawnCardFlipped, gameRuntime?.roomExitReason, gameRuntime?.stayOnLaneAfterAnswer, gameRuntime?.stealDecisionVisible, isGameFinished, pathname, turnNotice?.id, turnNotice?.type]);
 
   useEffect(() => {
     if (!isPlayerLaneOpen) return;

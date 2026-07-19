@@ -16,7 +16,6 @@ import { VictoryConfetti } from './VictoryConfetti';
 import { DrawnCardFace } from './DrawnCardFace';
 import { CardBackDecoration } from './CardBackDecoration';
 import { logGameAction } from '@/lib/gameDiagnostics';
-import { INSERT_SLOT_FADE_MS } from '@/lib/gameTiming';
 import { cardDescription, cardTitle } from '@/lib/cardText';
 import { DeckType } from '@/context/game-types';
 import { subscribeToGameUpdates } from '@/lib/gameRealtime';
@@ -1309,19 +1308,6 @@ export default function GameBoard({
     commitPendingPlacement();
   };
 
-  useEffect(() => {
-    if (laneResult !== null || selectedSlotResult === null || isLaneCollapsing) return;
-    logGameAction('lane-animation.fade-start', { durationMs: INSERT_SLOT_FADE_MS, result: selectedSlotResult });
-    const timer = setTimeout(() => {
-      logGameAction('lane-animation.fade-complete', { result: selectedSlotResult });
-      handleLaneResultFadeComplete();
-    }, INSERT_SLOT_FADE_MS);
-    return () => clearTimeout(timer);
-    // The timer is intentionally driven only by the lane animation state. Poll renders
-    // must not restart it while the same insertion marker is fading.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLaneCollapsing, laneResult, selectedSlotResult]);
-
   const handleRestartGame = async () => {
     if (mode !== 'MULTIPLAYER' || !gameId || !userId) {
       leaveFinishedGame('WELCOME');
@@ -1699,7 +1685,7 @@ export default function GameBoard({
       id: ++turnNoticeIdRef.current,
       type: 'finish',
     }]);
-    router.navigate('/game');
+    router.replace('/game');
   }, [gameState.phase, setTurnNotices]);
 
   if (gameState.players.length === 0 || !gameState.drawnCard) {

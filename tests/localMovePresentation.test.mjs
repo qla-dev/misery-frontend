@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { canOfferLaneInsertion, insertionAnimationTarget, LANE_CARD_HEIGHT, LANE_CARD_SUBTITLE_LINES, LANE_CARD_TITLE_LINES, localMovePresentationPlan, shouldKeepTopCardVisible } from '../lib/localMovePresentation.ts';
+import { canOfferLaneInsertion, insertionAnimationTarget, LANE_CARD_HEIGHT, LANE_CARD_SUBTITLE_LINES, LANE_CARD_TITLE_LINES, localMovePresentationPlan, shouldKeepSelectedInputMounted, shouldKeepTopCardVisible } from '../lib/localMovePresentation.ts';
 
 test('correct input shows one overlay before score reveal and lane clamp', () => {
   assert.deepEqual(localMovePresentationPlan(true, false), {
@@ -9,6 +9,7 @@ test('correct input shows one overlay before score reveal and lane clamp', () =>
       'input',
       'previous-insert-marker.clear',
       'result-overlay.show',
+      'selected-input.remains-mounted-under-overlay',
       'server-confirm',
       'result-overlay.complete',
       'navigation.lane.pin-after-answer',
@@ -29,6 +30,7 @@ test('wrong input completes its overlay without inserting the card', () => {
       'input',
       'previous-insert-marker.clear',
       'result-overlay.show',
+      'selected-input.remains-mounted-under-overlay',
       'server-confirm',
       'result-overlay.complete',
       'navigation.lane.pin-after-answer',
@@ -80,4 +82,12 @@ test('every lane card, including the retained top card, uses the fixed two-by-tw
   assert.equal(LANE_CARD_HEIGHT, 88);
   assert.equal(LANE_CARD_TITLE_LINES, 2);
   assert.equal(LANE_CARD_SUBTITLE_LINES, 2);
+});
+
+test('only the clicked input remains mounted through overlay and owns the fade', () => {
+  assert.equal(shouldKeepSelectedInputMounted(2, 2), true);
+  assert.equal(shouldKeepSelectedInputMounted(2, 1), false);
+  assert.equal(shouldKeepSelectedInputMounted(null, 2), false);
+  const steps = localMovePresentationPlan(true, false).steps;
+  assert.ok(steps.indexOf('selected-input.remains-mounted-under-overlay') < steps.indexOf('insert-input.fade-out-complete'));
 });

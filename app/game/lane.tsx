@@ -5,9 +5,9 @@ import { LaneCard } from '@/components/LaneCard';
 import { TabFadeView } from '@/components/TabFadeView';
 import { cardDescription, cardTitle } from '@/lib/cardText';
 import { INSERT_SLOT_FADE_MS } from '@/lib/gameTiming';
-import { shouldKeepTopCardVisible } from '@/lib/localMovePresentation';
+import { shouldKeepSelectedInputMounted, shouldKeepTopCardVisible } from '@/lib/localMovePresentation';
 
-function SelectedInsertSlot({ isBs, onFadeComplete, result, shouldFade }: { isBs: boolean; onFadeComplete?: () => void; result: 'success' | 'failure'; shouldFade: boolean }) {
+function SelectedInsertSlot({ isBs, onFadeComplete, result, shouldFade }: { isBs: boolean; onFadeComplete?: () => void; result: 'success' | 'failure' | null; shouldFade: boolean }) {
   const opacity = useRef(new Animated.Value(1)).current;
   const onFadeCompleteRef = useRef(onFadeComplete);
 
@@ -28,18 +28,33 @@ function SelectedInsertSlot({ isBs, onFadeComplete, result, shouldFade }: { isBs
     return () => animation.stop();
   }, [opacity, shouldFade]);
 
-  const color = result === 'success' ? '#10b981' : '#ef4444';
-  const backgroundColor = result === 'success' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)';
+  // Keep the exact same slot geometry throughout its lifetime. The result is
+  // communicated only through color so the control does not visually jump.
+  const color = result === 'success'
+    ? '#10b981'
+    : result === 'failure'
+      ? '#ef4444'
+      : '#facc15';
+  const borderColor = result === 'success'
+    ? 'rgba(16,185,129,0.7)'
+    : result === 'failure'
+      ? 'rgba(239,68,68,0.7)'
+      : 'rgba(250,204,21,0.4)';
+  const backgroundColor = result === 'success'
+    ? 'rgba(16,185,129,0.12)'
+    : result === 'failure'
+      ? 'rgba(239,68,68,0.12)'
+      : 'rgba(250,204,21,0.05)';
 
   return (
     <Animated.View
       style={{
         alignItems: 'center',
         backgroundColor,
-        borderColor: color,
+        borderColor,
         borderRadius: 12,
         borderStyle: 'dashed',
-        borderWidth: 2,
+        borderWidth: 1,
         opacity,
         paddingHorizontal: 16,
         paddingVertical: 12,
@@ -144,12 +159,12 @@ export default function MiseryLaneScreen() {
       <View style={{ gap: 12 }}>
         {player.lane.map((card: any, index: number) => (
           <View key={card.id} style={{ gap: 12 }}>
-            {gameRuntime.selectedSlotIndex === index && gameRuntime.selectedSlotResult ? (
+            {shouldKeepSelectedInputMounted(gameRuntime.selectedSlotIndex, index) ? (
               <SelectedInsertSlot
                 isBs={isBs}
                 onFadeComplete={gameRuntime.handleLaneResultFadeComplete}
                 result={gameRuntime.selectedSlotResult}
-                shouldFade={gameRuntime.laneResult === null}
+                shouldFade={gameRuntime.laneResult === null && gameRuntime.selectedSlotResult !== null}
               />
             ) : gameRuntime.canPlaceCard ? (
               <Pressable
@@ -164,12 +179,12 @@ export default function MiseryLaneScreen() {
             <LaneCard card={card} language={language} isNew={card.id === gameRuntime.lastInsertedCardId} />
           </View>
         ))}
-        {gameRuntime.selectedSlotIndex === player.lane.length && gameRuntime.selectedSlotResult ? (
+        {shouldKeepSelectedInputMounted(gameRuntime.selectedSlotIndex, player.lane.length) ? (
           <SelectedInsertSlot
             isBs={isBs}
             onFadeComplete={gameRuntime.handleLaneResultFadeComplete}
             result={gameRuntime.selectedSlotResult}
-            shouldFade={gameRuntime.laneResult === null}
+            shouldFade={gameRuntime.laneResult === null && gameRuntime.selectedSlotResult !== null}
           />
         ) : gameRuntime.canPlaceCard ? (
           <Pressable

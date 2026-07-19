@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useReducer } from 'react';
 import { router, useFocusEffect } from 'expo-router';
 import { AlertOctagon, Crown, Loader2, Medal, X } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { Animated, AppState, Easing, Image, LayoutAnimation, Modal, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Animated, AppState, Easing, Image, LayoutAnimation, Modal, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { Card, Player, Language, GameState, GameMode } from '@/types';
 import { CARD_DECK } from '@/data/cards';
 import Illustration from './Illustration';
@@ -20,6 +20,7 @@ import { INSERT_SLOT_FADE_MS } from '@/lib/gameTiming';
 import { cardDescription, cardTitle } from '@/lib/cardText';
 import { DeckType } from '@/context/game-types';
 import { subscribeToGameUpdates } from '@/lib/gameRealtime';
+import { gameEventMachineReducer, initialGameEventMachineState } from '@/lib/gameEventMachine';
 
 import { MiseryLogo } from './MiseryLogo';
 import { PlayerLaneModal } from './PlayerLaneModal';
@@ -117,8 +118,8 @@ export default function GameBoard({
   const victoryTrophyFloat = useRef(new Animated.Value(0)).current;
   const optimisticLaneCardsRef = useRef<Record<string, Card[]>>({});
   const pendingPlacementRef = useRef<{ actingPlayerId: string; card: Card; slotIdx: number } | null>(null);
+  const submittedPlacementRef = useRef<{ actingPlayerId: string; card: Card; slotIdx: number } | null>(null);
   const lastObservedEventIdRef = useRef<number | null>(null);
-  const pendingServerEventsRef = useRef<ApiGameEvent[]>([]);
   const acceptedStealCardIdRef = useRef<string | null>(null);
   const turnNoticeIdRef = useRef(0);
   const knownServerMembersRef = useRef(new Map(
@@ -139,7 +140,6 @@ export default function GameBoard({
   const holdingTurnCardRef = useRef(false);
   const laneResultRef = useRef<'success' | 'failure' | 'steal' | null>(laneResult);
   const queuedLaneResultsRef = useRef<QueuedLaneResult[]>([]);
-  const laneResultGapRef = useRef(false);
   const laneCollapseInFlightRef = useRef(false);
   const inactivityKickInFlightRef = useRef(false);
   const inactivityWarningCountRef = useRef(0);
@@ -191,7 +191,12 @@ export default function GameBoard({
   const [inactivitySecondsRemaining, setInactivitySecondsRemaining] = useState<number | null>(null);
   const [roomExitReason, setRoomExitReason] = useState<string | null>(null);
   const [activeStealOfferEvent, setActiveStealOfferEvent] = useState<ApiGameEvent | null>(null);
-  const [eventPumpVersion, setEventPumpVersion] = useState(0);
+  const [eventMachine, dispatchGameEvent] = useReducer(gameEventMachineReducer, initialGameEventMachineState);
+  const queuedServerEvents = eventMachine.current
+    ? [eventMachine.current, ...eventMachine.pending]
+    : eventMachine.pending;
+  const presentedServerEventIdRef = useRef<number | null>(null);
+  const [isLaneResultGapActive, setIsLaneResultGapActive] = useState(false);
   const initializedServerGameRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -226,7 +231,7 @@ export default function GameBoard({
   const enqueueLaneResult = (notice: QueuedLaneResult) => {
     if (
       laneResultRef.current !== null ||
-      laneResultGapRef.current
+      isLaneResultGapActive
     ) {
       queuedLaneResultsRef.current.push(notice);
       return;
@@ -238,15 +243,14 @@ export default function GameBoard({
     const previousResult = laneResultRef.current;
     laneResultRef.current = laneResult;
     if (laneResult !== null || previousResult === null) return;
-    laneResultGapRef.current = true;
+    setIsLaneResultGapActive(true);
     let timer: ReturnType<typeof setTimeout> | null = null;
     const attemptPublish = () => {
-      laneResultGapRef.current = false;
+      setIsLaneResultGapActive(false);
       const next = queuedLaneResultsRef.current.shift();
       if (next) {
         publishLaneResult(next);
       } else {
-        setEventPumpVersion((version) => version + 1);
       }
     };
     timer = setTimeout(attemptPublish, 500);
@@ -274,50 +278,59 @@ export default function GameBoard({
 
   useEffect(() => {
     laneResultRef.current = null;
-    laneResultGapRef.current = false;
+    setIsLaneResultGapActive(false);
     queuedLaneResultsRef.current = [];
-    pendingServerEventsRef.current = [];
+    dispatchGameEvent({ type: 'RESET' });
+    presentedServerEventIdRef.current = null;
     lastObservedEventIdRef.current = null;
     setActiveStealOfferEvent(null);
     setTurnNotices([]);
   }, [gameId, setTurnNotices]);
 
+  const completeCurrentServerEvent = useCallback((expectedTypes?: ApiGameEvent['type'][]) => {
+    const current = eventMachine.current;
+    if (!current || (expectedTypes && !expectedTypes.includes(current.type))) return;
+    logGameAction('server-event.complete', { eventId: current.id, eventType: current.type });
+    presentedServerEventIdRef.current = null;
+    dispatchGameEvent({ type: 'COMPLETE', eventId: current.id });
+  }, [eventMachine.current]);
+
   useEffect(() => {
-    if (isGameCountingDown || activeStealOfferEvent) return;
-    if (
-      laneResultRef.current !== null ||
-      laneResultGapRef.current ||
-      queuedLaneResultsRef.current.length > 0 ||
-      turnNotices.length > 0 ||
-      selectedSlotResult !== null ||
-      isLaneCollapsing
-    ) return;
-    const event = pendingServerEventsRef.current.shift();
-    if (!event) return;
+    if (isGameCountingDown) return;
+    const event = eventMachine.current;
+    if (!event || presentedServerEventIdRef.current === event.id) return;
     const payload = event.payload ?? {};
     logGameAction('server-event.consume', { eventId: event.id, eventType: event.type });
     if (event.type === 'MOVE_RESULT') {
-      if (Number(payload.player_id) !== Number(userId)) {
-        enqueueLaneResult({
-          playerName: typeof payload.player_name === 'string' ? payload.player_name : null,
-          result: payload.correct ? (payload.is_steal ? 'steal' : 'success') : 'failure',
-          score: typeof payload.score === 'number' ? payload.score : null,
-          stolenFromLocal: Boolean(payload.is_steal && Number(payload.turn_owner_id) === Number(userId)),
-        });
-      } else {
-        setEventPumpVersion((version) => version + 1);
+      const isLocalResult = Number(payload.player_id) === Number(userId);
+      if (isLocalResult) {
+        setSelectedSlotResult(payload.correct ? 'success' : 'failure');
+        if (payload.correct && submittedPlacementRef.current) {
+          pendingPlacementRef.current = submittedPlacementRef.current;
+        }
+        submittedPlacementRef.current = null;
       }
+      presentedServerEventIdRef.current = event.id;
+      enqueueLaneResult({
+        playerName: typeof payload.player_name === 'string' ? payload.player_name : null,
+        result: payload.correct ? (payload.is_steal ? 'steal' : 'success') : 'failure',
+        score: typeof payload.score === 'number' ? payload.score : null,
+        stolenFromLocal: Boolean(payload.is_steal && Number(payload.turn_owner_id) === Number(userId)),
+      });
       return;
     }
     if (event.type === 'TURN_STARTED') {
+      presentedServerEventIdRef.current = event.id;
       setTurnNotices([{ id: event.id, type: 'start' }]);
       return;
     }
     if (event.type === 'TURN_ENDED') {
+      presentedServerEventIdRef.current = event.id;
       setTurnNotices([{ id: event.id, type: 'end' }]);
       return;
     }
     if (event.type === 'TURN_HOLD') {
+      presentedServerEventIdRef.current = event.id;
       setTurnNotices([{
         id: event.id,
         type: 'hold',
@@ -327,6 +340,7 @@ export default function GameBoard({
       return;
     }
     if (event.type === 'STEAL_OFFERED') {
+      presentedServerEventIdRef.current = event.id;
       setActiveStealOfferEvent(event);
       setGameState((current) => {
         const offeredPlayerId = Number(payload.player_id ?? event.target_user_id);
@@ -345,8 +359,10 @@ export default function GameBoard({
     }
     if (event.type === 'GAME_FINISHED') {
       setGameState((current) => ({ ...current, phase: 'VICTORY' }));
+      presentedServerEventIdRef.current = null;
+      dispatchGameEvent({ type: 'COMPLETE', eventId: event.id });
     }
-  }, [activeStealOfferEvent, eventPumpVersion, isGameCountingDown, isLaneCollapsing, laneResult, selectedSlotResult, setTurnNotices, turnNotices, userId]);
+  }, [eventMachine.current, isGameCountingDown, isLaneCollapsing, selectedSlotResult, setTurnNotices, userId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -395,7 +411,7 @@ export default function GameBoard({
   }, [laneResult]);
 
   const flipDrawnCard = () => {
-    const queuedStealOffer = pendingServerEventsRef.current.find((event) => event.type === 'STEAL_OFFERED');
+    const queuedStealOffer = queuedServerEvents.find((event) => event.type === 'STEAL_OFFERED');
     if (
       queuedStealOffer &&
       acceptedStealCardIdRef.current !== String(queuedStealOffer.payload.card_id ?? gameState.drawnCard?.id)
@@ -538,7 +554,7 @@ export default function GameBoard({
       logGameAction('slot.select.blocked', { hasCard: Boolean(drawnCard), phase, reason: 'local-phase-gate', slotIdx });
       return;
     }
-    if (pendingServerEventsRef.current.some((event) => event.type === 'STEAL_OFFERED')) {
+    if (queuedServerEvents.some((event) => event.type === 'STEAL_OFFERED')) {
       logGameAction('slot.select.blocked', { reason: 'steal-offer-not-yet-presented', slotIdx });
       return;
     }
@@ -573,7 +589,8 @@ export default function GameBoard({
     setLastResultCardScore(drawnCard.index);
     setRevealedScoreCardId(drawnCard.id);
     setSelectedSlotIndex(slotIdx);
-    setSelectedSlotResult(isCorrect ? 'success' : 'failure');
+    if (!gameId) setSelectedSlotResult(isCorrect ? 'success' : 'failure');
+    else submittedPlacementRef.current = { actingPlayerId: actingPlayer.id, card: drawnCard, slotIdx };
     if (gameId && userId) {
       cancelActiveSnapshotRef.current();
       moveRequestInFlightRef.current = true;
@@ -612,6 +629,8 @@ export default function GameBoard({
           }));
         })
         .catch((error) => {
+          submittedPlacementRef.current = null;
+          setSelectedSlotIndex(null);
           logGameAction('move.submit.failure', {
             durationMs: Date.now() - submitStartedAt,
             message: error instanceof Error ? error.message : String(error),
@@ -625,13 +644,15 @@ export default function GameBoard({
     }
 
     if (isCorrect) {
-      pendingPlacementRef.current = { actingPlayerId: actingPlayer.id, card: drawnCard, slotIdx };
+      if (!gameId) pendingPlacementRef.current = { actingPlayerId: actingPlayer.id, card: drawnCard, slotIdx };
       const wasStealAttempt = activeStealerIndex !== undefined;
-      enqueueLaneResult({
-        playerName: actingPlayer.name,
-        result: wasStealAttempt ? 'steal' : 'success',
-        score: drawnCard.index,
-      });
+      if (!gameId) {
+        enqueueLaneResult({
+          playerName: actingPlayer.name,
+          result: wasStealAttempt ? 'steal' : 'success',
+          score: drawnCard.index,
+        });
+      }
       const historyLog = {
         playerName: actingPlayer.name,
         cardTitle: cardTitle(drawnCard, language),
@@ -646,12 +667,12 @@ export default function GameBoard({
         const checkVictory = !gameId && pointsFromLane([...actingPlayer.lane, drawnCard]) >= targetScore;
         return {
           ...prev,
-          phase: checkVictory ? 'VICTORY' : 'CORRECT_REVEAL',
+          phase: gameId ? 'PLAYING' : checkVictory ? 'VICTORY' : 'CORRECT_REVEAL',
           guessHistory: [historyLog, ...prev.guessHistory],
         };
       });
     } else {
-      enqueueLaneResult({ playerName: actingPlayer.name, result: 'failure', score: drawnCard.index });
+      if (!gameId) enqueueLaneResult({ playerName: actingPlayer.name, result: 'failure', score: drawnCard.index });
       setShakeCard(true);
       setTimeout(() => setShakeCard(false), 600);
       const historyLog = {
@@ -687,7 +708,7 @@ export default function GameBoard({
           setGameState((prev) => ({ ...prev, phase: 'STEAL_DECISION', activeStealerIndex: nextStealerIdx, guessHistory: [historyLog, ...prev.guessHistory] }));
         }
       } else {
-        setGameState((prev) => ({ ...prev, phase: 'WRONG_REVEAL', guessHistory: [historyLog, ...prev.guessHistory] }));
+        setGameState((prev) => ({ ...prev, phase: 'PLAYING', guessHistory: [historyLog, ...prev.guessHistory] }));
       }
     }
   };
@@ -913,13 +934,11 @@ export default function GameBoard({
           .filter((event) => event.target_user_id === null || Number(event.target_user_id) === Number(userId))
           .sort((a, b) => a.id - b.id);
         if (relevantEvents.length > 0) {
-          const alreadyQueued = new Set(pendingServerEventsRef.current.map((event) => event.id));
-          pendingServerEventsRef.current.push(...relevantEvents.filter((event) => !alreadyQueued.has(event.id)));
+          dispatchGameEvent({ type: 'INGEST', events: relevantEvents });
           logGameAction('server-events.queued', {
             eventIds: relevantEvents.map((event) => event.id),
             eventTypes: relevantEvents.map((event) => event.type),
           });
-          setEventPumpVersion((version) => version + 1);
         }
         const incomingCard = game.current_card ? toLocalCard(game.current_card) : null;
         const isIncomingLocalTurn = Number(game.current_player_id) === Number(userId);
@@ -1091,6 +1110,7 @@ export default function GameBoard({
       return;
     }
     logGameAction('steal.choice', { accept, cardId: drawnCard.id, stealerId: players[activeStealerIndex]?.id });
+    completeCurrentServerEvent(['STEAL_OFFERED']);
     setActiveStealOfferEvent(null);
     if (accept) {
       triggerSound('steal');
@@ -1311,15 +1331,22 @@ export default function GameBoard({
   );
   const hasPendingLocalTurnStartNotice = Boolean(
     turnNotices.some((notice) => notice.type === 'start') ||
-    pendingServerEventsRef.current.some((event) =>
+    queuedServerEvents.some((event) =>
       event.type === 'TURN_STARTED' && Number(event.target_user_id) === Number(userId)
     )
   );
   const didLocalWin = Boolean(
     isVictoryPhase && (!gameId || (userId && Number(serverWinnerId) === Number(userId)))
   );
+  const hasUnacceptedStealOffer = Boolean(
+    activeStealOfferEvent ||
+    queuedServerEvents.some((event) =>
+      event.type === 'STEAL_OFFERED' && Number(event.target_user_id) === Number(userId)
+    )
+  );
   const canFlipCard = Boolean(
     !isDrawnCardFlipped &&
+    !hasUnacceptedStealOffer &&
     gameState.phase === 'PLAYING' &&
     (!gameId || (
       isServerTurnReady &&
@@ -1423,7 +1450,9 @@ export default function GameBoard({
     };
   }, [activeStealOfferEvent, gameId, inactivityTurnKey, userId]);
 
-  const faceDownPrompt = gameId && !isLocalServerTurn
+  const faceDownPrompt = hasPendingLocalTurnStartNotice || hasUnacceptedStealOffer
+    ? ''
+    : gameId && !isLocalServerTurn
     ? currentActingPlayer?.name
       ? activeStealer
         ? isBs
@@ -1438,6 +1467,11 @@ export default function GameBoard({
     : isLocalStealAttempt
       ? isBs ? 'DODIRNI ZA OKRETANJE I POKUŠAJ KRAĐU' : 'TAP TO FLIP TO TRY TO STEAL'
       : isBs ? 'DODIRNI ZA OKRETANJE' : 'TAP TO FLIP';
+  const isCardFooterWaiting = Boolean(
+    hasPendingLocalTurnStartNotice ||
+    hasUnacceptedStealOffer ||
+    (gameId && isLocalServerTurn && (!isServerTurnReady || isSubmittingMove))
+  );
 
   useEffect(() => {
     if (!shouldFloatDrawnCard) {
@@ -1518,6 +1552,8 @@ export default function GameBoard({
       lastResultCardScore,
       lastStealWasFromLocalPlayer,
       handleLaneResultFadeComplete,
+      completeLaneResultPresentation: () => completeCurrentServerEvent(['MOVE_RESULT']),
+      completeTurnNoticePresentation: () => completeCurrentServerEvent(['TURN_STARTED', 'TURN_ENDED', 'TURN_HOLD']),
       hasPendingLaneAnimation: selectedSlotResult !== null || isLaneCollapsing,
       inactivityWarningVisible,
       inactivityWarningCount,
@@ -1546,7 +1582,7 @@ export default function GameBoard({
         (!gameId || Number(activeStealer.id) === Number(userId))
       ),
     });
-  }, [activeStealOfferEvent, chatMessages, chatMessagesHydrated, connectionWarningVisible, currentActingPlayer, gameId, gameState, hasPendingLocalTurnStartNotice, hiddenChatMessageIds, inactivitySecondsRemaining, inactivityWarningCount, inactivityWarningVisible, isDrawnCardFlipped, isDrawnCardScoreRevealed, isLaneCollapsing, isServerTurnReady, isSubmittingMove, isTurnInactive, laneResult, lastInsertedCardId, lastResultCardScore, lastStealWasFromLocalPlayer, localPlayer, reportChatMessageLocally, roomExitReason, selectedLanePlayerId, selectedSlotIndex, selectedSlotResult, sendChatMessage, serverCurrentPlayerId, setGameRuntime, userId]);
+  }, [activeStealOfferEvent, chatMessages, chatMessagesHydrated, completeCurrentServerEvent, connectionWarningVisible, currentActingPlayer, gameId, gameState, hasPendingLocalTurnStartNotice, hiddenChatMessageIds, inactivitySecondsRemaining, inactivityWarningCount, inactivityWarningVisible, isDrawnCardFlipped, isDrawnCardScoreRevealed, isLaneCollapsing, isServerTurnReady, isSubmittingMove, isTurnInactive, laneResult, lastInsertedCardId, lastResultCardScore, lastStealWasFromLocalPlayer, localPlayer, reportChatMessageLocally, roomExitReason, selectedLanePlayerId, selectedSlotIndex, selectedSlotResult, sendChatMessage, serverCurrentPlayerId, setGameRuntime, userId]);
 
   useEffect(() => {
     if (!didLocalWin || winnerCelebratedRef.current) return;
@@ -1716,15 +1752,24 @@ export default function GameBoard({
                     <CardBackDecoration />
                     <View style={{ borderColor: 'rgba(251,191,36,0.35)', borderRadius: 11, borderWidth: 2, bottom: 9, left: 9, position: 'absolute', right: 9, top: 9 }} />
                     <MiseryLogo />
-                    <Animated.Text
-                      adjustsFontSizeToFit
-                      className="absolute bottom-8 left-6 right-6 text-center font-mono text-[10px] font-black uppercase tracking-[3px] text-amber-400/70"
-                      minimumFontScale={0.7}
-                      numberOfLines={1}
-                      style={{ transform: [{ translateY: cardPromptFloat }] }}
-                    >
-                      {faceDownPrompt}
-                    </Animated.Text>
+                    {isCardFooterWaiting ? (
+                      <View className="absolute bottom-7 left-6 right-6 flex-row items-center justify-center" style={{ gap: 8 }}>
+                        <Text className="font-mono text-[10px] font-black uppercase tracking-[3px] text-amber-400/70">
+                          GAME MASTER
+                        </Text>
+                        <ActivityIndicator color="rgba(251,191,36,0.7)" size="small" />
+                      </View>
+                    ) : (
+                      <Animated.Text
+                        adjustsFontSizeToFit
+                        className="absolute bottom-8 left-6 right-6 text-center font-mono text-[10px] font-black uppercase tracking-[3px] text-amber-400/70"
+                        minimumFontScale={0.7}
+                        numberOfLines={1}
+                        style={{ transform: [{ translateY: cardPromptFloat }] }}
+                      >
+                        {faceDownPrompt}
+                      </Animated.Text>
+                    )}
                   </View>
                 </Animated.View>
                 <Animated.View

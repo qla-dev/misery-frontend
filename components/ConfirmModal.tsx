@@ -2,6 +2,7 @@ import React from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { ButtonTab } from './ButtonTab';
+import { FullWindowOverlay } from 'react-native-screens';
 
 type ConfirmModalProps = {
   children: React.ReactNode;
@@ -14,6 +15,7 @@ type ConfirmModalProps = {
   onRequestClose?: () => void;
   visible: boolean;
   maxWidth?: number;
+  fullWindowOverlay?: boolean;
 };
 
 export function ConfirmModal({
@@ -27,6 +29,7 @@ export function ConfirmModal({
   onRequestClose = onConfirm,
   visible,
   maxWidth = 384,
+  fullWindowOverlay = false,
 }: ConfirmModalProps) {
   const handleConfirm = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -40,13 +43,7 @@ export function ConfirmModal({
 
   if (!visible) return null;
 
-  return (
-    <Modal
-      animationType="fade"
-      onRequestClose={onRequestClose}
-      transparent
-      visible={visible}
-    >
+  const content = (
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1 items-center justify-center bg-black/85 p-4"
@@ -86,6 +83,20 @@ export function ConfirmModal({
           </View>
         </View>
       </KeyboardAvoidingView>
+  );
+
+  if (fullWindowOverlay && Platform.OS === 'ios') {
+    return <FullWindowOverlay>{content}</FullWindowOverlay>;
+  }
+
+  return (
+    <Modal
+      animationType="fade"
+      onRequestClose={onRequestClose}
+      transparent
+      visible={visible}
+    >
+      {content}
     </Modal>
   );
 }

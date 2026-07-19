@@ -78,18 +78,29 @@ export function GameActionQueue({
   roomExitReason,
   toastBlocked = false,
 }: GameActionQueueProps) {
-  const [activeAction, setActiveAction] = useState<ActionKind | null>(null);
   const [chatNotifications, setChatNotifications] = useState<ApiChatMessage[]>([]);
-  const [handledStealOfferKey, setHandledStealOfferKey] = useState<string | null>(null);
-  const [handledInactivityWarning, setHandledInactivityWarning] = useState(false);
   const lastSeenChatMessageIdRef = useRef(Math.max(0, ...chatMessages.map((message) => message.id)));
   const hasHydratedChatSnapshotRef = useRef(false);
   const previousGameIdRef = useRef(gameId);
   const laneAvailable = laneResult !== null;
   const turnAvailable = Boolean(turnNotice && (turnNotice.type === 'departure' || !hasPendingLaneAnimation));
-  const stealAvailable = stealDecisionVisible && handledStealOfferKey !== stealDecisionKey && !hasPendingLaneAnimation;
-  const inactivityAvailable = inactivityWarningVisible && !handledInactivityWarning && !hasPendingLaneAnimation;
+  const stealAvailable = stealDecisionVisible && !hasPendingLaneAnimation;
+  const inactivityAvailable = inactivityWarningVisible && !hasPendingLaneAnimation;
   const roomExitAvailable = Boolean(roomExitReason);
+  const mandatoryStealNotice = turnNotice?.type === 'start' && Boolean(turnNotice.steal);
+  const activeAction: ActionKind | null = roomExitAvailable
+    ? 'room-exit'
+    : inactivityAvailable
+      ? 'inactivity'
+      : mandatoryStealNotice && turnAvailable
+        ? 'turn-notice'
+        : laneAvailable
+          ? 'lane-result'
+          : stealAvailable
+            ? 'steal-decision'
+            : turnAvailable
+              ? 'turn-notice'
+              : null;
   const gameplayActionPending = Boolean(
     activeAction || roomExitAvailable || laneAvailable || turnAvailable || stealAvailable || inactivityAvailable
   );
@@ -136,18 +147,6 @@ export function GameActionQueue({
   }, [chatNotificationsEnabled]);
 
   useEffect(() => {
-    if (!stealDecisionVisible) setHandledStealOfferKey(null);
-  }, [stealDecisionVisible]);
-
-  useEffect(() => {
-    if (!inactivityWarningVisible) setHandledInactivityWarning(false);
-  }, [inactivityWarningVisible]);
-
-  useEffect(() => {
-    setHandledInactivityWarning(false);
-  }, [inactivityWarningCount]);
-
-  useEffect(() => {
     logGameAction('action-queue.state', {
       activeAction,
       hasPendingLaneAnimation,
@@ -160,47 +159,8 @@ export function GameActionQueue({
     });
   }, [activeAction, hasPendingLaneAnimation, inactivityAvailable, laneAvailable, roomExitReason, stealAvailable, turnAvailable, turnNotice?.type]);
 
-  useEffect(() => {
-    if (roomExitAvailable && activeAction !== 'room-exit') {
-      logGameAction('action-queue.preempt', { action: 'room-exit', previousAction: activeAction });
-      setActiveAction('room-exit');
-      return;
-    }
-    if (inactivityAvailable && activeAction !== 'inactivity') {
-      logGameAction('action-queue.preempt', { action: 'inactivity', previousAction: activeAction });
-      setActiveAction('inactivity');
-      return;
-    }
-    const available: Record<ActionKind, boolean> = {
-      'room-exit': roomExitAvailable,
-      'lane-result': laneAvailable,
-      'turn-notice': turnAvailable,
-      'steal-decision': stealAvailable,
-      inactivity: inactivityAvailable,
-    };
-
-    if (activeAction && available[activeAction]) return;
-    if (activeAction) {
-      setActiveAction(null);
-      return;
-    }
-
-    const mandatoryStealNotice = turnNotice?.type === 'start' && Boolean(turnNotice.steal);
-    const priority: ActionKind[] = mandatoryStealNotice
-      ? ['room-exit', 'turn-notice', 'lane-result', 'steal-decision', 'inactivity']
-      : ['room-exit', 'lane-result', 'steal-decision', 'turn-notice', 'inactivity'];
-    const next = priority
-      .find((action) => available[action]);
-    if (!next) return;
-    logGameAction('action-queue.show', { action: next });
-    setActiveAction(next);
-  }, [activeAction, inactivityAvailable, laneAvailable, roomExitAvailable, stealAvailable, turnAvailable, turnNotice?.steal, turnNotice?.type]);
-
   const complete = (action: ActionKind, callback: () => void) => {
     logGameAction('action-queue.complete', { action });
-    if (action === 'steal-decision') setHandledStealOfferKey(stealDecisionKey);
-    if (action === 'inactivity') setHandledInactivityWarning(true);
-    setActiveAction(null);
     callback();
   };
 
@@ -278,9 +238,7 @@ export function GameActionQueue({
                 ? `KARTA JE PONUĐENA IGRAČU ${turnNotice.playerName ?? ''} ZA KRAĐU`
                 : `THE CARD IS NOW OFFERED TO ${turnNotice.playerName ?? 'THE NEXT PLAYER'} TO STEAL`
               : isBs ? 'ČEKAJ SLJEDEĆU PRILIKU' : 'WAITING FOR THE NEXT PLAYER'
-            : turnNotice?.steal
-              ? isBs ? 'DODIRNI KARTU I POKUŠAJ KRAĐU' : 'TAP THE CARD TO TRY TO STEAL'
-              : isBs ? 'DODIRNI KARTU ZA IGRU' : 'TAP THE CARD TO PLAY'}
+            : isBs ? 'OKRENI KARTU' : 'FLIP A CARD'}
         successTitle={turnNotice?.type === 'departure'
           ? turnNotice.playerName ?? (isBs ? 'IGRAČ' : 'PLAYER')
           : turnNotice?.type === 'finish'
@@ -303,6 +261,7 @@ export function GameActionQueue({
       <ConfirmModal
         cancelLabel={isBs ? 'PRESKOČI' : 'PASS'}
         confirmLabel={isBs ? 'POKUŠAJ KRAĐU' : 'TRY TO STEAL'}
+        fullWindowOverlay
         onCancel={() => complete('steal-decision', () => onStealChoice(false))}
         onConfirm={() => complete('steal-decision', () => onStealChoice(true))}
         onRequestClose={() => complete('steal-decision', () => onStealChoice(false))}

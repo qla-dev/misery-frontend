@@ -223,7 +223,7 @@ export function LaneModal({
       }).start(() => {
         completionPendingRef.current = true;
         setRendered(false);
-        if (Platform.OS !== 'ios') setTimeout(notifyNativeDismissed, 80);
+        setTimeout(notifyNativeDismissed, Platform.OS === 'ios' ? 0 : 80);
       });
     };
     dismissRef.current = dismiss;
@@ -401,11 +401,11 @@ export function LaneModal({
       </AnimatedPressable>
   );
 
-  if (passThroughTouches && Platform.OS === 'ios') {
+  if (Platform.OS === 'ios') {
     if (!rendered || !visible) return null;
     return (
       <FullWindowOverlay>
-        <View pointerEvents="none" style={{ flex: 1 }}>
+        <View pointerEvents={passThroughTouches ? 'none' : 'auto'} style={{ flex: 1 }}>
           {content}
         </View>
       </FullWindowOverlay>

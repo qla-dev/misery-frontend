@@ -393,12 +393,16 @@ export default function GameTabsLayout() {
         onChatNotificationPress={() => router.push('/game/chat')}
         onUnreadMessages={handleUnreadMessages}
         onLaneResultComplete={() => {
+          gameRuntime?.completeLaneResultPresentation?.();
           setLaneResult(null);
           setLaneResultPlayerName(null);
         }}
         onRoomExitComplete={returnToGameSettings}
         onStealChoice={(accept) => gameRuntime?.handleStealChoice?.(accept)}
-        onTurnNoticeComplete={() => setTurnNotices((current) => current.slice(1))}
+        onTurnNoticeComplete={() => {
+          gameRuntime?.completeTurnNoticePresentation?.();
+          setTurnNotices((current) => current.slice(1));
+        }}
         stealDecisionVisible={Boolean(gameRuntime?.stealDecisionVisible)}
         stealDecisionKey={gameRuntime?.stealDecisionKey ?? null}
         turnNotice={turnNotice}

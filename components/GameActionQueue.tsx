@@ -203,6 +203,7 @@ export function GameActionQueue({
         successMessage=""
         successTitle=""
         visible={activeAction === 'room-exit'}
+        visibleDurationMs={2500}
       />
 
       <LaneModal
@@ -298,13 +299,13 @@ export function GameActionQueue({
         success
         successMessage={inactivityWarningCount >= 3 && inactivitySecondsRemaining !== null
           ? isBs
-            ? `${isDrawnCardFlipped ? 'POSTAVI KARTU NA STAZU PATNJE' : 'OKRENI KARTU'}. BIT ĆEŠ UKLONJEN ZA ${inactivitySecondsRemaining} SEKUNDI`
+            ? `${isDrawnCardFlipped ? 'POSTAVI KARTU NA STAZU PATNJE' : 'OKRENI KARTU'}. BIT \u0106E\u0160 UKLONJEN ZA ${inactivitySecondsRemaining} SEKUNDI`
             : `${isDrawnCardFlipped ? 'PLACE YOUR CARD ON MISERY LANE' : 'FLIP YOUR CARD'}. YOU WILL BE KICKED IN ${inactivitySecondsRemaining} SECONDS`
           : isDrawnCardFlipped
             ? isBs ? 'POSTAVI KARTU NA STAZU PATNJE' : 'PLACE YOUR CARD ON MISERY LANE'
             : isBs ? 'OKRENI KARTU' : 'FLIP YOUR CARD'}
         successTitle={isBs ? 'TVOJ POTEZ' : 'YOUR TURN'}
-        successTitleDetail={isBs ? 'ČEKA' : 'IS WAITING'}
+        successTitleDetail={isBs ? '\u010cEKA' : 'IS WAITING'}
         visible={activeAction === 'inactivity'}
         warning
       />

@@ -29,6 +29,7 @@ import { PlayerLaneModal } from './PlayerLaneModal';
 const VICTORY_TROPHY_IMAGE = require('../assets/images/rulebook-victory-trophy.png');
 const INACTIVITY_KICK_MS = 60_000;
 const INACTIVITY_WARNING_MS = 15_000;
+const INACTIVITY_FINAL_SECOND_GRACE_MS = 1_250;
 
 const PLAYER_COLOR_HEX: Record<string, string> = {
   yellow: '#facc15',
@@ -1512,7 +1513,7 @@ export default function GameBoard({
       inactivityWarningCountRef.current = warningNumber;
       setInactivityWarningCount(warningNumber);
       if (warningNumber >= 3) {
-        setInactivitySecondsRemaining(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
+        setInactivitySecondsRemaining(Math.max(1, Math.ceil((deadline - Date.now()) / 1000)));
       }
       setIsTurnInactive(true);
       setInactivityWarningVisible(true);
@@ -1520,7 +1521,10 @@ export default function GameBoard({
     }, Math.max(0, startedAt + warningNumber * INACTIVITY_WARNING_MS - Date.now())));
 
     const countdownTimer = setInterval(() => {
-      const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      // Keep “1” visible through a short grace period. Without this clamp the
+      // removal request and the interval raced at the deadline, producing 3, 2,
+      // then immediate removal with no visible 1.
+      const remaining = Math.max(1, Math.ceil((deadline - Date.now()) / 1000));
       if (inactivityWarningCountRef.current >= 3) setInactivitySecondsRemaining(remaining);
     }, 1_000);
 
@@ -1528,7 +1532,12 @@ export default function GameBoard({
       if (inactivityKickInFlightRef.current) return;
       inactivityKickInFlightRef.current = true;
       setInactivityWarningVisible(false);
-      logGameAction('inactivity.kick.start', { gameId, playerId: userId, timeoutMs: INACTIVITY_KICK_MS });
+      logGameAction('inactivity.kick.start', {
+        finalSecondGraceMs: INACTIVITY_FINAL_SECOND_GRACE_MS,
+        gameId,
+        playerId: userId,
+        timeoutMs: INACTIVITY_KICK_MS,
+      });
       void api.expireInactivePlayer(gameId, userId)
         .then((game) => {
           const reason = game.termination_reason ?? 'player_inactive';
@@ -1544,7 +1553,7 @@ export default function GameBoard({
           });
           setConnectionWarningVisible(true);
         });
-    }, Math.max(0, deadline - Date.now()));
+    }, Math.max(0, deadline + INACTIVITY_FINAL_SECOND_GRACE_MS - Date.now()));
 
     return () => {
       warningTimers.forEach(clearTimeout);

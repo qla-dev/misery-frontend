@@ -35,16 +35,17 @@ export function InactivityKickCountdown({ isBs, message, onDismiss, value }: Ina
   const words = message?.trim().split(/\s+/) ?? [];
   const title = message
     ? words.slice(0, -1).join(' ')
-    : isBs ? 'BIT ĆEŠ' : 'YOU WILL BE';
+    : isBs ? 'BIT \u0106E\u0160' : 'YOU WILL BE';
   const titleDetail = message
     ? words.at(-1) ?? ''
     : isBs ? 'UKLONJEN' : 'REMOVED';
   const titleStyle = {
     fontFamily: 'BebasNeue_400Regular',
     fontSize: 48,
-    includeFontPadding: false,
+    includeFontPadding: true,
     letterSpacing: 1.2,
-    lineHeight: 50,
+    lineHeight: 56,
+    paddingTop: 4,
     width: '100%' as const,
   };
 
@@ -91,17 +92,20 @@ export function InactivityKickCountdown({ isBs, message, onDismiss, value }: Ina
             className="text-center font-black uppercase text-white/90"
             minimumFontScale={0.72}
             numberOfLines={1}
-            style={titleStyle}
+            style={[titleStyle, { zIndex: 1 }]}
           >
             {title}
           </Text>
-          <View className="items-center justify-center" style={{ width: '100%' }}>
+          <View
+            className="items-center justify-center"
+            style={{ elevation: 2, marginTop: -6, overflow: 'visible', position: 'relative', width: '100%', zIndex: 2 }}
+          >
             <Text
               adjustsFontSizeToFit
               className="text-center font-black uppercase text-white"
               minimumFontScale={0.72}
               numberOfLines={1}
-              style={titleStyle}
+              style={[titleStyle, { overflow: 'visible', zIndex: 2 }]}
             >
               {titleDetail}
             </Text>

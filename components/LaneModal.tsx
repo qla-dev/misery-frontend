@@ -251,9 +251,10 @@ export function LaneModal({
   const twoRowTitleStyle = {
     fontFamily: 'BebasNeue_400Regular',
     fontSize: 48,
-    includeFontPadding: false,
+    includeFontPadding: true,
     letterSpacing: 1.2,
-    lineHeight: 50,
+    lineHeight: 56,
+    paddingTop: 4,
   };
   const modalMessageStyle = {
     fontFamily: 'Outfit_700Bold',
@@ -328,18 +329,21 @@ export function LaneModal({
                 className={`text-center font-black uppercase ${darkForeground ? 'text-neutral-950' : 'text-white'}`}
                 minimumFontScale={0.72}
                 numberOfLines={1}
-                style={success && successTitleDetail ? twoRowTitleStyle : modalTitleStyle}
+                style={success && successTitleDetail ? [twoRowTitleStyle, { zIndex: 1 }] : modalTitleStyle}
               >
                 {title}
               </Text>
               {success && successTitleDetail ? (
-                <View className="items-center justify-center" style={{ width: '100%' }}>
+                <View
+                  className="items-center justify-center"
+                  style={{ elevation: 2, marginTop: -6, overflow: 'visible', position: 'relative', width: '100%', zIndex: 2 }}
+                >
                   <Text
                     adjustsFontSizeToFit
                     className={`text-center font-black uppercase ${darkForeground ? 'text-neutral-950' : 'text-white'}`}
                     minimumFontScale={0.72}
                     numberOfLines={1}
-                    style={[twoRowTitleStyle, { width: '100%' }]}
+                    style={[twoRowTitleStyle, { overflow: 'visible', width: '100%', zIndex: 2 }]}
                   >
                     {successTitleDetail}
                   </Text>

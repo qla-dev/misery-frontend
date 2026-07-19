@@ -17,7 +17,7 @@ test('correct input shows one overlay before score reveal and lane clamp', () =>
       'score-reveal',
       'insert-input.fade-out-complete',
       'server-confirm-may-arrive-before-or-after-fade',
-      'top-card.visible-until-rendered-lane-contains-card',
+      'top-card.remains-visible-through-clamp',
       'lane-clamp',
       'inserted-card.pop-and-content-nudge',
       'insert-slots.lock-until-next-local-action',
@@ -43,7 +43,7 @@ test('wrong input completes its overlay without inserting the card', () => {
       'score-reveal',
       'insert-input.fade-out-complete',
       'server-confirm-may-arrive-before-or-after-fade',
-      'top-card.visible-until-rendered-lane-contains-card',
+      'top-card.remains-visible-through-clamp',
       'lane-no-insert',
       'no-card-pop',
       'insert-slots.lock-until-next-local-action',
@@ -66,7 +66,8 @@ test('a correct result cannot hide the top card before it is actually inserted',
   assert.equal(shouldKeepTopCardVisible('card-9', null, false), true);
   assert.equal(shouldKeepTopCardVisible('card-9', 'older-card', false), true);
   assert.equal(shouldKeepTopCardVisible('card-9', 'card-9', false), true);
-  assert.equal(shouldKeepTopCardVisible('card-9', 'card-9', true), false);
+  assert.equal(shouldKeepTopCardVisible('card-9', 'card-9', true), true);
+  assert.equal(shouldKeepTopCardVisible(null, 'card-9', true), false);
 });
 
 test('insert animation targets only the newly submitted card, never the previous first card', () => {

@@ -5,11 +5,12 @@ export const LANE_CARD_SUBTITLE_LINES = 2;
 
 export function shouldKeepTopCardVisible(
   drawnCardId: string | null,
-  lastInsertedCardId: string | null,
-  insertedCardIsInRenderedLane = false,
+  _lastInsertedCardId: string | null,
+  _insertedCardIsInRenderedLane = false,
 ) {
-  if (drawnCardId === null) return false;
-  return drawnCardId !== lastInsertedCardId || !insertedCardIsInRenderedLane;
+  // Clamping adds a lane copy; it must never remove the drawn-card presentation.
+  // That top card changes only when authoritative state supplies the next card.
+  return drawnCardId !== null;
 }
 
 export function insertionAnimationTarget(previousInsertedCardId: string | null, submittedCardId: string) {
@@ -48,7 +49,7 @@ export function localMovePresentationPlan(correct: boolean, isSteal: boolean) {
       'score-reveal',
       'insert-input.fade-out-complete',
       'server-confirm-may-arrive-before-or-after-fade',
-      'top-card.visible-until-rendered-lane-contains-card',
+      'top-card.remains-visible-through-clamp',
       correct ? 'lane-clamp' : 'lane-no-insert',
       correct ? 'inserted-card.pop-and-content-nudge' : 'no-card-pop',
       'insert-slots.lock-until-next-local-action',

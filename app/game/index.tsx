@@ -2,12 +2,14 @@ import GameBoard from '@/components/GameBoard';
 import { GameCountdown } from '@/components/GameCountdown';
 import { useGame } from '@/context/GameContext';
 import { Redirect } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 export default function GameScreen() {
   const { session, language, setIsGameCountingDown } = useGame();
   const [isCountingDown, setIsCountingDown] = useState(true);
+
+  useEffect(() => () => setIsGameCountingDown(false), [setIsGameCountingDown]);
 
   if (!session) {
     return <Redirect href="/" />;

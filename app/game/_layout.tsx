@@ -6,6 +6,7 @@ import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { router, Stack, usePathname } from 'expo-router';
 import { useGame } from '@/context/GameContext';
 import { playHaptic, setGameMusicActive, setGameMusicMuted, setLobbyMusicActive } from '@/lib/sound';
+import { routeAfterGameplayNotification } from '@/lib/gameNavigation';
 import { ImageSourcePropType, Pressable, Text, View } from 'react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import HelpIcon from '@expo/material-symbols/help.xml';
@@ -163,10 +164,15 @@ export default function GameTabsLayout() {
       gameRuntime?.inactivityWarningVisible ||
       gameRuntime?.roomExitReason
     );
-    if (!gameplayOverlayPending || pathname === '/game') return;
+    if (!gameplayOverlayPending) return;
+    const destination = routeAfterGameplayNotification(
+      Boolean(gameRuntime?.isDrawnCardFlipped),
+      Boolean(gameRuntime?.stayOnLaneAfterAnswer),
+    );
+    if (pathname === destination) return;
     gameRuntime?.closePlayerLane?.();
-    router.replace('/game');
-  }, [gameRuntime?.inactivityWarningVisible, gameRuntime?.roomExitReason, gameRuntime?.stealDecisionVisible, pathname, turnNotice?.id]);
+    router.replace(destination);
+  }, [gameRuntime?.inactivityWarningVisible, gameRuntime?.isDrawnCardFlipped, gameRuntime?.roomExitReason, gameRuntime?.stayOnLaneAfterAnswer, gameRuntime?.stealDecisionVisible, pathname, turnNotice?.id]);
 
   useEffect(() => {
     if (!isPlayerLaneOpen) return;
@@ -176,11 +182,10 @@ export default function GameTabsLayout() {
     if (!turnStarted && !stealOffered && !inactivityRequiresAction) return;
 
     gameRuntime?.closePlayerLane?.();
-    if (inactivityRequiresAction && gameRuntime?.isDrawnCardFlipped) {
-      router.replace('/game/lane');
-    } else {
-      router.replace('/game');
-    }
+    router.replace(routeAfterGameplayNotification(
+      Boolean(gameRuntime?.isDrawnCardFlipped),
+      Boolean(gameRuntime?.stayOnLaneAfterAnswer),
+    ));
   }, [gameRuntime?.inactivityWarningVisible, gameRuntime?.isDrawnCardFlipped, gameRuntime?.stealDecisionVisible, isPlayerLaneOpen, turnNotice?.id, turnNotice?.type]);
 
   const returnToWelcome = () => {
@@ -388,7 +393,10 @@ export default function GameTabsLayout() {
         suppressLaneResultHaptic={isLocalLaneResult}
         onInactivityComplete={() => {
           gameRuntime?.dismissInactivityWarning?.();
-          router.replace(gameRuntime?.isDrawnCardFlipped ? '/game/lane' : '/game');
+          router.replace(routeAfterGameplayNotification(
+            Boolean(gameRuntime?.isDrawnCardFlipped),
+            Boolean(gameRuntime?.stayOnLaneAfterAnswer),
+          ));
         }}
         onChatNotificationPress={() => router.push('/game/chat')}
         onUnreadMessages={handleUnreadMessages}

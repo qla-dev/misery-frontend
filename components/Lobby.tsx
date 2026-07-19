@@ -573,6 +573,7 @@ export default function Lobby() {
   const serverStartedRef = useRef(false);
   const processedGoogleTokenRef = useRef<string | null>(null);
   const observedLobbyPlayerIdsRef = useRef<Set<string> | null>(null);
+  const observedPublicGameIdsRef = useRef<Set<number> | null>(null);
   const deepLinkAutoJoinAttemptedRef = useRef(false);
   const [, googleAuthResponse, promptGoogleSignIn] = Google.useIdTokenAuthRequest({
     ...GOOGLE_AUTH_REQUEST_CONFIG,
@@ -659,6 +660,18 @@ export default function Lobby() {
     if (!previousPlayerIds) return;
     if ([...playerIds].some((playerId) => !previousPlayerIds.has(playerId))) playClickSound();
   }, [lobbyView, roomPlayers]);
+
+  useEffect(() => {
+    if (Platform.OS === 'web' || lobbyView !== 'PUBLIC_GAMES') {
+      observedPublicGameIdsRef.current = null;
+      return;
+    }
+    const gameIds = new Set(availableGames.map((game) => Number(game.id)));
+    const previousGameIds = observedPublicGameIdsRef.current;
+    observedPublicGameIdsRef.current = gameIds;
+    if (!previousGameIds) return;
+    if ([...gameIds].some((gameId) => !previousGameIds.has(gameId))) playClickSound();
+  }, [availableGames, lobbyView]);
 
   useEffect(() => {
     const canPrefetchAvailableGames = lobbyView === 'SETUP' || lobbyView === 'PUBLIC_GAMES';
@@ -859,6 +872,7 @@ export default function Lobby() {
     setRoomPlayers(visibleMembers.map((member, index) => ({
       id: member.id,
       name: member.name,
+      isBot: Boolean(member.is_bot),
       color: (AVAILABLE_COLORS.find((color) => color.id === member.color) ?? AVAILABLE_COLORS[index % AVAILABLE_COLORS.length]).borderClass,
     })));
   };
@@ -1583,6 +1597,7 @@ export default function Lobby() {
             players: game.members.map((member, index) => ({
               id: member.id,
               name: member.name,
+              isBot: Boolean(member.is_bot),
               color: (AVAILABLE_COLORS.find((color) => color.id === member.color) ?? AVAILABLE_COLORS[index % AVAILABLE_COLORS.length]).borderClass,
             })),
             targetScore: game.target_score,

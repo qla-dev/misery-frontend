@@ -27,6 +27,7 @@ export interface ApiUser {
   name: string;
   email: string | null;
   color: string | null;
+  is_bot?: boolean;
   pro_status?: 'inactive' | 'monthly' | 'yearly';
   pro_started_at?: string | null;
   pro_ends_at?: string | null;

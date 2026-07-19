@@ -1362,6 +1362,9 @@ export default function GameBoard({
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
     const runBotTurn = () => {
+      // Server-room bots are advanced exclusively by the backend queue. Running
+      // this local simulator as well would submit duplicate moves.
+      if (gameId) return;
       const { phase, currentPlayerIndex, activeStealerIndex, players, drawnCard } = gameState;
       if (!drawnCard || players.length === 0) return;
       const currentActorIdx = activeStealerIndex !== undefined ? activeStealerIndex : currentPlayerIndex;

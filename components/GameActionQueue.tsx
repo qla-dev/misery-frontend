@@ -3,13 +3,14 @@ import { Text, View } from 'react-native';
 import { MessageCircle, ShieldAlert } from 'lucide-react-native';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { LaneModal } from '@/components/LaneModal';
+import { InactivityKickCountdown } from '@/components/InactivityKickCountdown';
 import { LaneProgress } from '@/components/LaneProgressBadge';
 import { Toast } from '@/components/Toast';
 import { TurnNotice } from '@/context/GameContext';
 import { ApiChatMessage } from '@/lib/api';
 import { logGameAction } from '@/lib/gameDiagnostics';
 
-type ActionKind = 'room-exit' | 'lane-result' | 'turn-notice' | 'steal-decision' | 'inactivity';
+type ActionKind = 'room-exit' | 'kick-countdown' | 'lane-result' | 'turn-notice' | 'steal-decision' | 'inactivity';
 
 type GameActionQueueProps = {
   activeStealerName?: string;
@@ -86,10 +87,13 @@ export function GameActionQueue({
   const turnAvailable = Boolean(turnNotice && (turnNotice.type === 'departure' || !hasPendingLaneAnimation));
   const stealAvailable = stealDecisionVisible && !hasPendingLaneAnimation;
   const inactivityAvailable = inactivityWarningVisible && !hasPendingLaneAnimation;
+  const kickCountdownAvailable = inactivitySecondsRemaining !== null && inactivitySecondsRemaining >= 1 && inactivitySecondsRemaining <= 3;
   const roomExitAvailable = Boolean(roomExitReason);
   const mandatoryStealNotice = turnNotice?.type === 'start' && Boolean(turnNotice.steal);
   const activeAction: ActionKind | null = roomExitAvailable
     ? 'room-exit'
+    : kickCountdownAvailable
+      ? 'kick-countdown'
     : inactivityAvailable
       ? 'inactivity'
       : mandatoryStealNotice && turnAvailable
@@ -102,7 +106,7 @@ export function GameActionQueue({
               ? 'turn-notice'
               : null;
   const gameplayActionPending = Boolean(
-    activeAction || roomExitAvailable || laneAvailable || turnAvailable || stealAvailable || inactivityAvailable
+    activeAction || roomExitAvailable || kickCountdownAvailable || laneAvailable || turnAvailable || stealAvailable || inactivityAvailable
   );
   const activeChatNotification = chatNotifications[0];
 
@@ -151,13 +155,14 @@ export function GameActionQueue({
       activeAction,
       hasPendingLaneAnimation,
       inactivityAvailable,
+      kickCountdownAvailable,
       laneAvailable,
       stealAvailable,
       turnAvailable,
       turnNoticeType: turnNotice?.type ?? null,
       roomExitReason: roomExitReason ?? null,
     });
-  }, [activeAction, hasPendingLaneAnimation, inactivityAvailable, laneAvailable, roomExitReason, stealAvailable, turnAvailable, turnNotice?.type]);
+  }, [activeAction, hasPendingLaneAnimation, inactivityAvailable, kickCountdownAvailable, laneAvailable, roomExitReason, stealAvailable, turnAvailable, turnNotice?.type]);
 
   const complete = (action: ActionKind, callback: () => void) => {
     logGameAction('action-queue.complete', { action });
@@ -166,6 +171,11 @@ export function GameActionQueue({
 
   return (
     <>
+      <InactivityKickCountdown
+        isBs={isBs}
+        onDismiss={onInactivityComplete}
+        value={activeAction === 'kick-countdown' ? inactivitySecondsRemaining : null}
+      />
       <Toast
         key={activeChatNotification?.id ?? 'no-chat-notification'}
         icon={<MessageCircle color="#fbbf24" size={21} strokeWidth={2.3} />}

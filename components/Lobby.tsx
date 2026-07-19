@@ -1765,7 +1765,7 @@ export default function Lobby() {
               <View className="flex-row items-center justify-between" style={{ gap: 12 }}>
                 <View className="flex-1">
                   <Text className="text-sm font-black uppercase text-neutral-100">
-                    {game.members[0]?.name ?? (isBs ? 'Soba za igru' : 'Game room')}
+                    {game.synthetic_host_name ?? game.members[0]?.name ?? (isBs ? 'Soba za igru' : 'Game room')}
                   </Text>
                   <Text className="mt-1 font-mono text-[10px] font-bold uppercase tracking-wider text-neutral-500">
                     {game.code} • {game.members.length}/8 {isBs ? 'igrača' : 'players'}

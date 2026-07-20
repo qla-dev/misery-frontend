@@ -3,6 +3,7 @@ import { Animated, Easing, Modal, Platform, Pressable, Text, View } from 'react-
 import { Ban, BellRing, Check, LogOut, Pause, Play, ShieldAlert, Square, X } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
 import { FullWindowOverlay } from 'react-native-screens';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { playHaptic } from '@/lib/sound';
 import { LaneProgress, LaneProgressBadge } from '@/components/LaneProgressBadge';
 
@@ -74,12 +75,12 @@ function MechanicalDigit({ character, dark, delay, runKey }: { character: string
   );
 }
 
-function MechanicalScoreHeader({ dark, label, runKey, score }: { dark: boolean; label: string; runKey: number; score: number }) {
+function MechanicalScoreHeader({ dark, label, runKey, score, top }: { dark: boolean; label: string; runKey: number; score: number; top: number }) {
   const value = score.toFixed(2);
   const digitCount = value.replace('.', '').length;
   let digitIndex = -1;
   return (
-    <View accessibilityLabel={`${label} ${value}`} className="absolute items-center" style={{ top: 40 }}>
+    <View accessibilityLabel={`${label} ${value}`} className="absolute items-center" style={{ top }}>
       <Text
         className={`font-mono text-[10px] font-black uppercase tracking-[2px] ${dark ? 'text-neutral-950/60' : 'text-white/75'}`}
         style={{ marginBottom: 6 }}
@@ -148,6 +149,7 @@ export function LaneModal({
   dismissImmediately = false,
   passThroughTouches = false,
 }: LaneModalProps) {
+  const safeAreaInsets = useSafeAreaInsets();
   const [rendered, setRendered] = useState(false);
   const [scoreAnimationRun, setScoreAnimationRun] = useState(0);
   const opacity = useRef(new Animated.Value(0)).current;
@@ -276,7 +278,15 @@ export function LaneModal({
         }}
         style={{ opacity }}
       >
-        {score !== undefined ? <MechanicalScoreHeader dark={darkForeground} label={scoreLabel} runKey={scoreAnimationRun} score={score} /> : null}
+        {score !== undefined ? (
+          <MechanicalScoreHeader
+            dark={darkForeground}
+            label={scoreLabel}
+            runKey={scoreAnimationRun}
+            score={score}
+            top={Math.max(40, safeAreaInsets.top + 12)}
+          />
+        ) : null}
         <Animated.View
           className="items-center"
           style={{ gap: contentGap, transform: [{ translateY: -31 }, { scale }, { rotate }], width: '100%' }}
@@ -322,7 +332,7 @@ export function LaneModal({
           {!laneProgress && title ? (
             <View
               className="items-center justify-center"
-              style={{ marginTop: success && successTitleDetail ? 14 : 0, width: '100%' }}
+              style={{ width: '100%' }}
             >
               <Text
                 adjustsFontSizeToFit

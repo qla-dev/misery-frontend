@@ -42,6 +42,37 @@ export interface ApiChatMessage { id: number; game_id: number; user_id: number; 
 export interface ApiQuestion { id: number; question: string; answer: string; category: string; difficulty: number }
 export interface ApiGame { id: number; code: string; owner_id: number; started: boolean; created_at: string; host_in_lobby: boolean; lobby_member_ids: number[]; is_private: boolean; is_synthetic?: boolean; synthetic_host_name?: string | null; terminated_at: string | null; termination_reason: 'host_left' | 'host_inactive' | string | null; stack_id: number | null; stack: 'normal' | 'spicy' | string | null; target_score: number; winner_id: number | null; current_player_id: number | null; turn_owner_id: number | null; is_steal_turn: boolean; sync_driver: 'polling' | 'pusher' | 'ably' | 'reverb'; ingame_polling_interval_ms: number; pusher: { key: string; cluster: string; channel: string; event: string; heartbeat_interval_ms: number } | null; ably: { channel: string; event: string; token_endpoint: string; heartbeat_interval_ms: number } | null; reverb: { key: string; host: string; port: number; scheme: 'http' | 'https' | string; channel: string; event: string; heartbeat_interval_ms: number } | null; members: ApiUser[]; hands: Record<string, ApiCard[]>; current_card: ApiCard | null; moves: ApiMove[]; chat_messages: ApiChatMessage[] }
 export interface ApiGame { events: ApiGameEvent[] }
+export interface ApiRealtimeGameState {
+  id: number;
+  code: string;
+  owner_id: number;
+  started: boolean;
+  host_in_lobby: boolean;
+  is_private: boolean;
+  terminated_at: string | null;
+  termination_reason: string | null;
+  stack_id: number | null;
+  stack: string | null;
+  target_score: number;
+  winner_id: number | null;
+  current_player_id: number | null;
+  turn_owner_id: number | null;
+  is_steal_turn: boolean;
+  current_card: ApiCard | null;
+  members: ApiUser[];
+  lobby_member_ids: number[];
+  hand_card_ids: Record<string, number[]>;
+}
+export interface ApiRealtimeGameUpdate {
+  version: 1;
+  game_id: number;
+  reason: string;
+  sent_at: string;
+  deleted: boolean;
+  state: ApiRealtimeGameState | null;
+  events: ApiGameEvent[];
+  chat_message: ApiChatMessage | null;
+}
 export interface ApiStack { id: number; name: string; slug: string; color: string; icon_key: string; description: string | null; description_bs: string | null; is_premium: boolean; active_cards_count: number }
 export interface SocialAuthResponse { token: string; user: ApiUser; is_new_user: boolean }
 
@@ -147,8 +178,11 @@ export const api = {
     return request<{ game: ApiGame; user: ApiUser; color_changed: boolean }>(`/games/code/${encodeURIComponent(normalizedCode)}/join`, { method: 'POST', body: JSON.stringify({ name, color, client }) });
   },
   getGame: (id: number, userId?: number | null, signal?: AbortSignal) => request<ApiGame>(`/games/${id}${userId ? `?user_id=${encodeURIComponent(String(userId))}` : ''}`, { signal }, 8_000),
-  getGameSnapshot: (id: number, signal?: AbortSignal) => request<ApiGame>(`/games/${id}/snapshot`, { signal }, 8_000),
-  heartbeatGame: (id: number, userId: number, signal?: AbortSignal) => request<void>(`/games/${id}/heartbeat`, { method: 'POST', body: JSON.stringify({ user_id: userId }), signal }, 8_000),
+  heartbeatGame: (id: number, userId: number, afterEventId?: number | null, signal?: AbortSignal) => request<ApiRealtimeGameUpdate>(`/games/${id}/heartbeat`, {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId, after_event_id: afterEventId ?? 0 }),
+    signal,
+  }, 8_000),
   getAblyToken: (id: number, userId: number) => request<unknown>(`/games/${id}/realtime-token?user_id=${encodeURIComponent(String(userId))}`, undefined, 8_000),
   setHostLobbyPresence: (id: number, userId: number, present: boolean) => request<ApiGame>(`/games/${id}/host-lobby-presence`, { method: 'POST', body: JSON.stringify({ user_id: userId, present }) }),
   setLobbyPresence: (id: number, userId: number, present: boolean) => request<ApiGame>(`/games/${id}/lobby-presence`, { method: 'POST', body: JSON.stringify({ user_id: userId, present }) }),

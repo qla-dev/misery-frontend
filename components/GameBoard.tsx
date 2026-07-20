@@ -10,7 +10,7 @@ import Illustration from './Illustration';
 import { useGame } from '@/context/GameContext';
 import { playClickSound, playHaptic, playSound } from '@/lib/sound';
 import { ButtonTab } from './ButtonTab';
-import { api, ApiCard, ApiChatMessage, ApiGame, ApiGameEvent, API_BASE_URL } from '@/lib/api';
+import { api, ApiCard, ApiChatMessage, ApiGame, ApiGameEvent, ApiRealtimeGameUpdate, API_BASE_URL } from '@/lib/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VictoryConfetti } from './VictoryConfetti';
 import { DrawnCardFace } from './DrawnCardFace';
@@ -22,6 +22,7 @@ import { subscribeToGameUpdates } from '@/lib/gameRealtime';
 import { gameEventMachineReducer, initialGameEventMachineState } from '@/lib/gameEventMachine';
 import { canOfferLaneInsertion, localMovePresentationPlan, shouldReleaseLaneLockOnCardFlip } from '@/lib/localMovePresentation';
 import { countdownForceReleaseDelay, GAME_COUNTDOWN_FAILSAFE_MS } from '@/lib/gameCountdownGate';
+import { selectLocalMoveResponseEvents } from '@/lib/localMoveResponseEvents';
 
 import { MiseryLogo } from './MiseryLogo';
 import { PlayerLaneModal } from './PlayerLaneModal';
@@ -49,6 +50,25 @@ function getPlayerColorHex(colorClasses: string) {
 
 function pointsFromLane(lane: Card[]) {
   return Math.max(0, lane.length - 3);
+}
+
+function apiCardToLocalCard(card: ApiCard): Card {
+  return {
+    id: String(card.id),
+    titleEn: card.title,
+    titleBs: card.title_bs?.trim() || card.title,
+    descriptionEn: card.subtitle ?? undefined,
+    descriptionBs: card.subtitle_bs?.trim() || card.subtitle || undefined,
+    index: Number(card.score),
+    image: card.image && card.image !== '0'
+      ? card.image.startsWith('http://') || card.image.startsWith('https://')
+        ? card.image
+        : card.image.startsWith('/')
+          ? `${API_BASE_URL.replace(/\/api\/?$/, '')}${card.image}`
+          : `${API_BASE_URL.replace(/\/api\/?$/, '')}/storage/${card.image.replace(/^\/?(?:storage\/)?/, '')}`
+      : undefined,
+    illustrationType: 'general_misery',
+  };
 }
 
 function cardsForDeck(deckType: DeckType) {
@@ -119,6 +139,7 @@ export default function GameBoard({
   const scoreReveal = useRef(new Animated.Value(0)).current;
   const victoryTrophyFloat = useRef(new Animated.Value(0)).current;
   const optimisticLaneCardsRef = useRef<Record<string, Card[]>>({});
+  const knownCardsRef = useRef(new Map<string, Card>());
   const pendingPlacementRef = useRef<{ actingPlayerId: string; card: Card; slotIdx: number } | null>(null);
   const submittedPlacementRef = useRef<{ actingPlayerId: string; card: Card; slotIdx: number } | null>(null);
   const selectedInputFadeCompletedRef = useRef(false);
@@ -143,7 +164,6 @@ export default function GameBoard({
   const lastPollSignatureRef = useRef('');
   const moveRequestInFlightRef = useRef(false);
   const cancelActiveSnapshotRef = useRef<() => void>(() => undefined);
-  const flushDeferredRealtimeRef = useRef<() => void>(() => undefined);
   const pendingTurnCardRef = useRef<Card | null>(null);
   const holdingTurnCardRef = useRef(false);
   const laneResultRef = useRef<'success' | 'failure' | 'steal' | null>(laneResult);
@@ -240,23 +260,6 @@ export default function GameBoard({
   useEffect(() => {
     serverCurrentPlayerIdRef.current = serverCurrentPlayerId;
   }, [serverCurrentPlayerId]);
-
-  const toLocalCard = (card: ApiCard): Card => ({
-    id: String(card.id),
-    titleEn: card.title,
-    titleBs: card.title_bs?.trim() || card.title,
-    descriptionEn: card.subtitle ?? undefined,
-    descriptionBs: card.subtitle_bs?.trim() || card.subtitle || undefined,
-    index: Number(card.score),
-    image: card.image && card.image !== '0'
-      ? card.image.startsWith('http://') || card.image.startsWith('https://')
-        ? card.image
-        : card.image.startsWith('/')
-          ? `${API_BASE_URL.replace(/\/api\/?$/, '')}${card.image}`
-          : `${API_BASE_URL.replace(/\/api\/?$/, '')}/storage/${card.image.replace(/^\/?(?:storage\/)?/, '')}`
-      : undefined,
-    illustrationType: 'general_misery',
-  });
 
   const publishLaneResult = (notice: QueuedLaneResult) => {
     laneResultRef.current = notice.result;
@@ -355,6 +358,22 @@ export default function GameBoard({
     if (event.type === 'MOVE_RESULT') {
       const isLocalResult = Number(payload.player_id) === Number(userId);
       const authoritativeResult = payload.correct ? (payload.is_steal ? 'steal' : 'success') : 'failure';
+      const eventCard = payload.card as ApiCard | undefined;
+      if (!isLocalResult && eventCard) {
+        setGameState((current) => ({
+          ...current,
+          guessHistory: [{
+            playerName: typeof payload.player_name === 'string' ? payload.player_name : '',
+            cardTitle: eventCard.title,
+            cardTitleEn: eventCard.title,
+            cardTitleBs: eventCard.title_bs?.trim() || eventCard.title,
+            cardScore: Number(eventCard.score),
+            guessIndex: -1,
+            correctIndex: -1,
+            success: Boolean(payload.correct),
+          }, ...current.guessHistory],
+        }));
+      }
       if (isLocalResult) {
         if (!selectedInputFadeCompletedRef.current) {
           setSelectedSlotResult(payload.correct ? 'success' : 'failure');
@@ -701,6 +720,23 @@ export default function GameBoard({
             durationMs: Date.now() - submitStartedAt,
             nextPlayerId: game.current_player_id,
           });
+          // The move response already contains the committed ordered event stream.
+          // Consume it immediately so TURN_HOLD cannot depend on a later realtime
+          // refresh (or on the next player accepting the steal) to reach this device.
+          const responseEvents = selectLocalMoveResponseEvents(
+            game.events ?? [],
+            lastObservedEventIdRef.current,
+            userId,
+            drawnCard.id,
+          );
+          lastObservedEventIdRef.current = responseEvents.highestObservedEventId;
+          if (responseEvents.relevantEvents.length > 0) {
+            dispatchGameEvent({ type: 'INGEST', events: responseEvents.relevantEvents });
+            logGameAction('move.response-events.queued', {
+              eventIds: responseEvents.relevantEvents.map((event) => event.id),
+              eventTypes: responseEvents.relevantEvents.map((event) => event.type),
+            });
+          }
           const nextIndex = players.findIndex((player) => Number(player.id) === Number(game.current_player_id));
           setServerCurrentPlayerId(game.current_player_id);
           setServerTurnOwnerId(game.turn_owner_id);
@@ -710,7 +746,7 @@ export default function GameBoard({
             // The server now completes a correct round in the move request itself.
             // Keep showing the resolved card until its result/lane animation ends;
             // the already-existing turn-notice queue will then reveal this card.
-            pendingTurnCardRef.current = toLocalCard(game.current_card);
+            pendingTurnCardRef.current = apiCardToLocalCard(game.current_card);
             holdingTurnCardRef.current = true;
           }
           setGameState((prev) => ({
@@ -719,7 +755,7 @@ export default function GameBoard({
             activeStealerIndex: game.is_steal_turn && nextIndex >= 0 ? nextIndex : undefined,
             drawnCard: isCorrect && !game.winner_id
               ? prev.drawnCard
-              : game.current_card ? toLocalCard(game.current_card) : prev.drawnCard,
+              : game.current_card ? apiCardToLocalCard(game.current_card) : prev.drawnCard,
             // The response snapshot updates authoritative data only. Presentation
             // order is driven exclusively by the ordered game-event stream below;
             // otherwise a fast response can jump ahead of MOVE_RESULT.
@@ -739,7 +775,6 @@ export default function GameBoard({
         .finally(() => {
           moveRequestInFlightRef.current = false;
           setIsSubmittingMove(false);
-          flushDeferredRealtimeRef.current();
         });
     }
 
@@ -826,18 +861,133 @@ export default function GameBoard({
     let realtimeCleanup: (() => Promise<void>) | null = null;
     let realtimeEnabled = false;
     let realtimeStarting = false;
-    let strictRealtime = false;
     let realtimeIdentity = '';
-    let pendingRealtimeRefresh = false;
     let heartbeatInterval = 20_000;
     let poll: () => Promise<void>;
+
+    const applyRealtimeUpdate = (update: ApiRealtimeGameUpdate) => {
+      if (cancelled || update.game_id !== gameId) return;
+      const state = update.state;
+      if (update.deleted || !state) {
+        setRoomExitReason('host_left');
+        cancelled = true;
+        return;
+      }
+      const realtimeEvents: ApiGameEvent[] = update.events.map((event) => ({
+        ...event,
+        payload: {
+          ...event.payload,
+          player_name: event.payload.player_name ?? state.members.find(
+            (member) => Number(member.id) === Number(event.payload.player_id)
+          )?.name,
+        } as Record<string, unknown>,
+      }));
+
+      if (update.chat_message) {
+        setChatMessages((current) => {
+          const withoutOptimisticCopy = current.filter((message) => !(
+            message.id < 0 &&
+            message.user_id === update.chat_message?.user_id &&
+            message.message === update.chat_message?.message
+          ));
+          if (withoutOptimisticCopy.some((message) => message.id === update.chat_message?.id)) return withoutOptimisticCopy;
+          return [...withoutOptimisticCopy, update.chat_message!].sort((a, b) => a.id - b.id);
+        });
+        setChatMessagesHydrated(true);
+      }
+
+      const cards = [state.current_card, ...realtimeEvents.map((event) => event.payload.card as ApiCard | undefined)]
+        .filter((card): card is ApiCard => Boolean(card?.id));
+      cards.forEach((card) => knownCardsRef.current.set(String(card.id), apiCardToLocalCard(card)));
+
+      const isStillMember = !userId || state.members.some((member) => Number(member.id) === Number(userId));
+      const exitReason = state.terminated_at
+        ? state.termination_reason ?? 'host_left'
+        : !isStillMember ? 'player_inactive' : null;
+      const nextServerMembers = new Map(state.members.map((member) => [Number(member.id), member.name] as const));
+      if (!exitReason) {
+        const departedPlayers = [...knownServerMembersRef.current.entries()]
+          .filter(([memberId]) => memberId !== Number(userId) && !nextServerMembers.has(memberId));
+        if (departedPlayers.length > 0) {
+          setTurnNotices((current) => [
+            ...departedPlayers.map(([, playerName]) => ({ id: ++turnNoticeIdRef.current, playerName, type: 'departure' as const })),
+            ...current,
+          ]);
+        }
+      }
+      knownServerMembersRef.current = nextServerMembers;
+      if (exitReason) {
+        setRoomExitReason(exitReason);
+        cancelled = true;
+        return;
+      }
+
+      const previousEventId = lastObservedEventIdRef.current;
+      const unseenEvents = previousEventId === null
+        ? realtimeEvents
+        : realtimeEvents.filter((event) => event.id > previousEventId);
+      lastObservedEventIdRef.current = realtimeEvents.reduce(
+        (maximum, event) => Math.max(maximum, event.id),
+        previousEventId ?? 0,
+      );
+      const relevantEvents = unseenEvents
+        .filter((event) => event.target_user_id === null || Number(event.target_user_id) === Number(userId))
+        .sort((a, b) => a.id - b.id);
+      if (relevantEvents.length > 0) dispatchGameEvent({ type: 'INGEST', events: relevantEvents });
+
+      const serverPlayerIndex = state.current_player_id === null
+        ? 0
+        : state.members.findIndex((member) => Number(member.id) === Number(state.current_player_id));
+      const safeServerPlayerIndex = serverPlayerIndex >= 0 ? serverPlayerIndex : 0;
+      const incomingCard = state.current_card ? knownCardsRef.current.get(String(state.current_card.id)) ?? null : null;
+      const isIncomingLocalTurn = Number(state.current_player_id) === Number(userId);
+      setIsServerTurnReady(true);
+      setServerCurrentPlayerId(state.current_player_id);
+      setServerTurnOwnerId(state.turn_owner_id);
+      setServerWinnerId(state.winner_id);
+      setConnectionWarningVisible(false);
+      setGameState((prev) => {
+        const cardChanged = Boolean(incomingCard && incomingCard.id !== prev.drawnCard?.id);
+        if (cardChanged && isIncomingLocalTurn) {
+          pendingTurnCardRef.current = incomingCard;
+          holdingTurnCardRef.current = true;
+        }
+        return {
+          ...prev,
+          currentPlayerIndex: safeServerPlayerIndex,
+          activeStealerIndex: state.is_steal_turn ? safeServerPlayerIndex : undefined,
+          phase: prev.phase === 'VICTORY'
+            ? prev.phase
+            : prev.phase === 'STEAL_DECISION' && state.is_steal_turn ? prev.phase : 'PLAYING',
+          drawnCard: holdingTurnCardRef.current ? prev.drawnCard : incomingCard ?? prev.drawnCard,
+          players: state.members.map((member) => {
+            const player = prev.players.find((candidate) => Number(candidate.id) === Number(member.id));
+            if (!player) return null;
+            const cardIds = state.hand_card_ids[String(member.id)];
+            if (!cardIds) return player;
+            const pendingCardId = pendingPlacementRef.current?.card.id;
+            const serverLane = cardIds
+              .map((cardId) => knownCardsRef.current.get(String(cardId)))
+              .filter((card): card is Card => card !== undefined)
+              .filter((card) => card.id !== pendingCardId);
+            const serverCardIds = new Set(serverLane.map((card) => card.id));
+            const pendingCards = (optimisticLaneCardsRef.current[player.id] ?? []).filter((card) => !serverCardIds.has(card.id));
+            optimisticLaneCardsRef.current[player.id] = pendingCards;
+            const lane = [...serverLane, ...pendingCards].sort((a, b) => a.index - b.index);
+            return { ...player, name: member.name, isBot: Boolean(member.is_bot), lane, score: pointsFromLane(lane) };
+          }).filter((player): player is Player => player !== null),
+        };
+      });
+      logGameAction('realtime.payload.applied', { eventCount: relevantEvents.length, gameId, reason: update.reason });
+    };
 
     const heartbeat = async () => {
       if (cancelled || paused || !realtimeEnabled || !userId || heartbeatController) return;
       const controller = new AbortController();
       heartbeatController = controller;
       try {
-        await api.heartbeatGame(gameId, userId, controller.signal);
+        const update = await api.heartbeatGame(gameId, userId, lastObservedEventIdRef.current, controller.signal);
+        applyRealtimeUpdate(update);
       } catch (error) {
         if (!cancelled && !paused && !controller.signal.aborted) {
           logGameAction('pusher.heartbeat.failure', { message: error instanceof Error ? error.message : String(error) });
@@ -852,13 +1002,11 @@ export default function GameBoard({
       const config = game.sync_driver === 'pusher'
         ? game.pusher
         : game.sync_driver === 'ably' ? game.ably : game.sync_driver === 'reverb' ? game.reverb : null;
-      strictRealtime = game.sync_driver === 'reverb';
       if (!config) {
         if (realtimeCleanup) void realtimeCleanup();
         realtimeCleanup = null;
         realtimeEnabled = false;
         realtimeIdentity = '';
-        strictRealtime = false;
         return;
       }
       const identity = `${game.sync_driver}:${config.channel}`;
@@ -875,19 +1023,7 @@ export default function GameBoard({
         getToken: game.sync_driver === 'ably' && userId ? () => api.getAblyToken(gameId, userId) : undefined,
         host: game.reverb?.host,
         key: game.pusher?.key ?? game.reverb?.key,
-        onUpdate: () => {
-          pendingRealtimeRefresh = true;
-          if (moveRequestInFlightRef.current) {
-            logGameAction('realtime.refresh-deferred', { reason: 'move-request-in-flight' });
-            return;
-          }
-          if (!cancelled && !paused && !activeController) {
-            if (timer) clearTimeout(timer);
-            // A single gameplay action can emit several realtime events in a tight
-            // burst. Coalesce them before fetching and rebuilding the full snapshot.
-            timer = setTimeout(() => void poll(), 80);
-          }
-        },
+        onUpdate: applyRealtimeUpdate,
         port: game.reverb?.port,
         provider: game.sync_driver as 'pusher' | 'ably' | 'reverb',
         scheme: game.reverb?.scheme,
@@ -900,9 +1036,10 @@ export default function GameBoard({
         realtimeEnabled = true;
         realtimeStarting = false;
         realtimeIdentity = identity;
-        pendingRealtimeRefresh = true;
-        if (timer) clearTimeout(timer);
-        timer = setTimeout(() => void poll(), 0);
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
         void heartbeat();
         logGameAction('realtime.connected', { channel: config.channel, driver: game.sync_driver, gameId });
       }).catch((error) => {
@@ -922,7 +1059,6 @@ export default function GameBoard({
 
     poll = async () => {
       if (cancelled || paused || activeController) return;
-      if (realtimeEnabled) pendingRealtimeRefresh = false;
       const pollStartedAt = Date.now();
       const pollNumber = ++pollCountRef.current;
       let nextPollDelay = 3000;
@@ -935,9 +1071,7 @@ export default function GameBoard({
       };
       const pollTimeout = setTimeout(() => pollController.abort(), 8000);
       try {
-        const game = realtimeEnabled
-          ? await api.getGameSnapshot(gameId, pollController.signal)
-          : await api.getGame(gameId, userId, pollController.signal);
+        const game = await api.getGame(gameId, userId, pollController.signal);
         if (cancelled || paused || pollController.signal.aborted) return;
         activateRealtime(game);
         consecutivePollFailuresRef.current = 0;
@@ -1040,7 +1174,9 @@ export default function GameBoard({
             eventTypes: relevantEvents.map((event) => event.type),
           });
         }
-        const incomingCard = game.current_card ? toLocalCard(game.current_card) : null;
+        Object.values(game.hands).flat().forEach((card) => knownCardsRef.current.set(String(card.id), apiCardToLocalCard(card)));
+        if (game.current_card) knownCardsRef.current.set(String(game.current_card.id), apiCardToLocalCard(game.current_card));
+        const incomingCard = game.current_card ? apiCardToLocalCard(game.current_card) : null;
         const isIncomingLocalTurn = Number(game.current_player_id) === Number(userId);
         if (stateChanged) {
           setGameState((prev) => {
@@ -1065,7 +1201,7 @@ export default function GameBoard({
                 const hand = game.hands[player.id];
                 if (!hand) return player;
                 const pendingCardId = pendingPlacementRef.current?.card.id;
-                const serverLane = hand.map(toLocalCard).filter((card) => card.id !== pendingCardId);
+                const serverLane = hand.map(apiCardToLocalCard).filter((card) => card.id !== pendingCardId);
                 const serverCardIds = new Set(serverLane.map((card) => card.id));
                 const pendingCards = (optimisticLaneCardsRef.current[player.id] ?? [])
                   .filter((card) => !serverCardIds.has(card.id));
@@ -1106,19 +1242,9 @@ export default function GameBoard({
         cancelActiveSnapshotRef.current = () => undefined;
         const requestDuration = Date.now() - pollStartedAt;
         if (!cancelled && !paused) {
-          const shouldSchedule = pendingRealtimeRefresh || !strictRealtime;
-          const delay = pendingRealtimeRefresh
-            ? 80
-            : realtimeEnabled ? 30_000 : Math.max(0, nextPollDelay - requestDuration);
-          pendingRealtimeRefresh = false;
-          if (shouldSchedule) timer = setTimeout(() => void poll(), delay);
+          if (!realtimeEnabled) timer = setTimeout(() => void poll(), Math.max(0, nextPollDelay - requestDuration));
         }
       }
-    };
-    flushDeferredRealtimeRef.current = () => {
-      if (cancelled || paused || !pendingRealtimeRefresh || activeController) return;
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => void poll(), 80);
     };
     if (!paused) void poll();
     const appStateSubscription = AppState.addEventListener('change', (state) => {
@@ -1134,8 +1260,8 @@ export default function GameBoard({
         heartbeatController?.abort();
         return;
       }
-      if (!cancelled && !activeController) void poll();
       if (!cancelled && realtimeEnabled && !heartbeatController) void heartbeat();
+      else if (!cancelled && !activeController) void poll();
     });
     return () => {
       cancelled = true;
@@ -1146,7 +1272,6 @@ export default function GameBoard({
       heartbeatController?.abort();
       if (realtimeCleanup) void realtimeCleanup();
       cancelActiveSnapshotRef.current = () => undefined;
-      flushDeferredRealtimeRef.current = () => undefined;
       appStateSubscription.remove();
       logGameAction('poll.stop', { gameId, polls: pollCountRef.current });
     };

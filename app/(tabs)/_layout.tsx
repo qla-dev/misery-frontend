@@ -23,7 +23,8 @@ import GameBoard from '@/components/GameBoard';
 
 type DebugOverlay = 'right' | 'wrong' | 'right-no-player' | 'wrong-no-player' | 'yellow' | 'white' | 'steal' | 'other-right' | 'other-wrong' | 'other-steal';
 const DEBUG_PLAYER_NAME = 'NEDIM KULASIN';
-const SHOW_DEBUG_LOGS_BUTTON = false;
+const SHOW_DEBUG_LOGS_BUTTON = true;
+const SHOW_HOME_LANGUAGE_BUTTON = false;
 const DEBUG_VICTORY_PLAYERS = [
   { id: 1, name: 'YOU', color: 'border-yellow-400 bg-yellow-400/5 text-yellow-400' },
   { id: 2, name: 'NEDIM KULASIN', color: 'border-blue-400 bg-blue-400/5 text-blue-400' },
@@ -197,17 +198,19 @@ export default function TabLayout() {
       />
       {isPlayScreen && lobbyView === 'WELCOME' && (
         <Stack.Toolbar placement="left">
-          <Stack.Toolbar.Button
-            accessibilityLabel={isBs ? 'Promijeni jezik na engleski' : 'Switch language to Bosnian'}
-            onPress={() => {
-              playHaptic();
-              toggleLanguage();
-            }}
-            separateBackground
-            tintColor="#fbbf24"
-          >
-            {isBs ? '🇧🇦' : '🇬🇧'}
-          </Stack.Toolbar.Button>
+          {SHOW_HOME_LANGUAGE_BUTTON ? (
+            <Stack.Toolbar.Button
+              accessibilityLabel={isBs ? 'Promijeni jezik na engleski' : 'Switch language to Bosnian'}
+              onPress={() => {
+                playHaptic();
+                toggleLanguage();
+              }}
+              separateBackground
+              tintColor="#fbbf24"
+            >
+              {isBs ? '🇧🇦' : '🇬🇧'}
+            </Stack.Toolbar.Button>
+          ) : null}
           {SHOW_DEBUG_LOGS_BUTTON ? (
             <Stack.Toolbar.Button
               accessibilityLabel="Open overlay debug menu"
@@ -389,7 +392,7 @@ export default function TabLayout() {
       >
         <View className="flex-1 items-center justify-center bg-neutral-950" style={{ paddingBottom: insets.bottom + 16, paddingTop: insets.top + 16 }}>
           <View style={{ width: debugCardWidth }}>
-            <DrawnCardFace card={debugCard ?? DEBUG_CARD} height={debugCardHeight} language={language} scoreRevealed />
+            <DrawnCardFace card={debugCard ?? DEBUG_CARD} height={debugCardHeight} language="bs" scoreRevealed />
           </View>
           <Pressable
             accessibilityLabel="Close card preview"

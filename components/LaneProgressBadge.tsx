@@ -109,7 +109,14 @@ export function LaneProgressBadge({ label, playerName, count, target, addsCard, 
     ? { fontFamily: 'BebasNeue_400Regular', fontSize: 48, includeFontPadding: false, letterSpacing: 1.2, lineHeight: 50 }
     : undefined;
   const prefixStyle = emphasized
-    ? { fontFamily: 'BebasNeue_400Regular', fontSize: 48, includeFontPadding: false, letterSpacing: 1.2, lineHeight: 50 }
+    ? {
+        fontFamily: 'BebasNeue_400Regular',
+        fontSize: 48,
+        includeFontPadding: true,
+        letterSpacing: 1.2,
+        lineHeight: 56,
+        paddingTop: 4,
+      }
     : undefined;
   const prefix = labelParts?.[1] ?? label;
   const resolvedPlayerName = playerName ?? labelParts?.[2] ?? null;
@@ -157,7 +164,7 @@ export function LaneProgressBadge({ label, playerName, count, target, addsCard, 
   );
 
   return (
-    <View style={{ gap: 0, marginTop: 14, width: '100%' }}>
+    <View style={{ gap: 0, width: '100%' }}>
       {prefix ? (
         <View className="items-center justify-center" style={{ width: '100%' }}>
           <Text

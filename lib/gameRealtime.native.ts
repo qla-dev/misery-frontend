@@ -1,5 +1,6 @@
 import type { PusherEvent } from '@pusher/pusher-websocket-react-native';
 import * as Ably from 'ably';
+import type { ApiRealtimeGameUpdate } from '@/lib/api';
 
 type SubscriptionOptions = {
   channel: string;
@@ -8,7 +9,7 @@ type SubscriptionOptions = {
   getToken?: () => Promise<unknown>;
   host?: string;
   key?: string;
-  onUpdate: () => void;
+  onUpdate: (update: ApiRealtimeGameUpdate) => void;
   port?: number;
   provider: 'pusher' | 'ably' | 'reverb';
   scheme?: string;
@@ -16,7 +17,7 @@ type SubscriptionOptions = {
 
 type ChannelState = {
   event: string;
-  listeners: Set<() => void>;
+  listeners: Set<(update: ApiRealtimeGameUpdate) => void>;
   ready: Promise<void>;
   releaseTimer: ReturnType<typeof setTimeout> | null;
 };
@@ -79,7 +80,10 @@ function subscribeToReverb(options: SubscriptionOptions): Promise<() => Promise<
           });
           return;
         }
-        if (payload.event === options.event && payload.channel === options.channel) options.onUpdate();
+        if (payload.event === options.event && payload.channel === options.channel) {
+          const data = typeof payload.data === 'string' ? JSON.parse(payload.data) : payload.data;
+          options.onUpdate(data as ApiRealtimeGameUpdate);
+        }
       } catch {
         // Ignore malformed transport frames; snapshots remain the authority.
       }
@@ -102,7 +106,12 @@ function subscribeToReverb(options: SubscriptionOptions): Promise<() => Promise<
 function dispatchEvent(event: PusherEvent) {
   const state = channels.get(event.channelName);
   if (!state || event.eventName !== state.event) return;
-  state.listeners.forEach((listener) => listener());
+  try {
+    const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+    state.listeners.forEach((listener) => listener(data as ApiRealtimeGameUpdate));
+  } catch {
+    // A malformed realtime payload is ignored; reconnect bootstrap remains available.
+  }
 }
 
 export async function subscribeToGameUpdates(options: SubscriptionOptions): Promise<() => Promise<void>> {
@@ -116,9 +125,9 @@ export async function subscribeToGameUpdates(options: SubscriptionOptions): Prom
       },
     });
     const channel = client.channels.get(options.channel);
-    await channel.subscribe(options.event, options.onUpdate);
+    await channel.subscribe(options.event, (message) => options.onUpdate(message.data as ApiRealtimeGameUpdate));
     return async () => {
-      channel.unsubscribe(options.event, options.onUpdate);
+      channel.unsubscribe(options.event);
       await channel.detach().catch(() => undefined);
       client.close();
     };

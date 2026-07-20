@@ -10,6 +10,8 @@ const SCORE_FOOTER_HEIGHT = 104;
 const SCORE_TAB_HEIGHT = 70;
 const SCORE_TAB_BOTTOM = -2;
 const SCORE_LABEL_HEIGHT = SCORE_FOOTER_HEIGHT - SCORE_TAB_HEIGHT - SCORE_TAB_BOTTOM;
+const HEADER_GAP = 5;
+const HEADER_PADDING = 20;
 
 type WebAppCardProps = {
   card: Card;
@@ -103,7 +105,15 @@ export function WebAppCard({ card, height, language, scoreRevealed = false, widt
         )}
       </View>
 
-      <View style={{ alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10 }}>
+      <View
+        style={{
+          alignItems: 'center',
+          paddingBottom: HEADER_PADDING,
+          paddingHorizontal: 12,
+          paddingTop: HEADER_PADDING,
+          rowGap: HEADER_GAP,
+        }}
+      >
         <Text
           adjustsFontSizeToFit
           minimumFontScale={0.72}

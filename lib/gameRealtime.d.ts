@@ -1,3 +1,5 @@
+import type { ApiRealtimeGameUpdate } from '@/lib/api';
+
 type GameRealtimeSubscriptionOptions = {
   channel: string;
   cluster?: string;
@@ -5,7 +7,7 @@ type GameRealtimeSubscriptionOptions = {
   getToken?: () => Promise<unknown>;
   host?: string;
   key?: string;
-  onUpdate: () => void;
+  onUpdate: (update: ApiRealtimeGameUpdate) => void;
   port?: number;
   provider: 'pusher' | 'ably' | 'reverb';
   scheme?: string;

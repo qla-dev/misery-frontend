@@ -30,7 +30,7 @@ import { InactivityKickCountdown } from './InactivityKickCountdown';
 import { LaneModal } from './LaneModal';
 import { SetupTabs } from './SetupTabs';
 import { WelcomeSilhouetteRow } from './WelcomeSilhouetteRow';
-import { api, ApiError, ApiGame, ApiStack, ApiUser } from '@/lib/api';
+import { api, ApiError, ApiGame, ApiRealtimeGameState, ApiRealtimeGameUpdate, ApiStack, ApiUser } from '@/lib/api';
 import { subscribeToGameUpdates } from '@/lib/gameRealtime';
 import { DeckType } from '@/context/game-types';
 
@@ -1549,17 +1549,102 @@ export default function Lobby() {
     let timer: ReturnType<typeof setTimeout> | null = null;
     let controller: AbortController | null = null;
     let realtimeRetryTimer: ReturnType<typeof setTimeout> | null = null;
+    let heartbeatTimer: ReturnType<typeof setTimeout> | null = null;
+    let heartbeatController: AbortController | null = null;
     let realtimeCleanup: (() => Promise<void>) | null = null;
     let realtimeReady = false;
-    let pendingRealtimeRefresh = false;
-    const strictRealtime = serverRealtimeConfig?.driver === 'reverb';
-    const poll = async () => {
-      if (cancelled) return;
-      if (controller) {
-        pendingRealtimeRefresh = true;
+
+    const applyRealtimeState = (state: ApiRealtimeGameState) => {
+      const isStillMember = !serverUserId || state.members.some((member) => Number(member.id) === Number(serverUserId));
+      if (state.terminated_at || !isStillMember) {
+        const removedByHost = !state.terminated_at && !isStillMember;
+        setStartModal({
+          visible: true,
+          title: removedByHost
+            ? isBs ? 'UKLONJEN SI' : 'YOU WERE REMOVED'
+            : state.termination_reason === 'host_inactive' ? isBs ? 'SOBA JE ZATVORENA' : 'ROOM CLOSED' : isBs ? 'SOBA JE ZAVRÅ ENA' : 'ROOM ENDED',
+          message: removedByHost
+            ? isBs ? 'DomaÄ‡in te uklonio iz sobe.' : 'The host removed you from the lobby.'
+            : state.termination_reason === 'host_inactive'
+              ? isBs ? 'DomaÄ‡in je bio neaktivan i soba je zatvorena.' : 'The host was inactive and the room was closed.'
+              : isBs ? 'DomaÄ‡in je napustio sobu.' : 'The host left the room.',
+        });
+        transitionLobbyView('SETUP', () => {
+          setServerGameId(null);
+          setServerUserId(null);
+          setServerOwnerId(null);
+          setRoomCode('');
+          setRoomPlayers([]);
+        });
         return;
       }
-      pendingRealtimeRefresh = false;
+      setRoomCode(state.code);
+      setServerOwnerId(state.owner_id);
+      setHostInLobby(state.host_in_lobby);
+      setIsRoomPrivate(state.is_private);
+      setSelectedDeck((state.stack ?? 'normal') as DeckType);
+      const visibleMembers = state.winner_id
+        ? state.members.filter((member) => state.lobby_member_ids.includes(Number(member.id)))
+        : state.members;
+      setRoomPlayers(visibleMembers.map((member, index) => ({
+        id: member.id,
+        name: member.name,
+        isBot: Boolean(member.is_bot),
+        color: (AVAILABLE_COLORS.find((color) => color.id === member.color) ?? AVAILABLE_COLORS[index % AVAILABLE_COLORS.length]).borderClass,
+      })));
+      if (state.started && state.winner_id === null && !serverStartedRef.current) {
+        serverStartedRef.current = true;
+        setIsGameCountingDown(true);
+        setSession({
+          mode: 'MULTIPLAYER',
+          players: state.members.map((member, index) => ({
+            id: member.id,
+            name: member.name,
+            isBot: Boolean(member.is_bot),
+            color: (AVAILABLE_COLORS.find((color) => color.id === member.color) ?? AVAILABLE_COLORS[index % AVAILABLE_COLORS.length]).borderClass,
+          })),
+          targetScore: state.target_score,
+          deckType: (state.stack ?? selectedDeck) as DeckType,
+          gameId: state.id,
+          userId: serverUserId ?? undefined,
+          ownerId: state.owner_id,
+        });
+        router.push('./game');
+      }
+    };
+
+    const applyRealtimeUpdate = (update: ApiRealtimeGameUpdate) => {
+      if (cancelled || update.game_id !== serverGameId) return;
+      if (update.deleted || !update.state) {
+        cancelled = true;
+        setStartModal({
+          visible: true,
+          title: isBs ? 'SOBA JE OBRISANA' : 'ROOM DELETED',
+          message: isBs ? 'Ova soba viÅ¡e ne postoji.' : 'This room no longer exists.',
+        });
+        transitionLobbyView('SETUP');
+        return;
+      }
+      applyRealtimeState(update.state);
+    };
+
+    const heartbeat = async () => {
+      if (cancelled || !realtimeReady || !serverUserId || heartbeatController) return;
+      const requestController = new AbortController();
+      heartbeatController = requestController;
+      try {
+        applyRealtimeUpdate(await api.heartbeatGame(serverGameId, serverUserId, 0, requestController.signal));
+      } catch {
+        // The live channel remains authoritative; the next heartbeat retries recovery.
+      } finally {
+        if (heartbeatController === requestController) heartbeatController = null;
+        if (!cancelled && realtimeReady) heartbeatTimer = setTimeout(heartbeat, 20_000);
+      }
+    };
+
+    const poll = async () => {
+      if (cancelled) return;
+      if (controller) return;
       const requestController = new AbortController();
       controller = requestController;
       try {
@@ -1635,10 +1720,7 @@ export default function Lobby() {
         /* Temporary network/server failures retry after this request settles. */
       } finally {
         if (controller === requestController) controller = null;
-        if (!cancelled) {
-          const delay = pendingRealtimeRefresh ? 0 : realtimeReady ? 30_000 : 3000;
-          if (pendingRealtimeRefresh || !strictRealtime) timer = setTimeout(poll, delay);
-        }
+        if (!cancelled && !realtimeReady) timer = setTimeout(poll, 3000);
       }
     };
     void poll();
@@ -1658,7 +1740,7 @@ export default function Lobby() {
           getToken: realtime.driver === 'ably' && serverUserId ? () => api.getAblyToken(serverGameId, serverUserId) : undefined,
           host: reverbValue?.host,
           key: pusherValue?.key ?? reverbValue?.key,
-          onUpdate: () => void poll(),
+          onUpdate: applyRealtimeUpdate,
           port: reverbValue?.port,
           provider: realtime.driver,
           scheme: reverbValue?.scheme,
@@ -1670,7 +1752,7 @@ export default function Lobby() {
           realtimeCleanup = cleanup;
           realtimeReady = true;
           if (timer) clearTimeout(timer);
-          timer = setTimeout(poll, 0);
+          void heartbeat();
         }).catch((error) => {
           if (realtime.driver !== 'reverb') {
             if (__DEV__) console.warn('[Lobby] Hosted realtime unavailable; polling fallback active', error);
@@ -1686,7 +1768,9 @@ export default function Lobby() {
       cancelled = true;
       if (timer) clearTimeout(timer);
       if (realtimeRetryTimer) clearTimeout(realtimeRetryTimer);
+      if (heartbeatTimer) clearTimeout(heartbeatTimer);
       controller?.abort();
+      heartbeatController?.abort();
       if (realtimeCleanup) void realtimeCleanup();
     };
   }, [serverGameId, serverUserId, serverRealtimeConfig, targetScore, selectedDeck, setIsGameCountingDown, setSession]);

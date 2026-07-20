@@ -9,6 +9,12 @@ const SCORE_FOOTER_HEIGHT = 104;
 const SCORE_TAB_HEIGHT = 70;
 const SCORE_TAB_BOTTOM = -2;
 const SCORE_LABEL_HEIGHT = SCORE_FOOTER_HEIGHT - SCORE_TAB_HEIGHT - SCORE_TAB_BOTTOM;
+const HEADER_GAP = 5;
+const TITLE_LINE_HEIGHT_EXTRA = 4;
+const OUTER_BORDER_WIDTH = 5;
+const INNER_BORDER_INSET = 9;
+const BORDER_TO_BORDER_GAP = INNER_BORDER_INSET - OUTER_BORDER_WIDTH;
+const ARTWORK_HORIZONTAL_INSET = INNER_BORDER_INSET + 2;
 
 type DrawnCardFaceProps = {
   card: Card;
@@ -62,7 +68,7 @@ export function DrawnCardFace({
         backgroundColor: '#000000',
         borderColor: isWrong ? '#ef4444' : isCorrect ? '#10b981' : '#facc15',
         borderRadius: 18,
-        borderWidth: 5,
+        borderWidth: OUTER_BORDER_WIDTH,
         height,
         overflow: 'hidden',
         width: '100%',
@@ -78,10 +84,22 @@ export function DrawnCardFace({
       />
       <View
         pointerEvents="none"
-        style={{ borderColor: 'rgba(250,204,21,0.35)', borderRadius: 11, borderWidth: 2, bottom: 9, left: 9, position: 'absolute', right: 9, top: 9, zIndex: 5 }}
+        style={{ borderColor: 'rgba(250,204,21,0.35)', borderRadius: 11, borderWidth: 2, bottom: INNER_BORDER_INSET, left: INNER_BORDER_INSET, position: 'absolute', right: INNER_BORDER_INSET, top: INNER_BORDER_INSET, zIndex: 10 }}
       />
-      <View className="w-full items-center px-3" style={{ zIndex: 2 }}>
-        <View style={{ alignItems: 'center', gap: 10, marginTop: 22, paddingVertical: 10, width: '100%' }}>
+      <View
+        className="items-center"
+        style={{ flex: 1, width: '100%', zIndex: 2 }}
+      >
+        <View
+          style={{
+            alignItems: 'center',
+            paddingBottom: 10,
+            paddingHorizontal: 12,
+            paddingTop: 20,
+            rowGap: 0,
+            width: '100%',
+          }}
+        >
           <Text
             adjustsFontSizeToFit
             minimumFontScale={0.72}
@@ -90,8 +108,12 @@ export function DrawnCardFace({
               color: '#f8f8f5',
               fontFamily: 'BebasNeue_400Regular',
               fontSize: titleFontSize,
+              includeFontPadding: true,
               letterSpacing: 0.7,
-              lineHeight: titleFontSize + 1,
+              // Bebas Neue's uppercase Latin-ext glyphs extend above its tight
+              // cap-height. Extra leading keeps Č/Ć/Š/Ž from losing their marks
+              // when a flipped-card title is resized on native platforms.
+              lineHeight: titleFontSize + TITLE_LINE_HEIGHT_EXTRA,
               paddingHorizontal: 12,
               textAlign: 'center',
               width: '100%',
@@ -115,24 +137,22 @@ export function DrawnCardFace({
             </Text>
           )}
         </View>
-        <View
-          className="items-center justify-center"
-          pointerEvents="none"
+        <LazyCardArtwork
+          alignTop
+          card={card}
           style={{
             alignSelf: 'stretch',
-            aspectRatio: 1,
             backgroundColor: '#000000',
-            marginHorizontal: 6,
+            flex: 1,
+            marginHorizontal: ARTWORK_HORIZONTAL_INSET,
             overflow: 'hidden',
           }}
-        >
-          <LazyCardArtwork card={card} style={{ height: '100%', width: '100%' }} />
-        </View>
+        />
       </View>
       {showFinishPrompt && (
         <Animated.Text
           className="absolute bottom-[106px] font-mono text-[10px] font-black uppercase tracking-[2px] text-white"
-          style={{ transform: [{ translateY: promptAnimation }] }}
+          style={{ transform: [{ translateY: promptAnimation }], zIndex: 7 }}
         >
           {isOnline
             ? isBs ? 'DODIRNI ZA ZAVRŠETAK POTEZA' : 'TAP TO FINISH TURN'
@@ -140,22 +160,16 @@ export function DrawnCardFace({
         </Animated.Text>
       )}
       <View
-        pointerEvents="none"
+        className="items-center"
         style={{
           backgroundColor: '#000000',
           borderBottomLeftRadius: 18,
           borderBottomRightRadius: 18,
-          bottom: 0,
+          flexShrink: 0,
           height: SCORE_FOOTER_HEIGHT,
-          left: 0,
-          position: 'absolute',
-          right: 0,
-          zIndex: 4,
+          width: '100%',
+          zIndex: 6,
         }}
-      />
-      <View
-        className="absolute items-center"
-        style={{ bottom: 0, height: SCORE_FOOTER_HEIGHT, left: 0, right: 0, zIndex: 6 }}
       >
         <View
           style={{ alignItems: 'center', height: SCORE_LABEL_HEIGHT, justifyContent: 'center', left: 0, position: 'absolute', right: 0, top: 0 }}

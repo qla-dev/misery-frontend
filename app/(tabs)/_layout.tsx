@@ -21,10 +21,10 @@ import { X } from 'lucide-react-native';
 import { API_BASE_URL, ApiCard } from '@/lib/api';
 import GameBoard from '@/components/GameBoard';
 
-type DebugOverlay = 'right' | 'wrong' | 'right-no-player' | 'wrong-no-player' | 'yellow' | 'white' | 'steal' | 'other-right' | 'other-wrong' | 'other-steal';
+type DebugOverlay = 'right' | 'wrong' | 'right-no-player' | 'wrong-no-player' | 'yellow' | 'waiting' | 'white' | 'steal' | 'other-right' | 'other-wrong' | 'other-steal';
 const DEBUG_PLAYER_NAME = 'NEDIM KULASIN';
-const SHOW_DEBUG_LOGS_BUTTON = true;
-const SHOW_HOME_LANGUAGE_BUTTON = false;
+const SHOW_DEBUG_LOGS_BUTTON = false;
+const SHOW_HOME_LANGUAGE_BUTTON = true;
 const DEBUG_VICTORY_PLAYERS = [
   { id: 1, name: 'YOU', color: 'border-yellow-400 bg-yellow-400/5 text-yellow-400' },
   { id: 2, name: 'NEDIM KULASIN', color: 'border-blue-400 bg-blue-400/5 text-blue-400' },
@@ -307,6 +307,7 @@ export default function TabLayout() {
           <ButtonTab category="button" onPress={() => showDebugOverlay('right-no-player')} size="100" type="success">RIGHT — NO PLAYER ROW</ButtonTab>
           <ButtonTab category="button" onPress={() => showDebugOverlay('wrong-no-player')} size="100" type="danger">WRONG — NO PLAYER ROW</ButtonTab>
           <ButtonTab category="button" onPress={() => showDebugOverlay('yellow')} size="100" type="primary">YELLOW</ButtonTab>
+          <ButtonTab category="button" onPress={() => showDebugOverlay('waiting')} size="100" type="primary">TVOJ POTEZ ČEKA</ButtonTab>
           <ButtonTab category="button" onPress={() => showDebugOverlay('white')} size="100" type="third">WHITE</ButtonTab>
           <ButtonTab category="button" onPress={() => showDebugOverlay('steal')} size="100" type="primary">CARD STOLEN + SCORE</ButtonTab>
           <ButtonTab category="button" onPress={() => showDebugOverlay('other-right')} size="100" type="success">NEDIM KULASIN — CORRECT</ButtonTab>
@@ -365,6 +366,8 @@ export default function TabLayout() {
         success={debugOverlay !== 'wrong' && debugOverlay !== 'wrong-no-player' && debugOverlay !== 'other-wrong'}
         successMessage={debugOverlay === 'yellow'
           ? `${DEBUG_PLAYER_NAME}'S CARD IS OFFERED TO THE NEXT PLAYER — WAIT FOR THEIR DECISION`
+          : debugOverlay === 'waiting'
+            ? isBs ? 'OKRENI KARTU' : 'FLIP YOUR CARD'
           : debugOverlay === 'white'
             ? `${DEBUG_PLAYER_NAME}'S TURN — TAP THE CARD TO PLAY`
             : debugOverlay === 'steal'
@@ -376,13 +379,16 @@ export default function TabLayout() {
                   : `EVENT ADDED TO ${DEBUG_PLAYER_NAME}'S LANE`}
         successTitle={debugOverlay === 'yellow'
           ? "YOU'RE ON HOLD"
+          : debugOverlay === 'waiting'
+            ? isBs ? 'TVOJ POTEZ' : 'YOUR TURN'
           : debugOverlay === 'white'
             ? 'YOUR TURN STARTED'
             : debugOverlay === 'steal' || debugOverlay === 'other-steal'
               ? 'CARD STOLEN'
               : 'CORRECT'}
+        successTitleDetail={debugOverlay === 'waiting' ? isBs ? 'ČEKA' : 'IS WAITING' : undefined}
         visible={debugOverlay !== null}
-        warning={debugOverlay === 'yellow' || debugOverlay === 'steal' || debugOverlay === 'other-steal'}
+        warning={debugOverlay === 'yellow' || debugOverlay === 'waiting' || debugOverlay === 'steal' || debugOverlay === 'other-steal'}
       />
       <Modal
         animationType="slide"

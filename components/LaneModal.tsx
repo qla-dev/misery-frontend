@@ -266,7 +266,9 @@ export function LaneModal({
     includeFontPadding: true,
     lineHeight: 20,
   };
-  const contentGap = 25;
+  const circleToContentGap = 15;
+  const hasTwoRowPrimaryContent = Boolean(laneProgress || (success && successTitleDetail));
+  const titleToMessageGap = hasTwoRowPrimaryContent ? 12 : 17;
   const message = success ? successMessage : failureMessage;
   const title = success ? successTitle : failureTitle;
 
@@ -296,7 +298,7 @@ export function LaneModal({
         >
           <View
             className={`h-40 w-40 items-center justify-center rounded-full border-[6px] ${darkForeground ? 'border-neutral-950 bg-neutral-950/5' : 'border-white bg-white/15'}`}
-            style={{ marginBottom: contentGap }}
+            style={{ marginBottom: circleToContentGap }}
           >
             {leaving ? (
               <LogOut color={darkForeground ? '#0a0a0a' : '#ffffff'} size={82} strokeWidth={3.2} />
@@ -316,7 +318,7 @@ export function LaneModal({
             ) : warning && score !== undefined ? (
               <CarnivalMaskIcon />
             ) : warning ? (
-              <ShieldAlert color="#0a0a0a" size={90} strokeWidth={3.5} />
+              <ShieldAlert color="#0a0a0a" size={90} strokeWidth={1.5} />
             ) : success ? (
               <Check color="#ffffff" size={94} strokeWidth={4} />
             ) : (
@@ -355,9 +357,7 @@ export function LaneModal({
                   style={{ elevation: 2, marginTop: -6, overflow: 'visible', position: 'relative', width: '100%', zIndex: 2 }}
                 >
                   <Text
-                    adjustsFontSizeToFit
                     className={`text-center font-black uppercase ${darkForeground ? 'text-neutral-950' : 'text-white'}`}
-                    minimumFontScale={0.72}
                     numberOfLines={1}
                     style={[twoRowTitleStyle, { overflow: 'visible', width: '100%', zIndex: 2 }]}
                   >
@@ -368,7 +368,7 @@ export function LaneModal({
             </View>
           ) : null}
           {message ? (
-            <View className="items-center justify-center" style={{ marginTop: contentGap, width: '100%' }}>
+            <View className="items-center justify-center" style={{ marginTop: titleToMessageGap, width: '100%' }}>
               <Text
                 className={`text-center font-bold uppercase tracking-widest ${darkForeground ? 'text-neutral-950/65' : 'text-white/85'}`}
                 style={modalMessageStyle}

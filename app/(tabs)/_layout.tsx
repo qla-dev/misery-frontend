@@ -345,6 +345,7 @@ export default function TabLayout() {
         neutral={debugOverlay === 'white'}
         onComplete={() => setDebugOverlay(null)}
         persistent
+        tapToDismiss={false}
         laneProgress={debugOverlay === 'right' || debugOverlay === 'steal'
           ? { label: isBs ? 'STAZA OD' : 'LANE OF', playerName: DEBUG_PLAYER_NAME, count: 3, target: 7, addsCard: true }
           : debugOverlay === 'wrong'

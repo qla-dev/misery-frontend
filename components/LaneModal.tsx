@@ -123,6 +123,7 @@ type LaneModalProps = {
   visibleDurationMs?: number;
   dismissImmediately?: boolean;
   passThroughTouches?: boolean;
+  tapToDismiss?: boolean;
 };
 
 export function LaneModal({
@@ -148,6 +149,7 @@ export function LaneModal({
   visibleDurationMs = OVERLAY_VISIBLE_MS,
   dismissImmediately = false,
   passThroughTouches = false,
+  tapToDismiss = true,
 }: LaneModalProps) {
   const safeAreaInsets = useSafeAreaInsets();
   const [rendered, setRendered] = useState(false);
@@ -264,7 +266,7 @@ export function LaneModal({
     includeFontPadding: true,
     lineHeight: 20,
   };
-  const contentGap = 10;
+  const contentGap = 25;
   const message = success ? successMessage : failureMessage;
   const title = success ? successTitle : failureTitle;
 
@@ -273,6 +275,7 @@ export function LaneModal({
         accessible={false}
         className={`flex-1 items-center justify-center px-8 ${neutral ? 'bg-white' : warning ? 'bg-amber-400' : success ? 'bg-emerald-500' : 'bg-red-500'}`}
         onPress={() => {
+          if (!tapToDismiss) return;
           playHaptic();
           dismissRef.current();
         }}
@@ -289,9 +292,12 @@ export function LaneModal({
         ) : null}
         <Animated.View
           className="items-center"
-          style={{ gap: contentGap, transform: [{ translateY: -31 }, { scale }, { rotate }], width: '100%' }}
+          style={{ transform: [{ translateY: -31 }, { scale }, { rotate }], width: '100%' }}
         >
-          <View className={`h-40 w-40 items-center justify-center rounded-full border-[6px] ${darkForeground ? 'border-neutral-950 bg-neutral-950/5' : 'border-white bg-white/15'}`}>
+          <View
+            className={`h-40 w-40 items-center justify-center rounded-full border-[6px] ${darkForeground ? 'border-neutral-950 bg-neutral-950/5' : 'border-white bg-white/15'}`}
+            style={{ marginBottom: contentGap }}
+          >
             {leaving ? (
               <LogOut color={darkForeground ? '#0a0a0a' : '#ffffff'} size={82} strokeWidth={3.2} />
             ) : holding ? (
@@ -362,7 +368,7 @@ export function LaneModal({
             </View>
           ) : null}
           {message ? (
-            <View className="items-center justify-center" style={{ width: '100%' }}>
+            <View className="items-center justify-center" style={{ marginTop: contentGap, width: '100%' }}>
               <Text
                 className={`text-center font-bold uppercase tracking-widest ${darkForeground ? 'text-neutral-950/65' : 'text-white/85'}`}
                 style={modalMessageStyle}

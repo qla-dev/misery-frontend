@@ -13,8 +13,10 @@ const HEADER_GAP = 5;
 const TITLE_LINE_HEIGHT_EXTRA = 4;
 const OUTER_BORDER_WIDTH = 5;
 const INNER_BORDER_INSET = 9;
+const INNER_BORDER_WIDTH = 2;
+const ARTWORK_BORDER_PADDING = 5;
 const BORDER_TO_BORDER_GAP = INNER_BORDER_INSET - OUTER_BORDER_WIDTH;
-const ARTWORK_HORIZONTAL_INSET = INNER_BORDER_INSET + 2;
+const ARTWORK_HORIZONTAL_INSET = INNER_BORDER_INSET + INNER_BORDER_WIDTH + ARTWORK_BORDER_PADDING;
 
 type DrawnCardFaceProps = {
   card: Card;
@@ -84,7 +86,7 @@ export function DrawnCardFace({
       />
       <View
         pointerEvents="none"
-        style={{ borderColor: 'rgba(250,204,21,0.35)', borderRadius: 11, borderWidth: 2, bottom: INNER_BORDER_INSET, left: INNER_BORDER_INSET, position: 'absolute', right: INNER_BORDER_INSET, top: INNER_BORDER_INSET, zIndex: 10 }}
+        style={{ borderColor: 'rgba(250,204,21,0.35)', borderRadius: 11, borderWidth: INNER_BORDER_WIDTH, bottom: INNER_BORDER_INSET, left: INNER_BORDER_INSET, position: 'absolute', right: INNER_BORDER_INSET, top: INNER_BORDER_INSET, zIndex: 10 }}
       />
       <View
         className="items-center"

@@ -540,7 +540,10 @@ export default function Lobby() {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [identityRestored, setIdentityRestored] = useState(false);
   const [signingInProvider, setSigningInProvider] = useState<'google' | 'apple' | null>(null);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [usernameModalOpen, setUsernameModalOpen] = useState(false);
+  const [deleteAccountModalOpen, setDeleteAccountModalOpen] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [usernameDraft, setUsernameDraft] = useState('');
   const [usernameError, setUsernameError] = useState('');
   const [isSavingUsername, setIsSavingUsername] = useState(false);
@@ -1367,9 +1370,15 @@ export default function Lobby() {
 
   const openUsernameModal = () => {
     playSound('click');
+    setSettingsModalOpen(false);
     setUsernameDraft(userName);
     setUsernameError('');
     setUsernameModalOpen(true);
+  };
+
+  const openSettingsModal = () => {
+    playSound('click');
+    setSettingsModalOpen(true);
   };
 
   const saveUsername = async () => {
@@ -1410,6 +1419,34 @@ export default function Lobby() {
     setSocialProvider(null);
     setUserName('');
     transitionLobbyView('WELCOME');
+  };
+
+  const handleDeleteAccount = async () => {
+    if (isDeletingAccount) return;
+
+    setIsDeletingAccount(true);
+    try {
+      const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+      if (!token) throw new Error('Your session has expired. Please sign in again.');
+      await api.deleteAccount(token);
+      await AsyncStorage.multiRemove([AUTH_TOKEN_KEY, AUTH_USER_KEY, AUTH_PROVIDER_KEY, LAST_USERNAME_KEY]);
+      await setPremiumIdentity(null, null);
+      setDeleteAccountModalOpen(false);
+      setSettingsModalOpen(false);
+      setIsSocialUser(false);
+      setSocialProvider(null);
+      setUserName('');
+      transitionLobbyView('WELCOME');
+    } catch (error) {
+      setDeleteAccountModalOpen(false);
+      setStartModal({
+        visible: true,
+        title: isBs ? 'BRISANJE NIJE USPJELO' : 'DELETE FAILED',
+        message: error instanceof Error ? error.message : (isBs ? 'Pokušaj ponovo.' : 'Please try again.'),
+      });
+    } finally {
+      setIsDeletingAccount(false);
+    }
   };
 
   const resetRememberedSession = () => {
@@ -2296,8 +2333,8 @@ export default function Lobby() {
                     </View>
                   </View>
                   <View className="flex-row items-center gap-2">
-                    <Pressable onPress={openUsernameModal} className="px-2 py-1 rounded bg-neutral-800">
-                      <Text className="text-[9px] text-neutral-400">{isBs ? 'Promijeni ime' : 'Change username'}</Text>
+                    <Pressable onPress={openSettingsModal} className="px-2 py-1 rounded bg-neutral-800">
+                      <Text className="text-[9px] text-neutral-400">{isBs ? 'Postavke' : 'Settings'}</Text>
                     </Pressable>
                     <Pressable onPress={handleSignOut} className="px-2 py-1 rounded bg-neutral-800">
                       <Text className="text-[9px] text-neutral-400">{isBs ? 'Odjavi se' : 'Sign out'}</Text>
@@ -2450,8 +2487,8 @@ export default function Lobby() {
                     </View>
                   </View>
                   <View className="flex-row items-center gap-2">
-                    <Pressable onPress={openUsernameModal} className="px-2 py-1 rounded bg-neutral-800">
-                      <Text className="text-[9px] text-neutral-400">{isBs ? 'Promijeni ime' : 'Change username'}</Text>
+                    <Pressable onPress={openSettingsModal} className="px-2 py-1 rounded bg-neutral-800">
+                      <Text className="text-[9px] text-neutral-400">{isBs ? 'Postavke' : 'Settings'}</Text>
                     </Pressable>
                     <Pressable onPress={handleSignOut} className="px-2 py-1 rounded bg-neutral-800">
                       <Text className="text-[9px] text-neutral-400">{isBs ? 'Odjavi se' : 'Sign out'}</Text>
@@ -2728,6 +2765,51 @@ export default function Lobby() {
         </Animated.View>
         )}
       </KeyboardAvoidingView>
+      <ConfirmModal
+        cancelLabel={isBs ? 'OBRIŠI RAČUN' : 'DELETE ACCOUNT'}
+        cancelType="danger"
+        confirmLabel={isBs ? 'PROMIJENI IME' : 'CHANGE USERNAME'}
+        onCancel={() => {
+          setSettingsModalOpen(false);
+          setDeleteAccountModalOpen(true);
+        }}
+        onConfirm={openUsernameModal}
+        onRequestClose={() => setSettingsModalOpen(false)}
+        visible={settingsModalOpen}
+      >
+        <View className="items-center" style={{ gap: 10 }}>
+          <Text className="text-center text-lg font-black uppercase tracking-wider text-amber-400">
+            {isBs ? 'POSTAVKE' : 'SETTINGS'}
+          </Text>
+          <Text className="text-center text-sm leading-6 text-neutral-300">
+            {isBs ? 'Upravljaj svojim korisničkim računom.' : 'Manage your account.'}
+          </Text>
+        </View>
+      </ConfirmModal>
+      <ConfirmModal
+        cancelLabel={isBs ? 'ODUSTANI' : 'CANCEL'}
+        confirmLabel={isDeletingAccount ? (isBs ? 'BRISANJE...' : 'DELETING...') : (isBs ? 'OBRIŠI RAČUN' : 'DELETE ACCOUNT')}
+        confirmLoading={isDeletingAccount}
+        confirmType="danger"
+        onCancel={() => setDeleteAccountModalOpen(false)}
+        onConfirm={() => void handleDeleteAccount()}
+        onRequestClose={() => {
+          if (!isDeletingAccount) setDeleteAccountModalOpen(false);
+        }}
+        visible={deleteAccountModalOpen}
+      >
+        <View className="items-center" style={{ gap: 10 }}>
+          <ShieldAlert color="#ef4444" size={38} />
+          <Text className="text-center text-lg font-black uppercase tracking-wider text-red-400">
+            {isBs ? 'JESI LI SIGURAN?' : 'ARE YOU SURE?'}
+          </Text>
+          <Text className="text-center text-sm leading-6 text-neutral-300">
+            {isBs
+              ? 'Tvoj račun će biti obrisan i bit ćeš odjavljen iz aplikacije.'
+              : 'Your account will be deleted and you will be signed out of the app.'}
+          </Text>
+        </View>
+      </ConfirmModal>
       <ConfirmModal
         cancelLabel={isBs ? 'ODUSTANI' : 'CANCEL'}
         confirmLabel={isBs ? 'IZBACI IGRAČA' : 'KICK OUT'}

@@ -40,7 +40,7 @@ export type ApiGameEventType = 'MOVE_RESULT' | 'TURN_STARTED' | 'TURN_ENDED' | '
 export interface ApiGameEvent { id: number; type: ApiGameEventType; target_user_id: number | null; payload: Record<string, unknown>; created_at: string }
 export interface ApiChatMessage { id: number; game_id: number; user_id: number; message: string; user: ApiUser; created_at: string }
 export interface ApiQuestion { id: number; question: string; answer: string; category: string; difficulty: number }
-export interface ApiGame { id: number; code: string; owner_id: number; started: boolean; created_at: string; host_in_lobby: boolean; lobby_member_ids: number[]; is_private: boolean; is_synthetic?: boolean; synthetic_host_name?: string | null; terminated_at: string | null; termination_reason: 'host_left' | 'host_inactive' | string | null; stack_id: number | null; stack: 'normal' | 'spicy' | string | null; target_score: number; winner_id: number | null; current_player_id: number | null; turn_owner_id: number | null; is_steal_turn: boolean; sync_driver: 'polling' | 'pusher' | 'ably' | 'reverb'; ingame_polling_interval_ms: number; pusher: { key: string; cluster: string; channel: string; event: string; heartbeat_interval_ms: number } | null; ably: { channel: string; event: string; token_endpoint: string; heartbeat_interval_ms: number } | null; reverb: { key: string; host: string; port: number; scheme: 'http' | 'https' | string; channel: string; event: string; heartbeat_interval_ms: number } | null; members: ApiUser[]; hands: Record<string, ApiCard[]>; current_card: ApiCard | null; moves: ApiMove[]; chat_messages: ApiChatMessage[] }
+export interface ApiGame { id: number; state_revision?: number; state_sent_at?: string; code: string; owner_id: number; started: boolean; created_at: string; host_in_lobby: boolean; lobby_member_ids: number[]; is_private: boolean; is_synthetic?: boolean; synthetic_host_name?: string | null; terminated_at: string | null; termination_reason: 'host_left' | 'host_inactive' | string | null; stack_id: number | null; stack: 'normal' | 'spicy' | string | null; target_score: number; winner_id: number | null; current_player_id: number | null; turn_owner_id: number | null; is_steal_turn: boolean; sync_driver: 'polling' | 'pusher' | 'ably' | 'reverb'; ingame_polling_interval_ms: number; pusher: { key: string; cluster: string; channel: string; event: string; heartbeat_interval_ms: number } | null; ably: { channel: string; event: string; token_endpoint: string; heartbeat_interval_ms: number } | null; reverb: { key: string; host: string; port: number; scheme: 'http' | 'https' | string; channel: string; event: string; heartbeat_interval_ms: number } | null; members: ApiUser[]; hands: Record<string, ApiCard[]>; current_card: ApiCard | null; moves: ApiMove[]; chat_messages: ApiChatMessage[] }
 export interface ApiGame { events: ApiGameEvent[] }
 export interface ApiRealtimeGameState {
   id: number;
@@ -68,6 +68,7 @@ export interface ApiRealtimeGameUpdate {
   game_id: number;
   reason: string;
   sent_at: string;
+  state_revision?: number;
   deleted: boolean;
   state: ApiRealtimeGameState | null;
   events: ApiGameEvent[];
@@ -155,6 +156,10 @@ export const api = {
   }),
   logout: (token: string) => request<{ message: string }>('/auth/logout', {
     method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  }),
+  deleteAccount: (token: string) => request<{ message: string }>('/auth/account', {
+    method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
   }),
   listAvailableGames: (signal?: AbortSignal) => request<ApiGame[]>('/games', { signal }, 8_000),

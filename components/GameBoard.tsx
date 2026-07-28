@@ -23,6 +23,7 @@ import { gameEventMachineReducer, initialGameEventMachineState } from '@/lib/gam
 import { canOfferLaneInsertion, localMovePresentationPlan, shouldReleaseLaneLockOnCardFlip } from '@/lib/localMovePresentation';
 import { countdownForceReleaseDelay, GAME_COUNTDOWN_FAILSAFE_MS } from '@/lib/gameCountdownGate';
 import { selectLocalMoveResponseEvents } from '@/lib/localMoveResponseEvents';
+import { appliedStateVersion, initialAppliedStateVersion, shouldApplyServerState } from '@/lib/realtimeStateRevision';
 
 import { MiseryLogo } from './MiseryLogo';
 import { PlayerLaneModal } from './PlayerLaneModal';
@@ -149,6 +150,7 @@ export default function GameBoard({
     result: 'success' | 'failure' | 'steal';
   } | null>(null);
   const lastObservedEventIdRef = useRef<number | null>(null);
+  const lastAppliedStateVersionRef = useRef(initialAppliedStateVersion);
   const acceptedStealCardIdRef = useRef<string | null>(null);
   const turnNoticeIdRef = useRef(0);
   const knownServerMembersRef = useRef(new Map(
@@ -325,6 +327,7 @@ export default function GameBoard({
     dispatchGameEvent({ type: 'RESET' });
     presentedServerEventIdRef.current = null;
     lastObservedEventIdRef.current = null;
+    lastAppliedStateVersionRef.current = initialAppliedStateVersion;
     setActiveStealOfferEvent(null);
     setTurnNotices([]);
     setStayOnLaneAfterAnswer(false);
@@ -873,6 +876,19 @@ export default function GameBoard({
         cancelled = true;
         return;
       }
+      const updateRevision = update.state_revision ?? update.events.reduce(
+        (maximum, event) => Math.max(maximum, event.id),
+        0,
+      );
+      if (!shouldApplyServerState(lastAppliedStateVersionRef.current, updateRevision, update.sent_at)) {
+        logGameAction('realtime.stale-state-ignored', {
+          currentRevision: lastAppliedStateVersionRef.current.revision,
+          incomingRevision: updateRevision,
+          reason: update.reason,
+        });
+        return;
+      }
+      lastAppliedStateVersionRef.current = appliedStateVersion(updateRevision, update.sent_at);
       const realtimeEvents: ApiGameEvent[] = update.events.map((event) => ({
         ...event,
         payload: {
@@ -1073,6 +1089,20 @@ export default function GameBoard({
       try {
         const game = await api.getGame(gameId, userId, pollController.signal);
         if (cancelled || paused || pollController.signal.aborted) return;
+        const gameRevision = game.state_revision ?? (game.events ?? []).reduce(
+          (maximum, event) => Math.max(maximum, event.id),
+          0,
+        );
+        const gameSentAt = game.state_sent_at ?? game.created_at;
+        if (!shouldApplyServerState(lastAppliedStateVersionRef.current, gameRevision, gameSentAt)) {
+          logGameAction('poll.stale-state-ignored', {
+            currentRevision: lastAppliedStateVersionRef.current.revision,
+            incomingRevision: gameRevision,
+            pollNumber,
+          });
+          return;
+        }
+        lastAppliedStateVersionRef.current = appliedStateVersion(gameRevision, gameSentAt);
         activateRealtime(game);
         consecutivePollFailuresRef.current = 0;
         setConnectionWarningVisible(false);

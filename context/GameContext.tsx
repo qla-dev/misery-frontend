@@ -205,8 +205,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     applyPremiumStatus(fallbackStatus);
     try {
       const revenueCatStatus = await identifyRevenueCatUser(user?.id ?? null);
-      applyPremiumStatus(revenueCatStatus);
-      return revenueCatStatus;
+      // Do not replace a valid backend subscription with an empty RevenueCat
+      // response while account aliases or webhooks are still synchronizing.
+      const resolvedStatus = revenueCatStatus.active || !fallbackStatus.active
+        ? revenueCatStatus
+        : fallbackStatus;
+      applyPremiumStatus(resolvedStatus);
+      return resolvedStatus;
     } catch (error) {
       if (__DEV__) console.warn('[RevenueCat] account linking failed', error);
       return fallbackStatus;

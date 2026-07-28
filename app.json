@@ -14,7 +14,8 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "misery.qla.dev",
-      "buildNumber": "36",
+      "buildNumber": "38",
+      "usesAppleSignIn": true,
       "icon": "./assets/images/icon-ios.png",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,

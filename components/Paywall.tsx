@@ -11,6 +11,13 @@ import { getPremiumPackages, hasRevenueCatConfig, PremiumPackages } from '@/lib/
 type Plan = 'monthly' | 'yearly';
 const MASCOT_LOTTIE = require('../assets/animations/mascot_lottie.json');
 
+const formatExpirationDate = (value: string | null) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth() + 1).padStart(2, '0')}.${date.getFullYear()}`;
+};
+
 const FEATURES = [
   { icon: LockKeyhole, en: 'Private game rooms', bs: 'Privatne sobe za igru', detailEn: 'Create locked rooms hidden from Public Games.', detailBs: 'Kreiraj zaključane sobe koje nisu vidljive u Javnim igrama.' },
   { icon: Flame, en: 'Unlock the Spicy deck', bs: 'Otključaj Ljuti špil', detailEn: 'Extreme and bizarre misery cards.', detailBs: 'Ekstremne i bizarne karte nesreće.' },
@@ -21,12 +28,13 @@ const FEATURES = [
 ];
 
 export function Paywall() {
-  const { isPremium, language, managePremium, premiumPlan, premiumReady, purchasePremium, restorePremium } = useGame();
+  const { isPremium, language, managePremium, premiumExpirationDate, premiumPlan, premiumReady, purchasePremium, restorePremium } = useGame();
   const [activating, setActivating] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [packages, setPackages] = useState<PremiumPackages>({ monthly: null, yearly: null });
   const [plan, setPlan] = useState<Plan>('yearly');
   const isBs = language === 'bs';
+  const formattedExpirationDate = formatExpirationDate(premiumExpirationDate);
 
   useEffect(() => {
     if (!hasRevenueCatConfig()) return;
@@ -106,8 +114,18 @@ export function Paywall() {
             className="px-2 text-center text-2xl font-handwritten uppercase leading-7 tracking-[1px] text-neutral-400"
             style={{ paddingBottom: 24, paddingTop: 0 }}
           >
-            {isBs ? 'Više karata. Više patnje. ' : 'More cards. More misery. '}
-            <Text className="text-amber-400">{isBs ? 'Odaberi ponudu.' : 'Choose your offer.'}</Text>
+            {isPremium ? (
+              <Text className="text-amber-400">
+                {formattedExpirationDate
+                  ? (isBs ? `Aktivno do ${formattedExpirationDate}` : `Active until ${formattedExpirationDate}`)
+                  : (isBs ? 'Misery PRO je aktivan' : 'Misery PRO is active')}
+              </Text>
+            ) : (
+              <>
+                {isBs ? 'Više karata. Više patnje. ' : 'More cards. More misery. '}
+                <Text className="text-amber-400">{isBs ? 'Odaberi ponudu.' : 'Choose your offer.'}</Text>
+              </>
+            )}
           </Text>
           <LinearGradient
             colors={['rgba(251,191,36,0.28)', 'rgba(10,10,10,0.15)', 'rgba(251,191,36,0.08)']}

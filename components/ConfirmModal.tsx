@@ -10,6 +10,7 @@ type ConfirmModalProps = {
   confirmLabel: string;
   confirmLoading?: boolean;
   confirmType?: 'primary' | 'secondary' | 'third' | 'success' | 'danger';
+  cancelType?: 'primary' | 'secondary' | 'third' | 'success' | 'danger';
   onCancel?: () => void;
   onConfirm: () => void;
   onRequestClose?: () => void;
@@ -24,6 +25,7 @@ export function ConfirmModal({
   confirmLabel,
   confirmLoading = false,
   confirmType = 'primary',
+  cancelType = 'secondary',
   onCancel,
   onConfirm,
   onRequestClose = onConfirm,
@@ -74,7 +76,7 @@ export function ConfirmModal({
                   disabled={confirmLoading}
                   onPress={handleCancel}
                   size="100"
-                  type="secondary"
+                  type={cancelType}
                 >
                   {cancelLabel}
                 </ButtonTab>
